@@ -1,0 +1,30 @@
+# Weekly flake.lock update as a PR, so the Nix tool versions move forward in reviewed steps.
+# A PR opened with GITHUB_TOKEN does not start CI: close and reopen it, or push to it, to run CI.
+name: Update flake.lock
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/update-flake-lock@da03c0f078bc4b2c37ee4f7e072d34bf8f188bb3 # v29
+        with:
+          pr-title: "build(nix): update flake.lock"
+          commit-msg: "build(nix): update flake.lock"
+          pr-labels: dependencies
