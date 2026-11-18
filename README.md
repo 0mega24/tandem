@@ -9,9 +9,9 @@ connect their build systems.
 
 > [!NOTE]
 > Tandem is in early development. Today, `tdm` can make a space (`new`, with the `always.*`
-> links and copies), print its path and status, show and sync the main clones, and print its
-> config. `add`, `remove`, `delete`, `exec`, the `always.run` hook, workspace generators, the TUI,
-> and plugins are planned.
+> links and copies), add repos to it, print its path and status, show and sync the main clones,
+> and print its config. `remove`, `delete`, `exec`, the `always.run` hook, workspace generators,
+> the TUI, and plugins are planned.
 
 ## Why
 
@@ -221,7 +221,7 @@ See the [config types and defaults](internal/config/config.go).
 
 ## Planned
 
-Space commands will add and remove repos, delete a space, and run a command in each worktree. Generators will
+Space commands will remove repos, delete a space, and run a command in each worktree. Generators will
 update the workspace files when the member repos change. All entries below are planned;
 release numbers are targets from the spec.
 
