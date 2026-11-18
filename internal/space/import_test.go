@@ -142,3 +142,22 @@ func TestImportWTGInvalidConfig(t *testing.T) {
 		}
 	}
 }
+
+// Review 0016, finding 2: tandem still reads a legacy config.yaml. A config.toml next to it would
+// win and hide it, so an existing config.yaml also means "merge manually".
+func TestImportWTGKeepsLegacyYAMLConfig(t *testing.T) {
+	home := t.TempDir()
+	env := config.Env{Home: home, XDGDataHome: filepath.Join(home, "data"), XDGConfigHome: filepath.Join(home, "config")}
+	importWrite(t, filepath.Join(env.XDGConfigHome, "wtg", "config.toml"), "[git]\nbranch_prefix = 'me/'\n")
+	importWrite(t, filepath.Join(env.XDGConfigHome, "tandem", "config.yaml"), "git:\n  branch_prefix: you/\n")
+	rows, err := ImportWTG(env, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(env.XDGConfigHome, "tandem", "config.toml")); !os.IsNotExist(err) {
+		t.Fatal("wrote config.toml next to config.yaml")
+	}
+	if !slices.ContainsFunc(rows, func(r ImportRow) bool { return r.Name == "config" && r.Skipped }) {
+		t.Fatalf("rows = %+v, want a skipped config row", rows)
+	}
+}

@@ -171,14 +171,17 @@ func importUnknownKeys(prefix string, value any) []string {
 
 func importConfigFile(file string, body []byte, dryRun bool) (ImportRow, error) {
 	row := ImportRow{Name: "config", Reason: file}
-	_, err := os.Lstat(file)
-	if err == nil {
-		row.Skipped = true
-		row.Reason = "Tandem config exists; merge wtg config manually"
-		return row, nil
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		return row, err
+	// tandem also reads a legacy config.yaml; a config.toml next to it would hide it.
+	for _, p := range []string{file, filepath.Join(filepath.Dir(file), "config.yaml")} {
+		_, err := os.Lstat(p)
+		if err == nil {
+			row.Skipped = true
+			row.Reason = "Tandem config exists (" + filepath.Base(p) + "); merge wtg config manually"
+			return row, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return row, err
+		}
 	}
 	if dryRun {
 		row.Reason = "would import " + file
