@@ -6,21 +6,20 @@ import (
 	"strings"
 )
 
-// ErrRepairUnsupported means that git is older than 2.29, which added `git worktree repair`.
+// ErrRepairUnsupported is returned by git older than 2.29.
 var ErrRepairUnsupported = errors.New("git worktree repair needs git 2.29 or newer")
 
-// Worktree is one entry of `git worktree list --porcelain`.
+// Worktree is one entry of the worktree list.
 type Worktree struct {
 	Path     string
-	Head     string // commit; empty in a new repo with no commits
+	Head     string
 	Branch   string // short name; empty when detached or bare
 	Bare     bool
 	Detached bool
-	Prunable bool // git knows the entry, but its directory is gone
+	Prunable bool // the directory is gone
 }
 
-// AddWorktree makes a worktree at path on branch. With from set, it makes branch from that start
-// point; else branch must exist and must not be checked out in another worktree.
+// AddWorktree checks out branch at path. A non-empty from creates the branch at that start point.
 func (s System) AddWorktree(ctx context.Context, repo, path, branch, from string) error {
 	args := []string{"worktree", "add", "--quiet"}
 	if from != "" {
@@ -32,7 +31,7 @@ func (s System) AddWorktree(ctx context.Context, repo, path, branch, from string
 	return err
 }
 
-// Worktrees lists the worktrees of repo, the main worktree first.
+// Worktrees lists the main worktree first.
 func (s System) Worktrees(ctx context.Context, repo string) ([]Worktree, error) {
 	out, err := s.run(ctx, repo, "worktree", "list", "--porcelain", "-z")
 	if err != nil {
@@ -41,7 +40,7 @@ func (s System) Worktrees(ctx context.Context, repo string) ([]Worktree, error) 
 	return parseWorktrees(string(out)), nil
 }
 
-// parseWorktrees reads the -z porcelain format: NUL after each line, an empty line between entries.
+// parseWorktrees reads the -z format: one NUL per line, an empty line between entries.
 func parseWorktrees(out string) []Worktree {
 	var list []Worktree
 	var cur *Worktree
@@ -73,8 +72,7 @@ func parseWorktrees(out string) []Worktree {
 	return list
 }
 
-// RemoveWorktree removes the worktree at path. Without force, git refuses a worktree with
-// changes; the space operations ask the user before they force.
+// RemoveWorktree refuses a worktree with changes unless force is set.
 func (s System) RemoveWorktree(ctx context.Context, repo, path string, force bool) error {
 	args := []string{"worktree", "remove"}
 	if force {
@@ -84,18 +82,18 @@ func (s System) RemoveWorktree(ctx context.Context, repo, path string, force boo
 	return err
 }
 
-// PruneWorktrees deletes the git entries of worktrees whose directories are gone.
 func (s System) PruneWorktrees(ctx context.Context, repo string) error {
 	_, err := s.run(ctx, repo, "worktree", "prune")
 	return err
 }
 
-// RepairWorktree connects a worktree directory that git lost track of (for example after a move)
-// back to repo. It returns ErrRepairUnsupported on git older than 2.29.
+// RepairWorktree reconnects a moved worktree.
 func (s System) RepairWorktree(ctx context.Context, repo, path string) error {
 	_, err := s.run(ctx, repo, "worktree", "repair", "--", path)
+
 	if gerr, ok := errors.AsType[*Error](err); ok && strings.Contains(gerr.Stderr, "usage: git worktree") {
 		return ErrRepairUnsupported // old git prints the usage for an unknown subcommand
 	}
+
 	return err
 }

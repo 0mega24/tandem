@@ -7,19 +7,17 @@ import (
 	"strings"
 )
 
-// Status is the state of one worktree, from `git status --porcelain=v2 --branch -z`.
+// Status is the state of one worktree.
 type Status struct {
-	Branch   string   // empty when detached
-	Upstream string   // empty when the branch has no upstream
-	Ahead    int      // commits on Branch that are not on Upstream
-	Behind   int      // commits on Upstream that are not on Branch
-	Changed  []string // changed, staged, conflicted and untracked paths
+	Branch   string // empty when detached
+	Upstream string // empty when there is no upstream
+	Ahead    int
+	Behind   int
+	Changed  []string // all changed paths, untracked included
 }
 
-// Clean reports whether the worktree has no changes and no untracked files.
 func (s Status) Clean() bool { return len(s.Changed) == 0 }
 
-// Status reads the status of the worktree at dir.
 func (s System) Status(ctx context.Context, dir string) (Status, error) {
 	out, err := s.run(ctx, dir, "status", "--porcelain=v2", "--branch", "-z", "--untracked-files=all")
 	if err != nil {
@@ -59,8 +57,9 @@ func parseStatus(out string) (Status, error) {
 	return st, nil
 }
 
-// entryPath returns the path of one status entry and how many extra fields the entry uses.
-// The path is the last of a fixed number of space-separated fields, so it may hold spaces.
+// entryPath returns the path of one entry and how many extra fields the entry uses.
+//
+// The path is the last of a fixed number of fields, so it may hold spaces.
 func entryPath(f string) (path string, extra int, err error) {
 	var n int
 	switch f[0] {
@@ -82,13 +81,13 @@ func entryPath(f string) (path string, extra int, err error) {
 	return parts[n-1], extra, nil
 }
 
-// Unpushed counts the commits on branch that are on no origin remote-tracking branch. A branch
-// that was never pushed counts all its commits that origin does not have.
+// Unpushed counts the commits on branch that origin does not have.
 func (s System) Unpushed(ctx context.Context, repo, branch string) (int, error) {
 	out, err := s.line(ctx, repo, "rev-list", "--count", "refs/heads/"+branch, "--not", "--remotes=origin")
 	if err != nil {
 		return 0, err
 	}
+
 	n, err := strconv.Atoi(out)
 	if err != nil {
 		return 0, fmt.Errorf("parse git rev-list count %q: %w", out, err)
