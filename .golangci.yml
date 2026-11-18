@@ -1,0 +1,55 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - errorlint
+    - revive
+    - gosec
+    - modernize
+    - ineffassign
+    - unused
+    - depguard
+  settings:
+    depguard:
+      rules:
+        # Locked structure, rule 3: a generator is pure and knows only the gen API.
+        generators:
+          files: ["**/internal/gen/*/**", "!**/internal/gen/external/**", "!**/internal/gen/gentest/**"]
+          deny:
+            - pkg: github.com/0mega24/tandem/internal/cli
+            - pkg: github.com/0mega24/tandem/internal/state
+            - pkg: github.com/0mega24/tandem/internal/git
+            - pkg: github.com/0mega24/tandem/internal/saga
+            - pkg: github.com/0mega24/tandem/internal/space
+            - pkg: github.com/0mega24/tandem/internal/tui
+            - pkg: os/exec
+              desc: generators must not run subprocesses
+        # The operations serve both front ends, so they must not depend on either.
+        space:
+          files: ["**/internal/space/**"]
+          deny:
+            - pkg: github.com/0mega24/tandem/internal/cli
+            - pkg: github.com/0mega24/tandem/internal/tui
+        tui:
+          files: ["**/internal/tui/**"]
+          deny:
+            - pkg: github.com/0mega24/tandem/internal/cli
+        banned:
+          files: ["$all"]
+          deny:
+            - pkg: io/ioutil
+              desc: use io and os
+            - pkg: github.com/pkg/errors
+              desc: use errors and fmt.Errorf with %w
+  exclusions:
+    rules:
+      # Tests build fixture repos and run git and tdm with variable arguments on purpose.
+      - path: _test\.go
+        linters: [gosec]
