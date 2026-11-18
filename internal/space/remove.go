@@ -48,7 +48,7 @@ func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, 
 		return nil, errors.New("give at least one repo")
 	}
 
-	sp, err := m.store.Load(name)
+	sp, err := m.loadHealed(ctx, name)
 	if err != nil {
 		return nil, err
 	}

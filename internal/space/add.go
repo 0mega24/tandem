@@ -21,7 +21,7 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 		return NewResult{}, errors.New("give at least one repo")
 	}
 
-	sp, err := m.store.Load(name)
+	sp, err := m.loadHealed(ctx, name)
 	if err != nil {
 		return NewResult{}, err
 	}

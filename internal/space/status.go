@@ -2,6 +2,7 @@ package space
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -45,6 +46,11 @@ func (m *Manager) Status(ctx context.Context, names []string, dir string) ([]Spa
 	spaces, err := m.loadSpaces(names)
 	if err != nil {
 		return nil, err
+	}
+	for i := range spaces {
+		if spaces[i], err = m.healSaved(ctx, spaces[i]); err != nil {
+			return nil, fmt.Errorf("space %s: %w", spaces[i].Name, err)
+		}
 	}
 
 	if i := slices.IndexFunc(spaces, func(sp state.Space) bool { return within(dir, sp.Path) }); i > 0 {

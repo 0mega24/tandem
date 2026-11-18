@@ -35,7 +35,7 @@ type Deleted struct {
 // directory when nothing else is in it, and the state. Like RemoveRepos it asks first about work
 // that is not pushed, and it stops at the first failure with the state saved for a retry.
 func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptions) (Deleted, error) {
-	sp, err := m.store.Load(name)
+	sp, err := m.loadHealed(ctx, name)
 	if err != nil {
 		return Deleted{}, err
 	}

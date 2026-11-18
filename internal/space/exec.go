@@ -24,7 +24,7 @@ func (m *Manager) Exec(ctx context.Context, name string, argv []string, stdout, 
 		return nil, errors.New("give a command")
 	}
 
-	sp, err := m.store.Load(name)
+	sp, err := m.loadHealed(ctx, name)
 	if err != nil {
 		return nil, err
 	}
