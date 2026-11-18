@@ -1,0 +1,54 @@
+# tdm remove writes the files again for the members that are left; tdm delete deletes them.
+mkrepo api lib
+cp api.mod $HOME/repos/api/go.mod
+exec git -C $HOME/repos/api add go.mod
+exec git -C $HOME/repos/api commit -q -m 'add go.mod'
+exec git -C $HOME/repos/api push -q origin main
+cp lib.mod $HOME/repos/lib/go.mod
+exec git -C $HOME/repos/lib add go.mod
+exec git -C $HOME/repos/lib commit -q -m 'add go.mod'
+exec git -C $HOME/repos/lib push -q origin main
+
+exec tdm new feat api lib
+grep '\./lib' $HOME/workspaces/feat/go.work
+
+exec tdm remove feat lib
+stdout '^  go +✓ go.work +\(api\)$'
+! grep '\./lib' $HOME/workspaces/feat/go.work
+
+# With no Go member left, go.work and its go.work.sum go.
+cp sum $HOME/workspaces/feat/go.work.sum
+exec tdm remove feat api
+stdout '^  go +- go.work +deleted$'
+! exists $HOME/workspaces/feat/go.work
+! exists $HOME/workspaces/feat/go.work.sum
+
+# delete deletes the generated files that nobody changed, and keeps a changed one.
+exec tdm new one api
+cp sum $HOME/workspaces/one/go.work.sum
+exec tdm delete one
+stdout '^go.work +✓ removed$'
+stdout '^one +✓ deleted$'
+! exists $HOME/workspaces/one
+
+exec tdm new two api
+cp edited.work $HOME/workspaces/two/go.work
+exec tdm delete two
+stdout '^go.work +! kept: changed by a person'
+stdout 'kept: it holds other files'
+cmp $HOME/workspaces/two/go.work edited.work
+
+-- api.mod --
+module example.com/api
+
+go 1.23
+-- lib.mod --
+module example.com/lib
+
+go 1.23
+-- sum --
+x
+-- edited.work --
+go 1.23
+
+use ./api
