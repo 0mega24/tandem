@@ -42,9 +42,17 @@ type File struct {
 	Content []byte
 }
 
+// Link is a symlink that a Plan makes. Only meson needs one: subprojects/<dir> in a consumer
+// worktree, the one exception to the rule that a plan writes nothing inside a member.
+type Link struct {
+	Path   string // relative to the space root, with "/"
+	Target string // absolute path that the link points to
+}
+
 // Plan is what one generator writes for the members that it found.
 type Plan struct {
 	Files    []File   // sorted by Path
+	Links    []Link   // sorted by Path
 	Stale    []string // files that tools derive from Files, deleted when Files change, e.g. "go.work.sum"
 	Warnings []string // shown to the user; never fatal
 }
