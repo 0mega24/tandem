@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	ucli "github.com/urfave/cli/v3"
 
@@ -16,11 +17,16 @@ import (
 	"github.com/0mega24/tandem/internal/version"
 )
 
+// runMu serializes Run; see Run.
+var runMu sync.Mutex
+
 // Run runs tdm with the full argument list (args[0] is the program name) and returns the exit code.
 // stdin is read only for a confirmation.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	// The registry is global, and discovered plugins belong to this run: so two Runs must not
-	// overlap in one process (the CLI tests do not run them in parallel).
+	// The generator registry is global, and the discovered plugins belong to this run, so the
+	// runs of one process take turns. A real tdm process has one run; this guards embedded use.
+	runMu.Lock()
+	defer runMu.Unlock()
 	defer func() {
 		for _, g := range gen.All() {
 			if p, ok := g.(external.Plugin); ok {

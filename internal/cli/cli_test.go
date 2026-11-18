@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/0mega24/tandem/internal/gen"
@@ -64,6 +65,18 @@ func TestPluginRegistryLifetime(t *testing.T) {
 			t.Fatal("plugin remains registered after CLI run")
 		}
 	}
+	// Runs in one process take turns: the plugins of one run are not in the registry of another.
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			var out, errb bytes.Buffer
+			if code := Run(context.Background(), []string{"tdm", "generate", "--list"}, strings.NewReader(""), &out, &errb); code != 0 || !strings.Contains(out.String(), plugin) {
+				t.Errorf("concurrent list = %d, %q", code, errb.String())
+			}
+		})
+	}
+	wg.Wait()
+
 	if err := os.Remove(plugin); err != nil {
 		t.Fatal(err)
 	}
