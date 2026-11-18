@@ -192,6 +192,9 @@ func decide(root, id string, f File, byPath map[string]Owned, force bool) (Chang
 		}
 	case force && isOwned:
 		c.Action, c.Reason = Write, "changed by a person; replaced (--force)"
+	case force && exists(filepath.Join(root, filepath.FromSlash(f.Path))+backupSuffix):
+		c.Action, c.Reason = Skip, "not written by tdm, and "+f.Path+backupSuffix+" exists; move it away to replace the file"
+		return c, nil, nil
 	case force:
 		c.Action, c.Reason, c.backup = Write, "not written by tdm; the old file is in "+f.Path+backupSuffix, true
 	case isOwned:
@@ -257,6 +260,11 @@ func checkPath(root, p string, members []string) error {
 		}
 	}
 	return nil
+}
+
+func exists(p string) bool {
+	_, err := os.Lstat(p)
+	return err == nil
 }
 
 func hash(b []byte) string {

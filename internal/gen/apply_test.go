@@ -117,6 +117,24 @@ func TestForce(t *testing.T) {
 	}
 }
 
+func TestForceKeepsAnOlderBackup(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "theirs.txt", "not ours")
+	writeFile(t, root, "theirs.txt"+backupSuffix, "an older backup")
+
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Changes[0].Action != Skip {
+		t.Fatalf("action = %v, want skip while a backup exists", a.Changes[0].Action)
+	}
+	run(t, a)
+	if readFile(t, root, "theirs.txt") != "not ours" || readFile(t, root, "theirs.txt"+backupSuffix) != "an older backup" {
+		t.Error("--force changed a file whose backup slot was taken")
+	}
+}
+
 func TestDeleteWhenNoLongerPlanned(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, ".cargo/config.toml", "v1")
