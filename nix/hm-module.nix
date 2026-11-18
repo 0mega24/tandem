@@ -10,6 +10,9 @@ let
   toml = pkgs.formats.toml { };
   finalPackage = cfg.package.override { inherit (cfg) plugins; };
   exe = lib.getExe finalPackage;
+  posixHelper = ''
+    tcd() { cd "$(${exe} path "$1")"; }
+  '';
 in
 {
   options.programs.tandem = {
@@ -29,7 +32,7 @@ in
     };
 
     settings = lib.mkOption {
-      type = toml.type;
+      inherit (toml) type;
       default = { };
       example = lib.literalExpression ''
         {
@@ -56,12 +59,10 @@ in
       source = toml.generate "tandem-config.toml" cfg.settings;
     };
 
-    programs.bash.initExtra = lib.mkIf cfg.shellHelper ''
-      tcd() { cd "$(${exe} path "$1")"; }
-    '';
-    programs.zsh.initContent = lib.mkIf cfg.shellHelper ''
-      tcd() { cd "$(${exe} path "$1")"; }
-    '';
-    programs.fish.functions.tcd = lib.mkIf cfg.shellHelper "cd (${exe} path $argv[1])";
+    programs = {
+      bash.initExtra = lib.mkIf cfg.shellHelper posixHelper;
+      zsh.initContent = lib.mkIf cfg.shellHelper posixHelper;
+      fish.functions.tcd = lib.mkIf cfg.shellHelper "cd (${exe} path $argv[1])";
+    };
   };
 }
