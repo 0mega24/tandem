@@ -294,6 +294,12 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 	})
 
 	t := ui.NewTable(cmd.Root().Writer)
+	removedRows(t, removed, cmd.Bool("delete-branch"))
+	return errors.Join(err, t.Flush())
+}
+
+// removedRows writes one row for each repo that remove or delete took out.
+func removedRows(t *ui.Table, removed []space.Removed, deleteBranch bool) {
 	for _, r := range removed {
 		what := "✓ removed"
 		switch {
@@ -306,12 +312,60 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 		branch := ""
 		if r.BranchErr != nil {
 			branch = "! branch kept: " + r.BranchErr.Error()
-		} else if cmd.Bool("delete-branch") && !r.Entry.Symlink {
+		} else if deleteBranch && !r.Entry.Symlink {
 			branch = "✓ branch deleted"
 		}
 		t.Row(r.Entry.Name, what, branch)
 	}
+}
 
+func deleteCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "delete",
+		Usage:     "Delete a space: its worktrees, symlinks, always.files copies, directory and state",
+		ArgsUsage: "<space>",
+		Description: "When a worktree has changes or commits that origin does not have, tdm lists them and asks\n" +
+			"first; with no answer nothing is deleted. Branches stay unless -d or -D is given. The space\n" +
+			"directory stays when it holds other files. The main clones are not touched.",
+		Flags: []ucli.Flag{
+			&ucli.BoolFlag{Name: "delete-branch", Aliases: []string{"d"}, Usage: "also delete each space branch that is merged (git branch -d)"},
+			&ucli.BoolFlag{Name: "force-delete-branch", Aliases: []string{"D"}, Usage: "also delete each space branch, merged or not (git branch -D)"},
+		},
+		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
+			completeSpaces(cmd)
+		},
+		Action: deleteSpace,
+	}
+}
+
+func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
+	if cmd.Args().Len() != 1 {
+		return errors.New("give one space name: tdm delete <space>")
+	}
+
+	m, err := newManager(cmd)
+	if err != nil {
+		return err
+	}
+
+	force := cmd.Bool("force-delete-branch")
+	res, err := m.DeleteSpace(ctx, cmd.Args().First(), space.DeleteOptions{
+		DeleteBranch: cmd.Bool("delete-branch"),
+		ForceBranch:  force,
+		Confirm:      func(risks []space.Risk) bool { return confirm(cmd, risks) },
+	})
+
+	t := ui.NewTable(cmd.Root().Writer)
+	removedRows(t, res.Repos, force || cmd.Bool("delete-branch"))
+	for _, f := range res.Files {
+		t.Row(f, "✓ removed")
+	}
+	if err == nil {
+		if res.KeptDir {
+			t.Row(res.Space.Path, "! kept: it holds other files")
+		}
+		t.Row(res.Space.Name, "✓ deleted")
+	}
 	return errors.Join(err, t.Flush())
 }
 
@@ -330,13 +384,13 @@ func confirm(cmd *ucli.Command, risks []space.Risk) bool {
 		t.Row("  "+r.Name, strings.Join(parts, ", "))
 	}
 
-	if _, err := fmt.Fprintln(w, "These worktrees have work that a removal loses or leaves only in the branch:"); err != nil {
+	if _, err := fmt.Fprintln(w, "These worktrees have changes that will be lost, or commits that only the branch has:"); err != nil {
 		return false
 	}
 	if t.Flush() != nil {
 		return false
 	}
-	if _, err := fmt.Fprint(w, "Remove them? [y/N] "); err != nil {
+	if _, err := fmt.Fprint(w, "Continue? [y/N] "); err != nil {
 		return false
 	}
 
