@@ -1,0 +1,3 @@
+link: app/subprojects/foo -> ../../foo
+link: bar/subprojects/foo -> ../../foo
+link: foo/subprojects/bar -> ../../bar

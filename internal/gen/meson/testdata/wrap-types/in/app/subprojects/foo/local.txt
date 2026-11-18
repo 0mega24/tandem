@@ -1,0 +1,1 @@
+An existing directory is checked by apply.

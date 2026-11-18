@@ -11,6 +11,7 @@ import (
 	_ "github.com/0mega24/tandem/internal/gen/gradle"
 	_ "github.com/0mega24/tandem/internal/gen/js"
 	_ "github.com/0mega24/tandem/internal/gen/maven"
+	_ "github.com/0mega24/tandem/internal/gen/meson"
 	_ "github.com/0mega24/tandem/internal/gen/rust"
 	_ "github.com/0mega24/tandem/internal/gen/ts"
 	_ "github.com/0mega24/tandem/internal/gen/uv"

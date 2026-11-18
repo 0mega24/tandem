@@ -14,6 +14,7 @@ files that connect them. `tdm generate --list` shows the same table.
 | `gradle` | Java, Kotlin, Groovy, Scala | `settings.gradle`, `settings.gradle.kts`, `build.gradle`, `build.gradle.kts` | on | 1 |
 | `js` | JavaScript, TypeScript | `package.json` | on | 1 |
 | `maven` | Java | `pom.xml` | on | 1 |
+| `meson` | C, C++ | `meson.build`, `subprojects/*.wrap` | on | 1 |
 | `rust` | Rust | `Cargo.toml` | on | 1 |
 | `ts` | TypeScript | `tsconfig.json` | off | 1 |
 | `uv` | Python | `pyproject.toml` | off | 1 |
@@ -70,6 +71,12 @@ Options, in `[generate.js]`:
 ## maven
 
 Package maven writes an aggregator pom.xml in the space root so Maven builds member reactors together in dependency order without changing their parent POMs.
+
+No options.
+
+## meson
+
+Package meson plans subprojects symlinks in consumer worktrees so Meson uses the local dependency worktrees instead of downloading their wrap-git sources.
 
 No options.
 
