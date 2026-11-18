@@ -8,9 +8,10 @@ connect their build systems.
 [![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat)](go.mod)
 
 > [!NOTE]
-> Tandem is in early development. Today, `tdm` can make a space (`new`), print its path and
-> status, show and sync the main clones, and print its config. `add`, `remove`, `delete`, `exec`,
-> the `always.*` settings, workspace generators, the TUI, and plugins are planned.
+> Tandem is in early development. Today, `tdm` can make a space (`new`, with the `always.*`
+> links and copies), print its path and status, show and sync the main clones, and print its
+> config. `add`, `remove`, `delete`, `exec`, the `always.run` hook, workspace generators, the TUI,
+> and plugins are planned.
 
 ## Why
 
@@ -207,9 +208,15 @@ run = ""
 ```
 
 `discovery.max_depth` counts directory levels below the root; `1` scans direct children only.
-The `spaces`, `git`, and `always` settings are accepted today, but their space operations are
-planned. The `always` keys will select symlinked repos, copied files, repo-relative secrets,
-and a hook executable. Generator config is planned and is not accepted yet.
+`tdm new` uses the `always` keys:
+
+- `repos`: each repo that is not on the command line becomes a symlink to its main clone. It has
+  no branch, and its edits show in all spaces.
+- `files`: absolute paths (or `~/`) copied into the space root by base name, e.g. `AGENTS.md`.
+- `secrets`: paths relative to each repo, e.g. `.env`, copied from the main clone into its
+  worktree with the same mode. A repo that does not have one is skipped.
+
+The `always.run` hook is planned. Generator config is planned and is not accepted yet.
 See the [config types and defaults](internal/config/config.go).
 
 ## Planned
