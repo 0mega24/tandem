@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/git"
 	"github.com/0mega24/tandem/internal/state"
 )
@@ -39,9 +42,10 @@ func (m *Manager) healSaved(ctx context.Context, sp state.Space) (state.Space, e
 //     back): git worktree repair connects them again.
 //
 // A main clone that git cannot read is left as it is: status shows the error for that repo.
+// Then healGenerated checks the generated files.
 func (m *Manager) heal(ctx context.Context, sp state.Space) (state.Space, bool, error) {
 	var keep []state.RepoEntry
-	changed := false
+	sp, changed := m.healGenerated(sp)
 
 	for _, e := range sp.Repos {
 		if e.Symlink {
@@ -88,4 +92,33 @@ func (m *Manager) heal(ctx context.Context, sp state.Space) (state.Space, bool, 
 
 	sp.Repos = keep
 	return sp, changed, nil
+}
+
+// healGenerated makes the generated list agree with the disk. A wtg state file with
+// go_workspace gets a go.work entry with the hash of the file on disk, and the default generator
+// set. A generated file that is gone leaves the list.
+func (m *Manager) healGenerated(sp state.Space) (state.Space, bool) {
+	changed := false
+	if sp.GoWorkspace && len(sp.Generated) == 0 {
+		b, err := os.ReadFile(filepath.Join(sp.Path, "go.work"))
+		if err == nil {
+			sp.Generated = []state.GeneratedFile{{Generator: "go", Path: "go.work", SHA256: gen.Hash(b), Stale: []string{"go.work.sum"}}}
+		}
+		defaults, _ := gen.Select(nil) // nil never fails
+		sp.Generators = recordSet(defaults)
+		sp.GoWorkspace = false
+		changed = true
+	}
+
+	var keep []state.GeneratedFile
+	for _, f := range sp.Generated {
+		if _, err := os.Lstat(filepath.Join(sp.Path, filepath.FromSlash(f.Path))); errors.Is(err, fs.ErrNotExist) {
+			m.warn("%s: generated file %s is gone, so it left the state of space %s", f.Generator, f.Path, sp.Name)
+			changed = true
+			continue
+		}
+		keep = append(keep, f)
+	}
+	sp.Generated = keep
+	return sp, changed
 }

@@ -179,7 +179,7 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 // or nil when the file is not tdm's after the change.
 func decide(root, id string, f File, byPath map[string]Owned, force bool) (Change, *Owned, error) {
 	c := Change{Generator: id, Path: f.Path, New: f.Content}
-	own := &Owned{Generator: id, Path: f.Path, SHA256: hash(f.Content)}
+	own := &Owned{Generator: id, Path: f.Path, SHA256: Hash(f.Content)}
 
 	old, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(f.Path))) //nolint:gosec // G304: a checked path in the space root
 	if errors.Is(err, fs.ErrNotExist) {
@@ -192,7 +192,7 @@ func decide(root, id string, f File, byPath map[string]Owned, force bool) (Chang
 	c.Old = old
 
 	prev, isOwned := byPath[f.Path]
-	if isOwned && (prev.SHA256 == hash(old) || bytes.Equal(old, f.Content)) {
+	if isOwned && (prev.SHA256 == Hash(old) || bytes.Equal(old, f.Content)) {
 		c.Action = Write
 		if bytes.Equal(old, f.Content) {
 			c.Action = Unchanged
@@ -233,7 +233,7 @@ func decideDelete(root string, o Owned, force bool) (Change, bool, error) {
 	}
 	c.Old = old
 
-	if hash(old) == o.SHA256 {
+	if Hash(old) == o.SHA256 {
 		c.Action = Delete
 		return c, false, nil
 	}
@@ -289,7 +289,8 @@ func exists(p string) bool {
 	return err == nil
 }
 
-func hash(b []byte) string {
+// Hash is the ownership record of the bytes b: the hex SHA-256 that the state keeps.
+func Hash(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
 }

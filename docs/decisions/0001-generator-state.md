@@ -13,7 +13,8 @@ chooses it once, and `add` and `remove` use the same set. wtg kept only `go_work
 
 The state file gets two keys, as the generator spec says:
 
-- `generators`: the generator IDs of the space.
+- `generators`: the generator IDs of the space. An empty set is `[none]`, as in the config:
+  the key is `omitempty`, and a missing key means the default set.
 - `generated`: one entry per file: `generator`, `path` (relative to the space root), `sha256` of
   the bytes that tdm wrote, and `stale` (derived files, such as go.work.sum, that go with it).
   A symlink that a plan makes (meson's subprojects/<dir>) has `target` in place of `sha256`: the
