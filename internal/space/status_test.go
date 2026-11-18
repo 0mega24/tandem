@@ -14,7 +14,7 @@ func TestStatus(t *testing.T) {
 	f := newFixture(t, "api", "web")
 	ctx := context.Background()
 	for _, n := range []string{"a", "b"} {
-		if _, _, err := f.m.NewSpace(ctx, NewOptions{Name: n, Repos: []string{"api", "web"}}); err != nil {
+		if _, err := f.m.NewSpace(ctx, NewOptions{Name: n, Repos: []string{"api", "web"}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,7 +44,7 @@ func TestStatus(t *testing.T) {
 func TestStatusShowsTheCheckedOutBranch(t *testing.T) {
 	f := newFixture(t, "api")
 	ctx := context.Background()
-	if _, _, err := f.m.NewSpace(ctx, NewOptions{Name: "a", Repos: []string{"api"}}); err != nil {
+	if _, err := f.m.NewSpace(ctx, NewOptions{Name: "a", Repos: []string{"api"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ func TestStatusShowsTheCheckedOutBranch(t *testing.T) {
 func TestStatusNames(t *testing.T) {
 	f := newFixture(t, "api")
 	ctx := context.Background()
-	if _, _, err := f.m.NewSpace(ctx, NewOptions{Name: "a", Repos: []string{"api"}}); err != nil {
+	if _, err := f.m.NewSpace(ctx, NewOptions{Name: "a", Repos: []string{"api"}}); err != nil {
 		t.Fatal(err)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	ucli "github.com/urfave/cli/v3"
 
@@ -20,6 +21,9 @@ func newCommand() *ucli.Command {
 		Description: "The branch is git.branch_prefix + <space>. In a repo where it does not exist, it is made\n" +
 			"from the local default branch (run tdm repo sync first to start from origin). Where it\n" +
 			"exists, it is checked out as it is. A branch that another worktree has checked out is an error.\n\n" +
+			"The space also gets the always.* settings: a symlink to the main clone of each always.repos\n" +
+			"repo that is not named here, a copy of each always.files file in the space root, and a copy\n" +
+			"of each always.secrets file that a main clone has, in its worktree.\n\n" +
 			repoArgsHelp + "\n\n" +
 			"All checks run before the first change. When a step fails, the steps before it are undone.",
 		Flags: []ucli.Flag{
@@ -41,7 +45,7 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
-	sp, repos, err := m.NewSpace(ctx, space.NewOptions{
+	res, err := m.NewSpace(ctx, space.NewOptions{
 		Name:   args[0],
 		Repos:  args[1:],
 		Branch: cmd.String("branch"),
@@ -52,13 +56,25 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 	}
 
 	t := ui.NewTable(cmd.Root().Writer)
-	t.Row(sp.Name, sp.Path)
-	for _, r := range repos {
+	t.Row(res.Space.Name, res.Space.Path)
+	for _, r := range res.Repos {
+		if r.Entry.Symlink {
+			t.Row("  "+r.Entry.Name, "✓ symlink", "→ main clone (always.repos)")
+			continue
+		}
+
 		how := "existing branch"
 		if r.From != "" {
 			how = "new branch from " + r.From
 		}
-		t.Row("  "+r.Entry.Name, "✓ worktree", "["+sp.Branch+"]", how)
+		secrets := ""
+		if len(r.Secrets) > 0 {
+			secrets = "+ " + strings.Join(r.Secrets, ", ")
+		}
+		t.Row("  "+r.Entry.Name, "✓ worktree", "["+res.Space.Branch+"]", how, secrets)
+	}
+	for _, f := range res.Files {
+		t.Row("  "+f, "✓ copied")
 	}
 	return t.Flush()
 }
