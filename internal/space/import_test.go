@@ -161,3 +161,33 @@ func TestImportWTGKeepsLegacyYAMLConfig(t *testing.T) {
 		t.Fatalf("rows = %+v, want a skipped config row", rows)
 	}
 }
+
+// Review 0016, findings 3, 4 and 6: always.run gets a row about the variable names; files that
+// are not space files get a row; a config with only unknown keys writes nothing.
+func TestImportWTGRows(t *testing.T) {
+	home := t.TempDir()
+	env := config.Env{Home: home, XDGDataHome: filepath.Join(home, "data"), XDGConfigHome: filepath.Join(home, "config")}
+	dir := filepath.Join(env.XDGDataHome, "wtg", "spaces")
+	importWrite(t, filepath.Join(dir, "old.yml"), "name: old\n")
+	importWrite(t, filepath.Join(dir, "my feature.yaml"), "name: x\n")
+	importWrite(t, filepath.Join(env.XDGConfigHome, "wtg", "config.toml"), "[always]\nrun = '~/hook.sh'\n")
+	rows, err := ImportWTG(env, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"always.run", "old.yml", "my feature.yaml"} {
+		if !slices.ContainsFunc(rows, func(r ImportRow) bool { return r.Name == name }) {
+			t.Errorf("rows = %+v, want a row for %s", rows, name)
+		}
+	}
+
+	only := t.TempDir()
+	env = config.Env{Home: only, XDGDataHome: filepath.Join(only, "data"), XDGConfigHome: filepath.Join(only, "config")}
+	importWrite(t, filepath.Join(env.XDGConfigHome, "wtg", "config.toml"), "[legacy]\nfoo = 1\n")
+	if _, err := ImportWTG(env, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(env.XDGConfigHome, "tandem", "config.toml")); !os.IsNotExist(err) {
+		t.Fatal("wrote a config with no imported key")
+	}
+}

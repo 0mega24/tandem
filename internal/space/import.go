@@ -32,6 +32,10 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 	if err != nil {
 		return nil, err
 	}
+	skippedFiles, err := importSkippedFiles(source.Dir())
+	if err != nil {
+		return nil, err
+	}
 	configHome := env.XDGConfigHome
 	if !filepath.IsAbs(configHome) {
 		configHome = filepath.Join(env.Home, ".config")
@@ -40,10 +44,10 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 	if !explicit {
 		wtgConfig = filepath.Join(configHome, "wtg", "config.toml")
 	}
-	if strings.HasPrefix(wtgConfig, "~/") {
-		wtgConfig = filepath.Join(env.Home, wtgConfig[2:])
+	if wtgConfig == "~" || strings.HasPrefix(wtgConfig, "~/") {
+		wtgConfig = filepath.Join(env.Home, strings.TrimPrefix(wtgConfig[1:], "/"))
 	}
-	body, unknown, err := importConfig(wtgConfig, explicit, env.Home)
+	body, unknown, hasRun, err := importConfig(wtgConfig, explicit, env.Home)
 	var rows []ImportRow
 	var invalid invalidConfig
 	switch {
@@ -62,17 +66,19 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 			row.Skipped = true
 			row.Reason = "Tandem space exists"
 		case !errors.Is(err, fs.ErrNotExist):
-			return rows, err
+			return rows, partial(err)
 		case dryRun:
 			row.Reason = "would import " + sp.Path
 		default:
+			// A wtg file has no generated files yet, so healGenerated only migrates go_workspace
+			// and does not warn: the zero Manager, which has no writer, is enough.
 			m := Manager{}
 			sp, _ = m.healGenerated(sp)
 			if err := target.Create(sp); errors.Is(err, state.ErrExists) {
 				row.Skipped = true
 				row.Reason = "Tandem space exists"
 			} else if err != nil {
-				return rows, err
+				return rows, partial(err)
 			}
 		}
 		rows = append(rows, row)
@@ -81,10 +87,14 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 		p := filepath.Join(configHome, "tandem", "config.toml")
 		row, err := importConfigFile(p, body, dryRun)
 		if err != nil {
-			return rows, err
+			return rows, partial(err)
 		}
 		rows = append(rows, row)
+		if hasRun {
+			rows = append(rows, ImportRow{Name: "always.run", Reason: "imported; the hook gets TDM_* variables, not WTG_*: update the script"})
+		}
 	}
+	rows = append(rows, skippedFiles...)
 	for _, key := range unknown {
 		rows = append(rows, ImportRow{Name: key, Skipped: true, Reason: "unsupported wtg key; merge manually"})
 	}
@@ -94,18 +104,20 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 // invalidConfig is a wtg config that decodes but that tdm cannot load.
 type invalidConfig struct{ error }
 
-func importConfig(file string, explicit bool, home string) ([]byte, []string, error) {
+// importConfig returns the tandem config to write, the wtg keys that tandem does not know, and
+// whether always.run is set (the hook gets other variable names).
+func importConfig(file string, explicit bool, home string) ([]byte, []string, bool, error) {
 	b, err := os.ReadFile(file) //nolint:gosec // G304: the user selects the wtg config to import
 	if errors.Is(err, fs.ErrNotExist) && !explicit {
-		return nil, nil, nil
+		return nil, nil, false, nil
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("read wtg config: %w", err)
+		return nil, nil, false, fmt.Errorf("read wtg config: %w", err)
 	}
 	parser := toml.Parser()
 	values, err := parser.Unmarshal(b)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse wtg config %s: %w", file, err)
+		return nil, nil, false, fmt.Errorf("parse wtg config %s: %w", file, err)
 	}
 	// These are the shared wtg settings. New Tandem settings must not become wtg settings.
 	shared := map[string][]string{
@@ -124,7 +136,7 @@ func importConfig(file string, explicit bool, home string) ([]byte, []string, er
 			continue
 		}
 		if !isTable {
-			return nil, nil, fmt.Errorf("wtg config %s: %s must be a table", file, section)
+			return nil, nil, false, fmt.Errorf("wtg config %s: %s must be a table", file, section)
 		}
 		keep := map[string]any{}
 		for key, value := range table {
@@ -141,20 +153,25 @@ func importConfig(file string, explicit bool, home string) ([]byte, []string, er
 	cfg := config.Defaults()
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{TagName: "koanf", Result: &cfg})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	if err := decoder.Decode(mapped); err != nil {
-		return nil, nil, fmt.Errorf("wtg config %s: %w", file, err)
-	}
-	if err := config.Check(cfg, home); err != nil {
-		return nil, nil, invalidConfig{fmt.Errorf("wtg config %s: %w", file, err)}
+		return nil, nil, false, fmt.Errorf("wtg config %s: %w", file, err)
 	}
 	slices.Sort(unknown)
+	if len(mapped) == 0 {
+		return nil, unknown, false, nil // only unknown keys: nothing to write
+	}
+	if err := config.Check(cfg, home); err != nil {
+		return nil, unknown, false, invalidConfig{fmt.Errorf("wtg config %s: %w", file, err)}
+	}
+	always, _ := mapped["always"].(map[string]any)
+	_, hasRun := always["run"]
 	b, err = parser.Marshal(mapped)
 	if err != nil {
-		return nil, nil, fmt.Errorf("encode imported config: %w", err)
+		return nil, nil, false, fmt.Errorf("encode imported config: %w", err)
 	}
-	return []byte(config.Template() + "\n# Settings imported from wtg. Hooks must use TDM_* environment variables.\n" + string(b)), unknown, nil
+	return []byte(config.Template() + "\n# Settings imported from wtg. Hooks must use TDM_* environment variables.\n" + string(b)), unknown, hasRun, nil
 }
 
 func importUnknownKeys(prefix string, value any) []string {
@@ -201,4 +218,30 @@ func importConfigFile(file string, body []byte, dryRun bool) (ImportRow, error) 
 	}
 	_, err = f.Write(body)
 	return row, errors.Join(err, f.Close())
+}
+
+// partial says that the spaces before the error are imported: a second run skips them.
+func partial(err error) error {
+	return fmt.Errorf("partial import (run tdm import wtg again to finish): %w", err)
+}
+
+// importSkippedFiles lists the files in the wtg state dir that are not space files, so the
+// import reports them and does not skip them in silence.
+func importSkippedFiles(dir string) ([]ImportRow, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var rows []ImportRow
+	for _, e := range entries {
+		name, ok := strings.CutSuffix(e.Name(), ".yaml")
+		if e.IsDir() || (ok && state.ValidateName(name) == nil) {
+			continue
+		}
+		rows = append(rows, ImportRow{Name: e.Name(), Skipped: true, Reason: "not a wtg space file (<name>.yaml); import it by hand"})
+	}
+	return rows, nil
 }
