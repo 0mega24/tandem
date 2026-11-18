@@ -15,4 +15,5 @@ import (
 	_ "github.com/0mega24/tandem/internal/gen/rust"
 	_ "github.com/0mega24/tandem/internal/gen/ts"
 	_ "github.com/0mega24/tandem/internal/gen/uv"
+	_ "github.com/0mega24/tandem/internal/gen/vscode"
 )

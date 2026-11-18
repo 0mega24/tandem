@@ -18,6 +18,7 @@ files that connect them. `tdm generate --list` shows the same table.
 | `rust` | Rust | `Cargo.toml` | on | 1 |
 | `ts` | TypeScript | `tsconfig.json` | off | 1 |
 | `uv` | Python | `pyproject.toml` | off | 1 |
+| `vscode` | All | `any member` | off | 2 |
 
 ## cabal
 
@@ -100,5 +101,11 @@ No options.
 ## uv
 
 Package uv writes a virtual pyproject.toml workspace so Python members use each other's local packages with one lock file and environment in the space root.
+
+No options.
+
+## vscode
+
+Package vscode writes <space>.code-workspace: one editor window with a root folder for each member and each always.repos symlink (generators spec, "Editor workspace"). tdm owns only the "folders" key, so a person may keep "settings" and other keys in the file (gen.File.Key). Off by default: not every person uses the editor.
 
 No options.

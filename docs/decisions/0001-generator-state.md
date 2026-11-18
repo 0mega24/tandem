@@ -19,6 +19,9 @@ The state file gets two keys, as the generator spec says:
   the bytes that tdm wrote, and `stale` (derived files, such as go.work.sum, that go with it).
   A symlink that a plan makes (meson's subprojects/<dir>) has `target` in place of `sha256`: the
   link is tdm's when it still points there.
+  A JSON file that tdm shares with a person (vscode's .code-workspace) has `key`: the one
+  top-level key that tdm owns. Its `sha256` is of that key's value (compact JSON), so a person may
+  change the other keys.
 
 The hash is the ownership record. A file on disk with the same hash is tdm's; a different hash
 means a person changed it, and tdm skips it unless `--force`. JSON files have no comment for an

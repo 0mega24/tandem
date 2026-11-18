@@ -50,6 +50,7 @@ type GeneratedFile struct {
 	Path      string   `yaml:"path"`             // relative to Space.Path, with "/"
 	SHA256    string   `yaml:"sha256"`           // hex hash of the bytes that tdm wrote; "" for a link
 	Target    string   `yaml:"target,omitempty"` // for a symlink that tdm made: where it points
+	Key       string   `yaml:"key,omitempty"`    // for a shared JSON file: the one key that tdm owns
 	Stale     []string `yaml:"stale,omitempty"`  // derived files deleted with this one, e.g. "go.work.sum"
 }
 

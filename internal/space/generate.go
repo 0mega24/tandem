@@ -156,7 +156,7 @@ func (m *Manager) plan(ctx context.Context, sp state.Space, ids []string) ([]Gen
 			}
 		}
 
-		p, err := g.Plan(gen.Space{Name: sp.Name, Root: sp.Path, Branch: sp.Branch, Members: members, Config: table}, found)
+		p, err := g.Plan(gen.Space{Name: sp.Name, Root: sp.Path, Branch: sp.Branch, Members: members, Config: table, Symlinks: symlinks(sp)}, found)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: plan: %w", id, err)
 		}
@@ -183,6 +183,18 @@ func (m *Manager) members(ctx context.Context, sp state.Space) ([]gen.Member, er
 	}
 	slices.SortFunc(out, func(a, b gen.Member) int { return strings.Compare(a.Name, b.Name) })
 	return out, nil
+}
+
+// symlinks returns the always.repos symlinks of the space, sorted by name.
+func symlinks(sp state.Space) []gen.Member {
+	var out []gen.Member
+	for _, e := range sp.Repos {
+		if e.Symlink {
+			out = append(out, gen.Member{Name: e.Name, WorktreePath: e.WorktreePath, RepoPath: e.RepoPath})
+		}
+	}
+	slices.SortFunc(out, func(a, b gen.Member) int { return strings.Compare(a.Name, b.Name) })
+	return out
 }
 
 // memberDirs returns the path of each repo entry relative to the space root, for gen.Prepare.
@@ -226,7 +238,7 @@ func recordSet(ids []string) []string {
 func owned(files []state.GeneratedFile) []gen.Owned {
 	out := make([]gen.Owned, len(files))
 	for i, f := range files {
-		out[i] = gen.Owned{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Stale: f.Stale}
+		out[i] = gen.Owned{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Key: f.Key, Stale: f.Stale}
 	}
 	return out
 }
@@ -234,7 +246,7 @@ func owned(files []state.GeneratedFile) []gen.Owned {
 func generated(files []gen.Owned) []state.GeneratedFile {
 	out := make([]state.GeneratedFile, len(files))
 	for i, f := range files {
-		out[i] = state.GeneratedFile{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Stale: f.Stale}
+		out[i] = state.GeneratedFile{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Key: f.Key, Stale: f.Stale}
 	}
 	return out
 }

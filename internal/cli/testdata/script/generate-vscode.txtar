@@ -1,0 +1,62 @@
+# vscode owns only the folders key of the .code-workspace file: a person's settings stay, and a
+# delete takes out only the key.
+mkrepo api web infra
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+
+exec tdm new feat api
+stdout '^  vscode +✓ feat.code-workspace +\(api\)$'
+cmp $HOME/workspaces/feat/feat.code-workspace one.json
+stdout '^  infra +✓ symlink'
+
+# A person adds settings; tdm keeps them when it writes the folders again.
+cp settings.json $HOME/workspaces/feat/feat.code-workspace
+exec tdm generate feat
+stdout '^  vscode += feat.code-workspace +unchanged$'
+exec tdm add feat web
+cmp $HOME/workspaces/feat/feat.code-workspace two.json
+
+# A person changes the folders: tdm skips the file.
+cp edited.json $HOME/workspaces/feat/feat.code-workspace
+exec tdm remove feat web
+stdout '! feat.code-workspace +skipped'
+cmp $HOME/workspaces/feat/feat.code-workspace edited.json
+
+-- config.toml --
+[always]
+repos = ["infra"]
+
+[generate]
+enabled = ["vscode"]
+-- one.json --
+{
+	"folders": [
+		{
+			"path": "api"
+		},
+		{
+			"path": "infra"
+		}
+	]
+}
+-- settings.json --
+{"settings": {"editor.tabSize": 4}, "folders": [{"path": "api"}, {"path": "infra"}]}
+-- two.json --
+{
+	"folders": [
+		{
+			"path": "api"
+		},
+		{
+			"path": "infra"
+		},
+		{
+			"path": "web"
+		}
+	],
+	"settings": {
+		"editor.tabSize": 4
+	}
+}
+-- edited.json --
+{"folders": [{"path": "mine"}]}
