@@ -52,6 +52,8 @@ All notable changes to this project are in this file. The format follows
   files of a generator with no members. `tdm delete` deletes the generated files that nobody
   changed, with their derived files; a changed file stays. In all commands, a generated file
   that cannot be deleted is a warning, not an error.
+- `rust` generator: Cargo `[patch]` tables in `.cargo/config.toml` (or a root `Cargo.toml`
+  workspace) for the crates of the members, also for git dependencies on another member.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
