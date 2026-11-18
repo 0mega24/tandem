@@ -96,6 +96,10 @@ func (c Config) validate() error {
 		}
 		bases[filepath.Base(f)] = f
 	}
+	// A relative path with a "/" would depend on the directory that the hook runs in.
+	if r := c.Always.Run; r != "" && !filepath.IsAbs(r) && strings.ContainsRune(r, filepath.Separator) {
+		errs = append(errs, fmt.Errorf("always.run: %q must be an absolute path, a path that starts with ~/, or a name on PATH", r))
+	}
 	for _, s := range c.Always.Secrets {
 		if s == "" || filepath.IsAbs(s) || strings.HasPrefix(s, "~") || hasDotDot(s) {
 			errs = append(errs, fmt.Errorf("always.secrets: %q must be relative to the repo root and must not contain \"..\"", s))

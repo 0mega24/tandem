@@ -124,6 +124,7 @@ func TestLoadErrors(t *testing.T) {
 		{"empty root", "discovery.root_dir = \"\"\n", "discovery.root_dir must not be empty"},
 		{"absolute secret", "always.secrets = [\"/etc/passwd\"]\n", "always.secrets"},
 		{"dotdot secret", "always.secrets = [\"a/../../b\"]\n", "always.secrets"},
+		{"relative hook", "always.run = \"bin/hook\"\n", "always.run"},
 		{"relative file", "always.files = [\"notes/AGENTS.md\"]\n", "must be an absolute path"},
 		{"same base name", "always.files = [\"/a/AGENTS.md\", \"~/b/AGENTS.md\"]\n", "same base name"},
 		{"bad toml", "[git\n", "parse config"},
