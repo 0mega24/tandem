@@ -104,6 +104,9 @@ Rules:
 | `generate-check`, `tidy-check` compare with HEAD | compare the tree before and after | `make check` also works on a dirty tree before a commit. |
 | `make check` runs its parts in series | `quick` in series, then vet, lint, test, build with `-j4` | Project standard: the merge gate runs in parallel. |
 | Config layering by hand | koanf (file, env, confmap providers) | Owner: config parity with wtg. |
+| wtg `config` prints the one config file | `tdm config` prints each layer that it read, lowest priority first | With layers, one file does not show what applies. |
+| wtg config defaults not documented | `discovery.root_dir = "~/repos"`, `discovery.max_depth = 2`, `spaces.root_dir = "~/workspaces"`; an unknown key is an error | Values from the wtg examples; strict keys find typos. |
+| `config init` in the core commands | comes with the generated template (P2) | The template is generated from the code (project spec). |
 | `[[generate.custom]]` | replaced by plugins | As the project spec says. |
 | Nightly integration job in ci.yml | `nightly.yml` runs `make check-full`; ci.yml runs integration only with the label; `ci-passed` gathers all jobs | Slow lanes stay out of PR runs; branch protection needs one check name. |
 
