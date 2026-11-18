@@ -31,7 +31,7 @@ type GenerateResult struct {
 	Space    state.Space // the state after the run
 	Runs     []GeneratorRun
 	Changes  []gen.Change
-	Warnings []string // deletes that failed: the files stay
+	Warnings []string // owned links that left the state, and deletes that failed
 }
 
 // Generate runs the generators of the space on its current members and writes their files.
@@ -70,7 +70,7 @@ func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOption
 	next.Generated = generated(a.Owned)
 	res := GenerateResult{Space: next, Runs: runs, Changes: a.Changes}
 	if opts.DryRun {
-		res.Space = sp
+		res.Space, res.Warnings = sp, a.Warnings()
 		return res, nil
 	}
 

@@ -60,6 +60,7 @@ type Change struct {
 	New       []byte // the planned bytes; nil for Delete
 	Target    string // for a link: its target, in place of Old and New; "" for a file
 	backup    bool   // a forced change keeps the old file in Path + backupSuffix
+	relink    string // a link write that replaces tdm's link to this old target
 }
 
 // Applied is the result of Prepare: the decisions, and the state that results from them.
@@ -68,7 +69,7 @@ type Applied struct {
 	Owned    []Owned   // the owned files after the changes, sorted by path
 	root     string    // the space root
 	stale    []string  // derived files to delete, relative to root
-	warnings *[]string // the deletes that failed, filled when the steps run
+	warnings *[]string // dropped links (Prepare) and failed deletes (when the steps run)
 }
 
 // backupSuffix marks the copy of a file that --force replaced.
@@ -150,7 +151,7 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			}
 			planned[l.Path] = true
 
-			c, o, err := decideLink(root, id, l, ignored)
+			c, o, err := decideLink(root, id, l, byPath, ignored)
 			if err != nil {
 				return Applied{}, err
 			}
@@ -163,10 +164,14 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 
 	// The state came from disk and the members may have changed since, so the owned paths go
 	// through the same check before a delete can touch them.
+	dropped := map[string]bool{} // owned links that broke the rules
 	for _, o := range owned {
 		if o.Target != "" {
+			// A member that left or became a symlink is not an error: the link is not tdm's to
+			// touch any more, so it leaves the state, as heal does for a file that is gone.
 			if err := CheckLink(root, Link{Path: o.Path, Target: o.Target}, members); err != nil {
-				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
+				*a.warnings = append(*a.warnings, fmt.Sprintf("%s: the link %s leaves the state: %v", o.Generator, o.Path, err))
+				dropped[o.Path] = true
 			}
 			continue
 		}
@@ -178,7 +183,7 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 	}
 
 	for _, o := range owned {
-		if planned[o.Path] {
+		if planned[o.Path] || dropped[o.Path] {
 			continue
 		}
 		if _, ran := plans[o.Generator]; !ran {
@@ -361,7 +366,8 @@ func (a Applied) Steps() []saga.Step {
 	return steps
 }
 
-// Warnings returns the deletes that failed when the steps ran.
+// Warnings returns the owned links that left the state in Prepare, and the deletes that failed
+// when the steps ran.
 func (a Applied) Warnings() []string {
 	if a.warnings == nil {
 		return nil
