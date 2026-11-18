@@ -253,3 +253,30 @@ func TestLoadWtgGoWorkspace(t *testing.T) {
 		t.Errorf("Load = %+v, %v; want GoWorkspace from a wtg state file", sp, err)
 	}
 }
+
+func TestLoadRejectsGeneratedPathsOutsideTheSpace(t *testing.T) {
+	s := NewStore(t.TempDir())
+	for _, p := range []string{"../x", "/etc/passwd", "a/../../b", ""} {
+		body := "name: w\npath: /ws/w\nbranch: w\ncreated_at: 2026-03-27T10:00:00Z\nrepos: []\n" +
+			"generated:\n    - generator: go\n      path: go.work\n      sha256: ab\n      stale: [\"" + p + "\"]\n"
+		if err := os.WriteFile(filepath.Join(s.Dir(), "w.yaml"), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Load("w"); err == nil {
+			t.Errorf("Load with stale %q = nil, want an error", p)
+		}
+	}
+}
+
+func TestSaveDropsGoWorkspace(t *testing.T) {
+	s := NewStore(t.TempDir())
+	sp := sample("m")
+	sp.GoWorkspace = true
+	if err := s.Save(sp); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Load("m")
+	if err != nil || got.GoWorkspace {
+		t.Errorf("GoWorkspace after a save = %v, %v; want it dropped", got.GoWorkspace, err)
+	}
+}

@@ -106,7 +106,8 @@ Rules:
 | A later file in `$XDG_CONFIG_DIRS` overrides an earlier one | The first directory in `$XDG_CONFIG_DIRS` wins | The XDG Base Directory spec puts the most important directory first. |
 | `always.files` paths and `always.repos` names not specified | A file is an absolute path or starts with `~/`, base names are unique; an unknown `always.repos` name is an error | A relative path would depend on the current directory; two files with one base name would overwrite each other; a typo must not quietly drop a repo. |
 | `always.run = "<path>"` | Also a bare name on `PATH`; a relative path with `/` is an error. The hook runs in the space root (where tdm runs after a delete), with its output on stderr | A relative path would depend on the directory; stdout stays clean for scripts that read tdm output. |
-| `gen.DecodeConfig[Config](s.Config)`; `enabled` omitted or `["none"]` | `gen.DecodeConfig(s.Config, defaults)`; an empty `enabled` list is the same as `["none"]` | The defaults come from `Meta().Config`, so the decoder needs them; an empty list naming no generators means none. |
+| `gen.DecodeConfig[Config](s.Config)` | `gen.DecodeConfig(s.Config, defaults)` | The defaults come from `Meta().Config`, so the decoder needs them. |
+| `generate.enabled`: omitted or `["none"]` | An empty list is the same as `["none"]`; `"none"` with other IDs is an error | A list that names no generator means none; "none" and an ID together have no meaning. |
 | `Detect(m Member)` | `Detect(m Member, o DetectOptions)` with `Depth` (generate.detect_depth) and the `[generate.<id>]` table | Detection needs settings too: detect_depth for all, scan_depth for cmake. |
 | Config layering by hand | koanf (file, env, confmap providers) | Owner: config parity with wtg. |
 | wtg `config` prints the one config file | `tdm config` prints each layer that it read, lowest priority first | With layers, one file does not show what applies. |

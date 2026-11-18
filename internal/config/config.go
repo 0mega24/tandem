@@ -79,7 +79,7 @@ type Generate struct {
 
 // Table returns the [generate.<id>] table, or nil when there is none.
 func (g Generate) Table(id string) map[string]any {
-	t, _ := g.Tables[id].(map[string]any) // validate checked the type; a missing table is nil
+	t, _ := g.Tables[id].(map[string]any) // nil when there is no table: the generator uses its defaults
 	return t
 }
 

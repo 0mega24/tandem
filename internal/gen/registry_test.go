@@ -64,9 +64,23 @@ func TestRegistry(t *testing.T) {
 	}
 }
 
+func TestCheckConfig(t *testing.T) {
+	withRegistry(t, fakeGen{Meta{ID: "go"}}, fakeGen{Meta{ID: "rust"}})
+
+	if err := CheckConfig([]string{"go"}, map[string]any{"rust": map[string]any{}}); err != nil {
+		t.Errorf("CheckConfig(valid) = %v", err)
+	}
+	if err := CheckConfig(nil, map[string]any{"rusty": map[string]any{}}); err == nil || !strings.Contains(err.Error(), "[generate.rusty]") {
+		t.Errorf("CheckConfig(typo table) = %v, want an error", err)
+	}
+	if err := CheckConfig([]string{"none", "go"}, nil); err == nil || !strings.Contains(err.Error(), "cannot be combined") {
+		t.Errorf("CheckConfig(none, go) = %v, want the combine error", err)
+	}
+}
+
 func TestRegisterPanics(t *testing.T) {
 	withRegistry(t, fakeGen{Meta{ID: "go"}})
-	for _, id := range []string{"go", "", "a b"} {
+	for _, id := range []string{"go", "", "a b", "none", "Go", "a.b"} {
 		func() {
 			defer func() {
 				if recover() == nil {
@@ -91,6 +105,10 @@ func TestDecodeConfig(t *testing.T) {
 	}
 	if _, err := DecodeConfig(map[string]any{"modes": "patch"}, def); err == nil {
 		t.Error("DecodeConfig with a typo = nil, want an error")
+	}
+	shared := cfg{Registries: []string{"x"}}
+	if _, err := DecodeConfig(map[string]any{"registries": []any{"a", "b"}}, shared); err != nil || shared.Registries[0] != "x" {
+		t.Errorf("DecodeConfig changed the defaults: %v, %v", shared.Registries, err)
 	}
 	if got, err := DecodeConfig(nil, def); err != nil || got.Mode != "auto" {
 		t.Errorf("DecodeConfig(nil) = %+v, %v; want the defaults", got, err)
