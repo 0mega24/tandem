@@ -40,3 +40,4 @@ feat         $HOME/workspaces/feat
   web        ✓ worktree  [feat]  new branch from main
   infra      ✓ symlink   → main clone (always.repos)
   AGENTS.md  ✓ copied
+  go         - no members

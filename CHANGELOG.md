@@ -45,6 +45,9 @@ All notable changes to this project are in this file. The format follows
   `<file>.tandem-bak`. A file that no generator plans any more is deleted, with its derived files
   (`go.work.sum`). `--dry-run` writes nothing; `--list` lists the generators. The `[generate]`
   config table (`enabled`, `detect_depth`, `[generate.<id>]`) is checked against them.
+- `tdm new` and `tdm add` run the generators of the space after the worktrees; a failure undoes
+  the command. `tdm new --generate=<ids>|--no-generate` chooses the set, and the space keeps it.
+  The `always.run` hook gets `TDM_GENERATED_FILES`.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

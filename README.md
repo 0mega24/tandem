@@ -24,8 +24,8 @@ Today, repo status and sync help you inspect and update those main clones from o
 
 ## How it works
 
-Today, `tdm new` makes the worktrees, and `tdm generate` writes `go.work` for the Go repos. The
-other generators are **planned**:
+Today, `tdm new` makes the worktrees and writes `go.work` for the Go repos; `tdm add` and
+`tdm generate` write it again. The other generators are **planned**:
 
 ```mermaid
 flowchart LR
@@ -160,6 +160,7 @@ feat         ~/workspaces/feat
   api        ✓ worktree  [feat]  new branch from main
   web        ✓ worktree  [feat]  existing branch
   myorg/lib  ✓ worktree  [feat]  new branch from main
+  go         - no members
 
 $ tdm status feat
 feat         ~/workspaces/feat
@@ -175,7 +176,8 @@ space, with a warning. Its commits stay on the branch.
 
 A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
 branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and the
-directory. When a step fails, `tdm new` undoes the steps before it.
+directory. `--generate=go` or `--no-generate` chooses the generators for this space in place of
+`generate.enabled`. When a step fails, `tdm new` undoes the steps before it.
 
 ## Configuration
 
@@ -223,7 +225,8 @@ run = ""
 - `run`: an executable (absolute, `~/`, or a name on `PATH`) that runs in the space root after
   `new`, `add`, `remove` and `delete`. It gets `TDM_SPACE_NAME`, `TDM_SPACE_ROOT`,
   `TDM_SPACE_BRANCH`, `TDM_SPACE_EVENT` (`create`, `add`, `remove`, `delete`), and the lists
-  `TDM_REPOS`, `TDM_REPO_PATHS` and `TDM_EVENT_REPOS` (one entry per line). Its output goes to
+  `TDM_REPOS`, `TDM_REPO_PATHS`, `TDM_EVENT_REPOS` and `TDM_GENERATED_FILES` (one entry per
+  line). Its output goes to
   stderr. A failure is a warning: the command still succeeds.
 
 The `[generate]` table chooses the generators: `enabled = ["go"]` (or `["none"]`) and
