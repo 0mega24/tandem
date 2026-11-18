@@ -103,12 +103,12 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			return Applied{}, fmt.Errorf("generator %s: links are not supported yet", id) // they come with meson
 		}
 		for _, s := range plans[id].Stale {
-			if err := checkPath(s, members); err != nil {
+			if err := checkPath(root, s, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: stale %w", id, err)
 			}
 		}
 		for _, f := range plans[id].Files {
-			if err := checkPath(f.Path, members); err != nil {
+			if err := checkPath(root, f.Path, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: %w", id, err)
 			}
 			if planned[f.Path] {
@@ -135,7 +135,7 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 	// through the same check before a delete can touch them.
 	for _, o := range owned {
 		for _, p := range append([]string{o.Path}, o.Stale...) {
-			if err := checkPath(p, members); err != nil {
+			if err := checkPath(root, p, members); err != nil {
 				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
 			}
 		}
@@ -227,15 +227,33 @@ func decideDelete(root string, o Owned, force bool) (Change, bool, error) {
 	return c, false, nil
 }
 
-// checkPath enforces the rules for a planned path: relative to the space root, clean, with "/",
-// and not inside a member worktree.
-func checkPath(p string, members []string) error {
+// checkPath enforces the rules for a path that tdm writes or deletes: relative to the space root,
+// clean, with "/", not inside a member worktree, and not through a symlink on disk. A symlink in
+// the root is an always.repos entry: a path through it would change the main clone.
+//
+// The member check ignores case, because macOS and Windows file systems do.
+func checkPath(root, p string, members []string) error {
 	if p == "" || path.IsAbs(p) || path.Clean(p) != p || strings.HasPrefix(p, "../") || p == ".." || strings.Contains(p, `\`) {
-		return fmt.Errorf("planned path %q must be clean, relative and inside the space root", p)
+		return fmt.Errorf("path %q must be clean, relative and inside the space root", p)
 	}
 	for _, m := range members {
-		if p == m || strings.HasPrefix(p, m+"/") {
-			return fmt.Errorf("planned path %q is inside member %s", p, m)
+		if strings.EqualFold(p, m) || (len(p) > len(m) && strings.EqualFold(p[:len(m)+1], m+"/")) {
+			return fmt.Errorf("path %q is inside member %s", p, m)
+		}
+	}
+
+	cur := root
+	for part := range strings.SplitSeq(p, "/") {
+		cur = filepath.Join(cur, part)
+		fi, err := os.Lstat(cur)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // the rest is new
+		}
+		if err != nil {
+			return err
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("path %q goes through the symlink %s", p, cur)
 		}
 	}
 	return nil

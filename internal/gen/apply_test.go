@@ -152,7 +152,14 @@ func TestDeleteWhenNoLongerPlanned(t *testing.T) {
 
 func TestPrepareRejectsBadPaths(t *testing.T) {
 	root := t.TempDir()
-	for _, p := range []string{"../x", "/etc/x", "a/../b", "", "api/go.work", "api", `a\b`} {
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, "infra")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "real/x", "x")
+	if err := os.Symlink(filepath.Join(root, "real/x"), filepath.Join(root, "link.txt")); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{"../x", "/etc/x", "a/../b", "", "api/go.work", "api", `a\b`, "API/x", "infra/go.work", "link.txt"} {
 		_, err := Prepare(root, nil, map[string]Plan{"go": plan(file(p, "x"))}, []string{"api"}, false)
 		if err == nil {
 			t.Errorf("Prepare(%q) = nil, want an error", p)
