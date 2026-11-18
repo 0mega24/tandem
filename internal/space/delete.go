@@ -113,5 +113,8 @@ func (m *Manager) deleteGenerated(ctx context.Context, sp state.Space) []gen.Cha
 		m.warn("space %s: generated files are kept: %v", sp.Name, err)
 		return nil
 	}
+	for _, w := range a.Warnings() {
+		m.warn("space %s: %s", sp.Name, w)
+	}
 	return a.Changes
 }

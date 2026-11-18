@@ -62,10 +62,11 @@ type Change struct {
 
 // Applied is the result of Prepare: the decisions, and the state that results from them.
 type Applied struct {
-	Changes []Change // planned files in generator and plan order, then the deletes
-	Owned   []Owned  // the owned files after the changes, sorted by path
-	root    string   // the space root
-	stale   []string // derived files to delete, relative to root
+	Changes  []Change  // planned files in generator and plan order, then the deletes
+	Owned    []Owned   // the owned files after the changes, sorted by path
+	root     string    // the space root
+	stale    []string  // derived files to delete, relative to root
+	warnings *[]string // the deletes that failed, filled when the steps run
 }
 
 // backupSuffix marks the copy of a file that --force replaced.
@@ -91,7 +92,7 @@ const backupSuffix = ".tandem-bak"
 // copy exists already, the file is skipped: an older copy is never overwritten.
 func Prepare(root string, owned []Owned, plans map[string]Plan, members []string, force bool) (Applied, error) {
 	root = filepath.Clean(root)
-	a := Applied{root: root}
+	a := Applied{root: root, warnings: new([]string)}
 	byPath := map[string]Owned{}
 	for _, o := range owned {
 		byPath[o.Path] = o
@@ -297,14 +298,21 @@ func Hash(b []byte) string {
 
 // Steps returns the saga steps that make the changes: writes and deletes, then the stale files,
 // each once. Each step's undo puts back the bytes that were there.
+//
+// A delete that fails is a warning, not a step failure (generators spec, Cleanup): the file stays
+// and leaves the owned list, and Warnings says so after the steps ran.
 func (a Applied) Steps() []saga.Step {
+	warn := func(rel string, err error) {
+		*a.warnings = append(*a.warnings, fmt.Sprintf("could not delete %s, so it stays; delete it by hand: %v", rel, err))
+	}
+
 	var steps []saga.Step
 	for _, c := range a.Changes {
 		switch c.Action {
 		case Write:
 			steps = append(steps, writeStep(a.root, c))
 		case Delete:
-			steps = append(steps, deleteStep(a.root, c))
+			steps = append(steps, deleteStep(a.root, c, warn))
 		}
 	}
 
@@ -312,10 +320,18 @@ func (a Applied) Steps() []saga.Step {
 	for _, s := range a.stale {
 		if !seen[s] {
 			seen[s] = true
-			steps = append(steps, staleStep(a.root, s))
+			steps = append(steps, staleStep(a.root, s, warn))
 		}
 	}
 	return steps
+}
+
+// Warnings returns the deletes that failed when the steps ran.
+func (a Applied) Warnings() []string {
+	if a.warnings == nil {
+		return nil
+	}
+	return *a.warnings
 }
 
 func writeStep(root string, c Change) saga.Step {
@@ -390,9 +406,9 @@ func writeAtomic(p string, b []byte) error {
 	return os.Rename(tmp.Name(), p)
 }
 
-func deleteStep(root string, c Change) saga.Step {
+func deleteStep(root string, c Change, warn func(string, error)) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(c.Path))
-	madeBackup := false
+	madeBackup, deleted := false, false
 	return saga.Step{
 		Name: "delete " + c.Path,
 		Do: func(context.Context) error {
@@ -404,14 +420,22 @@ func deleteStep(root string, c Change) saga.Step {
 			}
 			if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
 				if madeBackup {
-					return errors.Join(err, os.Remove(p+backupSuffix)) // the saga undoes only finished steps
+					if err := os.Remove(p + backupSuffix); err != nil {
+						return err
+					}
+					madeBackup = false
 				}
-				return err
+				warn(c.Path, err)
+				return nil
 			}
+			deleted = true
 			removeEmptyDirs(filepath.Dir(p), root)
 			return nil
 		},
 		Undo: func(context.Context) error {
+			if !deleted {
+				return nil
+			}
 			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // as before the delete
 				return err
 			}
@@ -428,9 +452,9 @@ func deleteStep(root string, c Change) saga.Step {
 
 // staleStep deletes a derived file such as go.work.sum, which the tool makes again. A directory
 // is not deleted: a stale entry names files only.
-func staleStep(root, rel string) saga.Step {
+func staleStep(root, rel string, warn func(string, error)) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(rel))
-	var old []byte
+	var old []byte // set only when the file was deleted
 	return saga.Step{
 		Name: "delete stale " + rel,
 		Do: func(context.Context) error {
@@ -438,13 +462,19 @@ func staleStep(root, rel string) saga.Step {
 			if errors.Is(err, fs.ErrNotExist) || (err == nil && !fi.Mode().IsRegular()) {
 				return nil
 			}
+			var b []byte
+			if err == nil {
+				b, err = os.ReadFile(p) //nolint:gosec // G304: a path in the space root
+			}
+			if err == nil {
+				err = os.Remove(p)
+			}
 			if err != nil {
-				return err
+				warn(rel, err)
+				return nil
 			}
-			if old, err = os.ReadFile(p); err != nil { //nolint:gosec // G304: a path in the space root
-				return err
-			}
-			return os.Remove(p)
+			old = b
+			return nil
 		},
 		Undo: func(context.Context) error {
 			if old == nil {

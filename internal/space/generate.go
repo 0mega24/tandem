@@ -28,9 +28,10 @@ type GeneratorRun struct {
 
 // GenerateResult is the result of Generate.
 type GenerateResult struct {
-	Space   state.Space // the state after the run
-	Runs    []GeneratorRun
-	Changes []gen.Change
+	Space    state.Space // the state after the run
+	Runs     []GeneratorRun
+	Changes  []gen.Change
+	Warnings []string // deletes that failed: the files stay
 }
 
 // Generate runs the generators of the space on its current members and writes their files.
@@ -81,6 +82,7 @@ func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOption
 	if err := saga.Run(ctx, steps); err != nil {
 		return GenerateResult{}, err
 	}
+	res.Warnings = a.Warnings()
 	return res, nil
 }
 
@@ -109,7 +111,7 @@ func (m *Manager) generateStep(sp *state.Space, ids []string, out *GenerateResul
 			done = steps
 			sp.Generators = recordSet(ids)
 			sp.Generated = generated(a.Owned)
-			*out = GenerateResult{Runs: runs, Changes: a.Changes}
+			*out = GenerateResult{Runs: runs, Changes: a.Changes, Warnings: a.Warnings()}
 			return nil
 		},
 		Undo: func(ctx context.Context) error {

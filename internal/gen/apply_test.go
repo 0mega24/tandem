@@ -335,3 +335,29 @@ func TestRemoveEmptyDirsKeepsSymlinks(t *testing.T) {
 		t.Errorf("link = %v, want the symlink kept", err)
 	}
 }
+
+func TestFailedDeleteIsAWarning(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "locked/go.work", "v1")
+	writeFile(t, root, "locked/go.work.sum", "sum")
+	owned := []Owned{{Generator: "go", Path: "locked/go.work", SHA256: Hash([]byte("v1")), Stale: []string{"locked/go.work.sum"}}}
+	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A directory without write permission: the files cannot be deleted.
+	locked := filepath.Join(root, "locked")
+	if err := os.Chmod(locked, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) }) // so that TempDir can remove it
+
+	run(t, a)
+	if w := a.Warnings(); len(w) != 2 || !strings.Contains(w[0], "could not delete locked/go.work") {
+		t.Errorf("warnings = %q, want one for go.work and one for go.work.sum", w)
+	}
+	if readFile(t, root, "locked/go.work") != "v1" || readFile(t, root, "locked/go.work.sum") != "sum" {
+		t.Error("the files are gone")
+	}
+}

@@ -108,7 +108,7 @@ func printNew(cmd *ucli.Command, res space.NewResult) error {
 		t.Row("  "+f, "✓ copied")
 	}
 	generatedRows(t, res.Generated)
-	if err := printWarnings(cmd, res.Generated.Runs); err != nil {
+	if err := printWarnings(cmd, res.Generated); err != nil {
 		return err
 	}
 	return t.Flush()
@@ -322,7 +322,7 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 	t := ui.NewTable(cmd.Root().Writer)
 	removedRows(t, removed, cmd.Bool("delete-branch"))
 	generatedRows(t, generated)
-	return errors.Join(err, printWarnings(cmd, generated.Runs), t.Flush())
+	return errors.Join(err, printWarnings(cmd, generated), t.Flush())
 }
 
 // removedRows writes one row for each repo that remove or delete took out.

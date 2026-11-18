@@ -56,7 +56,7 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
-	if err := printWarnings(cmd, res.Runs); err != nil {
+	if err := printWarnings(cmd, res); err != nil {
 		return err
 	}
 
@@ -84,13 +84,18 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 	return err
 }
 
-// printWarnings writes the warnings of the generators to stderr.
-func printWarnings(cmd *ucli.Command, runs []space.GeneratorRun) error {
-	for _, r := range runs {
+// printWarnings writes the warnings of the generators and of the failed deletes to stderr.
+func printWarnings(cmd *ucli.Command, res space.GenerateResult) error {
+	for _, r := range res.Runs {
 		for _, w := range r.Warnings {
 			if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s: %s\n", r.ID, w); err != nil {
 				return err
 			}
+		}
+	}
+	for _, w := range res.Warnings {
+		if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s\n", w); err != nil {
+			return err
 		}
 	}
 	return nil
