@@ -10,6 +10,7 @@ import (
 
 	ucli "github.com/urfave/cli/v3"
 
+	_ "github.com/0mega24/tandem/internal/gen/all" // the built-in generators register themselves
 	"github.com/0mega24/tandem/internal/version"
 )
 
