@@ -74,7 +74,8 @@ All notable changes to this project are in this file. The format follows
 - `cabal` generator: a root `cabal.project` with the packages of the Haskell members.
 - `meson` generator: links `subprojects/<dir>` in each consumer to the other members, only where git ignores the path.
 - `vscode` generator (off by default): `<space>.code-workspace` with a folder for each member and
-  always.repos symlink. tdm owns only the `folders` key; the other keys stay.
+  always.repos symlink. tdm owns only the `folders` key; the other keys stay. It reads JSONC (comments,
+  trailing commas) and writes plain JSON; the change says so when comments go.
 - Generator plugins: an executable `tdm-gen-<id>` in `plugin_dirs`, the tandem plugin directory or
   `PATH` (protocol 1, docs/plugins.md). `tdm plugin check <id>` tests one. A plugin runs only when a
   command needs it, so `status`, `path` and `exec` stay fast with many plugins.

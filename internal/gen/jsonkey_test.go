@@ -130,3 +130,31 @@ func TestKeyPlanMustHoldOnlyTheKey(t *testing.T) {
 		}
 	}
 }
+
+// VS Code writes .code-workspace files as JSONC: comments and trailing commas.
+func TestKeyJSONC(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "w.code-workspace", `{
+	// the folders of the space
+	"folders": [{"path": "a"},],
+	/* a person's settings */
+	"settings": {"url": "http://x//y", "s": "a \" /* b"},
+}`)
+	owned := []Owned{keyOwned("w.code-workspace", `[{"path": "a"}]`)}
+	plans := map[string]Plan{"vscode": {Files: []File{keyFile("w.code-workspace", `[{"path": "b"}]`)}}}
+
+	a, err := Prepare(root, owned, plans, nil, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := a.Changes[0]; c.Action != Write || !strings.Contains(c.Reason, "comments") {
+		t.Fatalf("change = %v (%s), want a write that says the comments go", c.Action, c.Reason)
+	}
+	run(t, a)
+	got := readFile(t, root, "w.code-workspace")
+	for _, want := range []string{`"b"`, `"http://x//y"`, `"a \" /* b"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("w.code-workspace = %s, want %s", got, want)
+		}
+	}
+}

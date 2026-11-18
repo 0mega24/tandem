@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,14 +43,63 @@ func marshalObject(obj map[string]any) []byte {
 	return append(b, '\n')
 }
 
-// readObject reads a JSON object; ok is false when the file is not one.
+// readObject reads a JSON object, also as JSONC (comments and trailing commas, which VS Code
+// writes); ok is false when the file is not one.
 func readObject(b []byte) (map[string]any, bool) {
 	var obj map[string]any
-	if json.Unmarshal(b, &obj) != nil || obj == nil {
+	if json.Unmarshal(stripJSONC(b), &obj) != nil || obj == nil {
 		return nil, false
 	}
 	return obj, true
 }
+
+// stripJSONC removes // and /* */ comments and trailing commas outside strings. Plain JSON comes
+// back unchanged.
+func stripJSONC(b []byte) []byte {
+	out := make([]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		switch {
+		case c == '"':
+			j := i + 1
+			for j < len(b) && b[j] != '"' {
+				if b[j] == '\\' {
+					j++
+				}
+				j++
+			}
+			j = min(j, len(b)-1)
+			out = append(out, b[i:j+1]...)
+			i = j
+		case c == '/' && i+1 < len(b) && b[i+1] == '/':
+			for i < len(b) && b[i] != '\n' {
+				i++
+			}
+			i-- // keep the newline
+		case c == '/' && i+1 < len(b) && b[i+1] == '*':
+			end := bytes.Index(b[i+2:], []byte("*/"))
+			if end < 0 {
+				return b // an open comment: let json report the error
+			}
+			i += end + 3
+		case c == ']' || c == '}':
+			k := len(out) - 1
+			for k >= 0 && (out[k] == ' ' || out[k] == '\t' || out[k] == '\n' || out[k] == '\r') {
+				k--
+			}
+			if k >= 0 && out[k] == ',' {
+				out = append(out[:k], out[k+1:]...)
+			}
+			out = append(out, c)
+		default:
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// hasComments reports whether a write of b as plain JSON drops comments or trailing commas.
+func hasComments(b []byte) bool { return !bytes.Equal(stripJSONC(b), b) }
 
 // decideKey is decide for a File with a Key.
 func decideKey(root, id string, f File, byPath map[string]Owned, force bool) (Change, *Owned, error) {
@@ -82,6 +132,9 @@ func decideKey(root, id string, f File, byPath map[string]Owned, force bool) (Ch
 			return c, own, nil
 		case isOwned && prev.SHA256 == onDisk:
 			c.Action = Write
+			if hasComments(old) {
+				c.Reason = "the file is written as plain JSON, so its comments go"
+			}
 			return c, own, nil
 		}
 	}
@@ -142,5 +195,8 @@ func decideKeyDelete(root string, o Owned, force bool) (Change, bool, error) {
 		return c, false, nil
 	}
 	c.Action, c.New, c.Reason = Write, marshalObject(disk), "the "+o.Key+" key is removed; the other keys stay"
+	if hasComments(old) {
+		c.Reason += "; comments go"
+	}
 	return c, false, nil
 }
