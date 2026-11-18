@@ -1,6 +1,7 @@
 package space
 
 import (
+	"io"
 	"sync"
 
 	"github.com/0mega24/tandem/internal/config"
@@ -10,9 +11,10 @@ import (
 
 // Manager runs the operations with one config, one git and one state store.
 type Manager struct {
-	cfg   config.Config
-	git   git.Runner
-	store state.Store
+	cfg     config.Config
+	git     git.Runner
+	store   state.Store
+	hookOut io.Writer // nil drops the output of the always.run hook
 }
 
 // New returns a Manager. Tests pass a fake git.Runner to make one step fail.

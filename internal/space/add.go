@@ -92,6 +92,12 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 		return NewResult{}, err
 	}
 
+	changed := make([]state.RepoEntry, len(added))
+	for i, a := range added {
+		changed[i] = a.Entry
+	}
+	m.runHook(ctx, next, EventAdd, next.Repos, changed)
+
 	return NewResult{Space: next, Repos: added}, nil
 }
 

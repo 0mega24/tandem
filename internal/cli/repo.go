@@ -31,7 +31,11 @@ func newManager(cmd *ucli.Command) (*space.Manager, error) {
 	}
 
 	store := state.NewStore(state.DefaultDir(env.Home, env.XDGDataHome))
-	return space.New(loaded.Config, git.System{}, store), nil
+	m := space.New(loaded.Config, git.System{}, store)
+
+	// stderr, so that the output of tdm stays clean for scripts.
+	m.SetHookOutput(cmd.Root().ErrWriter)
+	return m, nil
 }
 
 // repoArgsHelp is shared because all repo commands resolve names the same way.

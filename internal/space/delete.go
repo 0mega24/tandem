@@ -78,5 +78,10 @@ func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptio
 	if err := os.Remove(sp.Path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		res.KeptDir = true
 	}
-	return res, m.store.Delete(sp.Name)
+	if err := m.store.Delete(sp.Name); err != nil {
+		return res, err
+	}
+
+	m.runHook(ctx, sp, EventDelete, sp.Repos, sp.Repos)
+	return res, nil
 }
