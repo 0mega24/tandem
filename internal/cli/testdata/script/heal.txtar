@@ -1,0 +1,13 @@
+# A worktree deleted with rm leaves the space at the next command, with a warning.
+mkrepo api web
+exec tdm new feat api web
+rm $HOME/workspaces/feat/web
+exec tdm status feat
+stderr 'warning: web: worktree .*/feat/web is gone, so web left space feat; its commits are still on branch feat'
+! stdout web
+exec git -C $HOME/repos/web worktree list
+! stdout workspaces
+
+# It is healed once: the next command has nothing to say.
+exec tdm status feat
+! stderr .
