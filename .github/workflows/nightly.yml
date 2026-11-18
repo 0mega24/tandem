@@ -8,6 +8,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
 jobs:
   check-full:
     runs-on: ubuntu-latest
@@ -18,7 +22,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+          fetch-depth: 2
+      # All tools are pinned by flake.lock, so a day without commits cannot change the result.
+      - id: recent
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          age=$(( $(date +%s) - $(git log -1 --format=%ct) ))
+          if [[ "$EVENT" == schedule && $age -gt 90000 ]]; then
+            echo "No commit in the last 25 hours; nothing to check."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.recent.outputs.run == 'true'
+        uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: nix develop .#integration -c make check-full
+      - if: steps.recent.outputs.run == 'true'
+        run: nix develop .#integration -c make check-full
