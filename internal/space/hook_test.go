@@ -31,7 +31,7 @@ func TestHookEvents(t *testing.T) {
 	if _, err := f.m.AddRepos(ctx, "feat", []string{"web"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{}); err != nil {
+	if _, _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.m.DeleteSpace(ctx, "feat", DeleteOptions{}); err != nil {
