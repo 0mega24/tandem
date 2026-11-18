@@ -17,7 +17,7 @@ exec tdm new feat api web
 stdout '^  go +✓ go.work +\(api\)$'
 stderr '^hook: create go.work$'
 exists $HOME/workspaces/feat/go.work
-grep '^generators:\n    - go$' $HOME/.local/share/tandem/spaces/feat.yaml
+grep '^generators:\n(    - .*\n)*    - go\n' $HOME/.local/share/tandem/spaces/feat.yaml
 
 exec tdm add feat lib
 stdout '^  go +✓ go.work +\(api, lib\)$'
