@@ -77,7 +77,8 @@ func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, 
 
 	var out []Removed
 	for _, e := range targets {
-		r, err := m.removeOne(ctx, sp, e, force, opts.DeleteBranch, slices.Contains(always, e.Name))
+		how := removeHow{force: force, deleteBranch: opts.DeleteBranch, relink: slices.Contains(always, e.Name)}
+		r, err := m.removeOne(ctx, sp, e, how)
 		if err != nil {
 			return out, errors.Join(fmt.Errorf("%s: %w", e.Name, err), m.saveRemoved(sp, out))
 		}
@@ -145,7 +146,15 @@ func (m *Manager) alwaysRepoNames() ([]string, error) {
 	return names, nil
 }
 
-func (m *Manager) removeOne(ctx context.Context, sp state.Space, e state.RepoEntry, force, deleteBranch, always bool) (Removed, error) {
+// removeHow says how removeOne treats one repo.
+type removeHow struct {
+	force        bool // remove a worktree with changes (the user said yes)
+	deleteBranch bool
+	forceBranch  bool // delete the branch when it is not merged too
+	relink       bool // put the always.repos symlink back
+}
+
+func (m *Manager) removeOne(ctx context.Context, sp state.Space, e state.RepoEntry, how removeHow) (Removed, error) {
 	r := Removed{Entry: e}
 
 	if e.Symlink {
@@ -156,14 +165,14 @@ func (m *Manager) removeOne(ctx context.Context, sp state.Space, e state.RepoEnt
 		return r, nil
 	}
 
-	if err := m.git.RemoveWorktree(ctx, e.RepoPath, e.WorktreePath, force); err != nil {
+	if err := m.git.RemoveWorktree(ctx, e.RepoPath, e.WorktreePath, how.force); err != nil {
 		return r, err
 	}
-	if deleteBranch {
-		r.BranchErr = m.git.DeleteBranch(ctx, e.RepoPath, sp.Branch, false)
+	if how.deleteBranch {
+		r.BranchErr = m.git.DeleteBranch(ctx, e.RepoPath, sp.Branch, how.forceBranch)
 	}
 
-	if always {
+	if how.relink {
 		r.Relinked = true
 		return r, os.Symlink(e.RepoPath, e.WorktreePath)
 	}
