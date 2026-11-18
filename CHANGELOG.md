@@ -65,6 +65,7 @@ All notable changes to this project are in this file. The format follows
   members.
 - `gradle` generator: a root `settings.gradle.kts` composite build with `includeBuild` for each
   Gradle member.
+- `cabal` generator: a root `cabal.project` with the packages of the Haskell members.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

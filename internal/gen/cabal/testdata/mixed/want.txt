@@ -1,0 +1,2 @@
+warning: app has stack.yaml and Cabal manifests; the space uses Cabal
+stale: dist-newstyle
