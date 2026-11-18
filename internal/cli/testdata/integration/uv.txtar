@@ -1,0 +1,47 @@
+# uv: the workspace pyproject.toml of the space lets api use the local lib (a workspace source),
+# though lib is not on any index.
+[!exec:uv] skip 'needs uv'
+mkrepo api lib
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+exec tdm new feat api lib
+mkdir $HOME/workspaces/feat/lib/src/lib
+mkdir $HOME/workspaces/feat/api/src/api
+cp lib.toml $HOME/workspaces/feat/lib/pyproject.toml
+cp lib.py $HOME/workspaces/feat/lib/src/lib/__init__.py
+cp api.toml $HOME/workspaces/feat/api/pyproject.toml
+cp main.py $HOME/workspaces/feat/api/src/api/__init__.py
+exec tdm generate feat
+stdout 'uv +✓ pyproject.toml'
+
+cd $HOME/workspaces/feat
+exec uv run --package api python -c 'import api'
+stdout '^local lib$'
+
+-- config.toml --
+[generate]
+enabled = ["uv"]
+-- lib.toml --
+[project]
+name = "lib"
+version = "0.1.0"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+-- lib.py --
+def name():
+    return "local lib"
+-- api.toml --
+[project]
+name = "api"
+version = "0.1.0"
+dependencies = ["lib"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+-- main.py --
+import lib
+
+print(lib.name())
