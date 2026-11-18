@@ -1,0 +1,4 @@
+warning: api has no Gradle settings file; add settings.gradle or settings.gradle.kts to the repo
+warning: lib has no Gradle settings file; add settings.gradle or settings.gradle.kts to the repo
+stale: .gradle
+stale: build
