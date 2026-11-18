@@ -8,9 +8,9 @@ import (
 
 type fakeGen struct{ meta Meta }
 
-func (f fakeGen) Meta() Meta                          { return f.meta }
-func (fakeGen) Detect(Member) (*Detection, error)     { return nil, nil }
-func (fakeGen) Plan(Space, []Detection) (Plan, error) { return Plan{}, nil }
+func (f fakeGen) Meta() Meta                                     { return f.meta }
+func (fakeGen) Detect(Member, DetectOptions) (*Detection, error) { return nil, nil }
+func (fakeGen) Plan(Space, []Detection) (Plan, error)            { return Plan{}, nil }
 
 // withRegistry runs the test with only the given generators registered.
 func withRegistry(t *testing.T, gens ...Generator) {

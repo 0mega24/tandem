@@ -23,6 +23,12 @@ type Space struct {
 	Config  map[string]any // the [generate.<id>] table; decode it with DecodeConfig
 }
 
+// DetectOptions are the settings that Detect may use.
+type DetectOptions struct {
+	Depth  int            // generate.detect_depth: directory levels below the root to look in too
+	Config map[string]any // the [generate.<id>] table, the same one that Plan gets
+}
+
 // Detection is what one generator found in one Member.
 type Detection struct {
 	Member   Member         // the worktree that has the manifest
@@ -59,7 +65,7 @@ type Generator interface {
 
 	// Detect reads only files in m.WorktreePath and runs no subprocess. It returns nil, nil
 	// when the member is not for this generator.
-	Detect(m Member) (*Detection, error)
+	Detect(m Member, o DetectOptions) (*Detection, error)
 
 	// Plan is pure: no I/O, and the same bytes for the same input. With no detections it
 	// returns an empty Plan, not an error.
