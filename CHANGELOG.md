@@ -78,6 +78,8 @@ All notable changes to this project are in this file. The format follows
 - Generator plugins: an executable `tdm-gen-<id>` in `plugin_dirs`, the tandem plugin directory or
   `PATH` (protocol 1, docs/plugins.md). `tdm plugin check <id>` tests one. A plugin runs only when a
   command needs it, so `status`, `path` and `exec` stay fast with many plugins.
+- The `go` generator also finds go.mod files below a member root, down to
+  `generate.detect_depth`, with one go.work use line for each module.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

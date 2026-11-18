@@ -100,6 +100,7 @@ Rules:
 |---|---|---|
 | Go 1.26.1, `buildGoLatestModule` = Go 1.26 | `go 1.27`; nixpkgs `go_latest` is 1.27.3 | Owner: target the latest Go. |
 | Tree without `space/`, `tui/` | `internal/space/`, `internal/tui/` added | The TUI and the CLI share one set of operations. |
+| Open item "Should detect_depth also apply to Go?" | Yes: Go finds go.mod files down to `detect_depth`; go.work gets one use line per module | A monorepo with `client/go.mod` next to `server/Cargo.toml` was a Rust member but not a Go member. |
 | `subPackages = [ "cmd/tdm" ]` | `excludedPackages = [ "tools" ]` | With subPackages, checkPhase ran only the cmd/tdm tests (open item settled on the first build). |
 | `generate-check`, `tidy-check` compare with HEAD | compare the tree before and after | `make check` also works on a dirty tree before a commit. |
 | `make check` runs its parts in series | `quick` in series, then vet, lint, test, build with `-j4` | Project standard: the merge gate runs in parallel. |

@@ -3,11 +3,10 @@ package golang
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"go/version"
-	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -34,20 +33,33 @@ func (Generator) Meta() gen.Meta {
 	}
 }
 
-// Detect finds a go.mod at the worktree root. Detection is root only: a repo with more
-// modules gets one use line, for its root module.
-func (Generator) Detect(m gen.Member, _ gen.DetectOptions) (*gen.Detection, error) {
-	b, err := os.ReadFile(filepath.Join(m.WorktreePath, "go.mod"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
+// Detect finds the go.mod files of the worktree: the root one, and with detect_depth the ones in
+// the directories below it (a monorepo with client/go.mod next to server/Cargo.toml). Each module
+// gets a use line. The highest go line of them is the member's.
+func (Generator) Detect(m gen.Member, o gen.DetectOptions) (*gen.Detection, error) {
+	files, err := gen.Find(m.WorktreePath, o.Depth, "go.mod")
 	if err != nil {
 		return nil, err
 	}
+	if len(files) == 0 {
+		return nil, nil
+	}
 
-	goVersion, err := goDirective(b)
-	if err != nil {
-		return nil, fmt.Errorf("%s/go.mod: %w", m.Name, err)
+	goVersion := ""
+	modules := make([]string, 0, len(files))
+	for _, f := range files {
+		b, err := os.ReadFile(filepath.Join(m.WorktreePath, filepath.FromSlash(f)))
+		if err != nil {
+			return nil, err
+		}
+		v, err := goDirective(b)
+		if err != nil {
+			return nil, fmt.Errorf("%s/%s: %w", m.Name, f, err)
+		}
+		if v != "" && (goVersion == "" || version.Compare("go"+v, "go"+goVersion) > 0) {
+			goVersion = v
+		}
+		modules = append(modules, path.Dir(f))
 	}
 
 	_, err = os.Stat(filepath.Join(m.WorktreePath, "go.work"))
@@ -55,8 +67,8 @@ func (Generator) Detect(m gen.Member, _ gen.DetectOptions) (*gen.Detection, erro
 
 	return &gen.Detection{
 		Member:   m,
-		Manifest: "go.mod",
-		Facts:    map[string]any{"go": goVersion, "go.work": hasWork},
+		Manifest: files[0],
+		Facts:    map[string]any{"go": goVersion, "go.work": hasWork, "modules": modules},
 	}, nil
 }
 
@@ -113,7 +125,10 @@ func (Generator) Plan(s gen.Space, found []gen.Detection) (gen.Plan, error) {
 	b.WriteString("go " + goLine + "\n\n")
 	b.WriteString("use (\n")
 	for _, d := range found {
-		b.WriteString("\t./" + d.Member.Name + "\n")
+		modules, _ := d.Facts["modules"].([]string)
+		for _, dir := range modules {
+			b.WriteString("\t./" + path.Join(d.Member.Name, dir) + "\n")
+		}
 	}
 	b.WriteString(")\n")
 
