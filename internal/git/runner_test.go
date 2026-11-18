@@ -71,3 +71,20 @@ func TestBranchExistsAndDelete(t *testing.T) {
 		t.Error("branch feat still exists after a forced delete")
 	}
 }
+
+func TestCheckBranchName(t *testing.T) {
+	testhelper.Isolate(t)
+	dir := t.TempDir()
+	s := System{}
+
+	for _, ok := range []string{"feat", "me/feat", "a.b_c-1"} {
+		if err := s.CheckBranchName(context.Background(), dir, ok); err != nil {
+			t.Errorf("CheckBranchName(%q) = %v, want nil", ok, err)
+		}
+	}
+	for _, bad := range []string{"a b", "x..y", "feat/", "-x", "a~1"} {
+		if err := s.CheckBranchName(context.Background(), dir, bad); err == nil {
+			t.Errorf("CheckBranchName(%q) = nil, want an error", bad)
+		}
+	}
+}

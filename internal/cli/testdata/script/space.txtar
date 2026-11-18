@@ -39,9 +39,9 @@ stderr 'no repo "nope"'
 x
 -- want-new.txt --
 feat         $HOME/workspaces/feat
-  api        ✓ worktree  [feat]  new branch
+  api        ✓ worktree  [feat]  new branch from main
   web        ✓ worktree  [feat]  existing branch
-  myorg/lib  ✓ worktree  [feat]  new branch
+  myorg/lib  ✓ worktree  [feat]  new branch from main
 -- want-status.txt --
 feat         $HOME/workspaces/feat
   api        [feat]  ! 1 changed

@@ -181,3 +181,18 @@ func TestDefaultDir(t *testing.T) {
 		t.Errorf("DefaultDir relative XDG = %q, want %q", got, want)
 	}
 }
+
+func TestCreateRefusesAnExistingSpace(t *testing.T) {
+	s := NewStore(t.TempDir())
+	if err := s.Create(sample("a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Create(sample("a")); !errors.Is(err, ErrExists) {
+		t.Errorf("second Create() = %v, want ErrExists", err)
+	}
+
+	entries, err := os.ReadDir(s.Dir())
+	if err != nil || len(entries) != 1 {
+		t.Errorf("state dir has %d entries (%v), want only a.yaml", len(entries), err)
+	}
+}

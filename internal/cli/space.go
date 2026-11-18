@@ -55,8 +55,8 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 	t.Row(sp.Name, sp.Path)
 	for _, r := range repos {
 		how := "existing branch"
-		if r.NewBranch {
-			how = "new branch"
+		if r.From != "" {
+			how = "new branch from " + r.From
 		}
 		t.Row("  "+r.Entry.Name, "✓ worktree", "["+sp.Branch+"]", how)
 	}
@@ -154,7 +154,11 @@ func spaceStatus(ctx context.Context, cmd *ucli.Command) error {
 			case r.Entry.Symlink:
 				t.Row("  "+r.Entry.Name, "→ main clone")
 			default:
-				t.Row("  "+r.Entry.Name, "["+s.Space.Branch+"]", memberChanges(r))
+				branch := r.Status.Branch
+				if branch == "" {
+					branch = "detached"
+				}
+				t.Row("  "+r.Entry.Name, "["+branch+"]", memberChanges(r))
 				if cmd.Bool("long") {
 					for _, f := range r.Status.Changed {
 						t.Row("      " + f)
