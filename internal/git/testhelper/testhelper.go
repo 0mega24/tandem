@@ -44,13 +44,18 @@ type Repo struct {
 }
 
 // NewRepo makes a bare origin with one commit on main, and a clone of it at dir/name.
-// Call Isolate first.
+// The origin is in its own temp dir, so a scan of dir finds only the clone. Call Isolate first.
 func NewRepo(t *testing.T, dir, name string) Repo {
 	t.Helper()
-	origin := filepath.Join(dir, "origins", name+".git")
-	seed := filepath.Join(dir, "seeds", name)
-	Git(t, dir, "init", "-q", "--bare", origin)
-	Git(t, dir, "init", "-q", seed)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	tmp := t.TempDir()
+	origin := filepath.Join(tmp, name+".git")
+	seed := filepath.Join(tmp, "seed")
+	Git(t, tmp, "init", "-q", "--bare", origin)
+	Git(t, tmp, "init", "-q", seed)
 	WriteFile(t, seed, "README.md", "# "+name+"\n")
 	Git(t, seed, "add", ".")
 	Git(t, seed, "commit", "-q", "-m", "initial")
