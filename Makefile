@@ -50,7 +50,6 @@ export CGO_ENABLED ?= 0
 GOTOOL      := $(DEV) $(GO) tool -modfile=go.tool.mod
 GOTESTSUM   := $(GOTOOL) gotestsum
 GOLANGCI    ?= golangci-lint
-GOFUMPT     ?= gofumpt
 NIXFMT      ?= nixfmt
 TEST_FLAGS  ?=
 RUN         ?=
@@ -121,22 +120,47 @@ newgen: ## Scaffold a generator: make newgen ID=zig MANIFEST=build.zig.zon
 
 ##@ Quality
 .PHONY: fmt
-fmt: ## Format Go and Nix files
-	$(call need,$(GOFUMPT))
-	git ls-files -z '*.go' | grep -zv '/zz_generated_' | xargs -0r $(DEV) $(GOFUMPT) -w
+fmt: ## Format Go (gofumpt, gci) and Nix files
+	$(DEV) $(GOLANGCI) fmt
 	git ls-files -z '*.nix' | xargs -0r $(DEV) $(NIXFMT)
 
 .PHONY: fmt-check
 fmt-check: ## Fail if any file needs formatting
-	$(call need,$(GOFUMPT))
-	out="$$(git ls-files -z '*.go' | grep -zv '/zz_generated_' | xargs -0r $(DEV) $(GOFUMPT) -l)"
-	if [[ -n "$$out" ]]; then echo "error: needs formatting:"; echo "$$out"; exit 1; fi
+	$(DEV) $(GOLANGCI) fmt --diff
 	git ls-files -z '*.nix' | xargs -0r $(DEV) $(NIXFMT) --check
 
+.PHONY: typos
+typos: ## Check spelling in code and docs
+	$(DEV) typos
+
 .PHONY: lint
-lint: ## Run golangci-lint (includes depguard structure rules)
-	$(call need,$(GOLANGCI))
+lint: lint-go lint-nix lint-actions ## Run all linters (Go, Nix, GitHub Actions)
+
+.PHONY: lint-go
+lint-go: ## golangci-lint, with the depguard structure rules
 	$(DEV) $(GOLANGCI) run ./...
+
+.PHONY: lint-nix
+lint-nix: ## statix (anti-patterns) and deadnix (unused code)
+	$(DEV) statix check -o errfmt .
+	$(DEV) deadnix --fail .
+
+.PHONY: lint-actions
+lint-actions: ## actionlint (syntax) and zizmor (security) on the workflows
+	$(DEV) actionlint
+	$(DEV) zizmor --offline --quiet .github/workflows
+
+.PHONY: fix
+fix: ## Apply every automatic fix: lint fixes, format, spelling, tidy modules
+	$(DEV) $(GOLANGCI) run --fix ./...
+	$(DEV) $(GOLANGCI) fmt
+	$(DEV) statix fix .
+	$(DEV) deadnix --edit .
+	git ls-files -z '*.nix' | xargs -0r $(DEV) $(NIXFMT)
+	$(DEV) typos --write-changes
+	$(DEV) $(GO) mod tidy
+	$(DEV) $(GO) mod tidy -modfile=go.tool.mod
+	@echo "Review the changes with 'git diff' before you commit."
 
 .PHONY: vet
 vet: ## Run go vet
@@ -208,8 +232,8 @@ snapshot: ## Build release archives locally (no publish)
 
 ##@ Aggregate
 .PHONY: quick
-quick: ## No-compile checks: generated files, tidy modules, format (serial: they compare the tree)
-	$(MAKE) -j1 generate-check tidy-check fmt-check
+quick: ## No-compile checks: generated files, tidy modules, format, spelling (serial: they compare the tree)
+	$(MAKE) -j1 generate-check tidy-check fmt-check typos
 
 .PHONY: check
 check: ## Merge gate: quick, then vet, lint, test, build in parallel (what CI's check job runs)
