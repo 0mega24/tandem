@@ -1,0 +1,220 @@
+{
+  "$id": "https://raw.githubusercontent.com/0mega24/tandem/main/schema/config.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "always": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "description": "Files are copied into the space root by base name.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "repos": {
+          "description": "Repos are short names of repos that are symlinked into each space (no worktree).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "run": {
+          "description": "Run is an executable that tdm runs after create, add, remove and delete.",
+          "type": "string"
+        },
+        "secrets": {
+          "description": "Secrets are repo-relative paths that are copied from each main clone into its worktree.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "discovery": {
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {
+          "default": 2,
+          "description": "MaxDepth is how many directory levels below RootDir the scan goes (1 = direct children).",
+          "type": "integer"
+        },
+        "root_dir": {
+          "default": "~/repos",
+          "description": "RootDir is scanned for git repos. A repo's short name is its path relative to RootDir.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "generate": {
+      "additionalProperties": false,
+      "properties": {
+        "cabal": {
+          "additionalProperties": false,
+          "description": "Options of the cabal generator (Haskell).",
+          "properties": {},
+          "type": "object"
+        },
+        "cmake": {
+          "additionalProperties": false,
+          "description": "Options of the cmake generator (C, C++).",
+          "properties": {
+            "scan_depth": {
+              "default": 3,
+              "description": "Directory levels to scan for CMake dependency declarations",
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "detect_depth": {
+          "description": "DetectDepth is how many directory levels below a worktree root Detect also looks in (0 = the root only).",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "dotnet": {
+          "additionalProperties": false,
+          "description": "Options of the dotnet generator (C#, F#, VB).",
+          "properties": {
+            "format": {
+              "default": "slnx",
+              "description": "Solution file format",
+              "enum": [
+                "slnx",
+                "sln"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "enabled": {
+          "description": "Enabled lists the generator IDs. Not set: the defaults. Empty or [\"none\"]: none.",
+          "items": {
+            "enum": [
+              "cabal",
+              "cmake",
+              "dotnet",
+              "go",
+              "gradle",
+              "js",
+              "maven",
+              "rust",
+              "ts",
+              "uv",
+              "none"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "go": {
+          "additionalProperties": false,
+          "description": "Options of the go generator (Go).",
+          "properties": {},
+          "type": "object"
+        },
+        "gradle": {
+          "additionalProperties": false,
+          "description": "Options of the gradle generator (Java, Kotlin, Groovy, Scala).",
+          "properties": {},
+          "type": "object"
+        },
+        "js": {
+          "additionalProperties": false,
+          "description": "Options of the js generator (JavaScript, TypeScript).",
+          "properties": {
+            "link_workspace_packages": {
+              "default": true,
+              "description": "Link local pnpm packages for registry version dependencies",
+              "type": "boolean"
+            },
+            "manager": {
+              "default": "auto",
+              "description": "Package manager for the space",
+              "enum": [
+                "auto",
+                "pnpm",
+                "npm",
+                "yarn",
+                "bun"
+              ],
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "maven": {
+          "additionalProperties": false,
+          "description": "Options of the maven generator (Java).",
+          "properties": {},
+          "type": "object"
+        },
+        "rust": {
+          "additionalProperties": false,
+          "description": "Options of the rust generator (Rust).",
+          "properties": {
+            "mode": {
+              "default": "auto",
+              "enum": [
+                "auto",
+                "patch",
+                "workspace"
+              ],
+              "type": "string"
+            },
+            "registries": {
+              "default": [],
+              "description": "Extra registries to patch besides crates-io",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "ts": {
+          "additionalProperties": false,
+          "description": "Options of the ts generator (TypeScript).",
+          "properties": {},
+          "type": "object"
+        },
+        "uv": {
+          "additionalProperties": false,
+          "description": "Options of the uv generator (Python).",
+          "properties": {},
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "git": {
+      "additionalProperties": false,
+      "properties": {
+        "branch_prefix": {
+          "description": "the branch of a space is \u003cBranchPrefix\u003e\u003cname\u003e",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "spaces": {
+      "additionalProperties": false,
+      "properties": {
+        "root_dir": {
+          "default": "~/workspaces",
+          "description": "a space is \u003cRootDir\u003e/\u003cname\u003e unless --path is given",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "title": "tandem config",
+  "type": "object"
+}

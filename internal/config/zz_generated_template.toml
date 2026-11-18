@@ -3,13 +3,29 @@
 
 # [generate]
 # Generators to use. Not set: the defaults. ["none"] turns all generators off.
-# enabled = ["go", "js", "rust"]
+# enabled = ["cabal", "cmake", "dotnet", "go", "gradle", "js", "maven", "rust"]
 # detect_depth = 0          # 0 = worktree root only
+
+# [generate.cabal]
+
+# [generate.cmake]
+# scan_depth = 3
+
+# [generate.dotnet]
+# format = "slnx"
+
+# [generate.gradle]
 
 # [generate.js]
 # manager = "auto"
 # link_workspace_packages = true
 
+# [generate.maven]
+
 # [generate.rust]
 # mode = "auto"
 # registries = []
+
+# [generate.ts]
+
+# [generate.uv]
