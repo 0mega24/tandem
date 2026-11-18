@@ -12,7 +12,7 @@ import (
 // TestMain lets the test binary act as tdm, so the scripts run the real CLI in a child process.
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"tdm": func() { os.Exit(Run(context.Background(), os.Args, os.Stdout, os.Stderr)) },
+		"tdm": func() { os.Exit(Run(context.Background(), os.Args, os.Stdin, os.Stdout, os.Stderr)) },
 	})
 }
 

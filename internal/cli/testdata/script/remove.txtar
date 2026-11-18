@@ -1,0 +1,30 @@
+# remove takes a clean repo out at once; -d deletes its merged branch.
+mkrepo api web
+exec tdm new feat api web
+exec tdm remove -d feat web
+stdout '^web +✓ removed +✓ branch deleted$'
+! exists $HOME/workspaces/feat/web
+
+# A worktree with changes: tdm asks, and only a yes removes it.
+cp x.txt $HOME/workspaces/feat/api/x.txt
+stdin no.txt
+! exec tdm remove feat api
+stderr '^  api +1 changed$'
+stderr 'Remove them\? \[y/N\]'
+stderr 'nothing removed'
+exists $HOME/workspaces/feat/api/x.txt
+
+stdin yes.txt
+exec tdm remove feat api
+stdout '^api +✓ removed$'
+! exists $HOME/workspaces/feat/api
+
+! exec tdm remove feat api
+stderr 'space feat: no repo "api"'
+
+-- x.txt --
+x
+-- no.txt --
+n
+-- yes.txt --
+y

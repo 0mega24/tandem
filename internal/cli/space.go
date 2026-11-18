@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -249,4 +250,98 @@ func memberChanges(r space.MemberStatus) string {
 	}
 
 	return s
+}
+
+func removeCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "remove",
+		Usage:     "Take repos out of a space",
+		ArgsUsage: "<space> <repo>...",
+		Description: "When a worktree has changes or commits that origin does not have, tdm lists them and asks\n" +
+			"first; with no answer (for example, stdin is not a terminal) nothing is removed.\n\n" +
+			"A repo in always.repos gets its symlink back. A repo that is a symlink leaves the space.\n" +
+			"A repo is its name in the space, or the last part of it when that is unique.",
+		Flags: []ucli.Flag{
+			&ucli.BoolFlag{
+				Name:    "delete-branch",
+				Aliases: []string{"d"},
+				Usage:   "also delete the space branch in each repo when it is merged (git branch -d)",
+			},
+		},
+		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
+			if cmd.Args().Len() == 0 {
+				completeSpaces(cmd)
+			}
+		},
+		Action: removeRepos,
+	}
+}
+
+func removeRepos(ctx context.Context, cmd *ucli.Command) error {
+	args := cmd.Args().Slice()
+	if len(args) < 2 {
+		return errors.New("give a space name and at least one repo: tdm remove <space> <repo>")
+	}
+
+	m, err := newManager(cmd)
+	if err != nil {
+		return err
+	}
+
+	removed, err := m.RemoveRepos(ctx, args[0], args[1:], space.RemoveOptions{
+		DeleteBranch: cmd.Bool("delete-branch"),
+		Confirm:      func(risks []space.Risk) bool { return confirm(cmd, risks) },
+	})
+
+	t := ui.NewTable(cmd.Root().Writer)
+	for _, r := range removed {
+		what := "✓ removed"
+		switch {
+		case r.Entry.Symlink:
+			what = "✓ symlink removed"
+		case r.Relinked:
+			what = "✓ removed, symlink back (always.repos)"
+		}
+
+		branch := ""
+		if r.BranchErr != nil {
+			branch = "! branch kept: " + r.BranchErr.Error()
+		} else if cmd.Bool("delete-branch") && !r.Entry.Symlink {
+			branch = "✓ branch deleted"
+		}
+		t.Row(r.Entry.Name, what, branch)
+	}
+
+	return errors.Join(err, t.Flush())
+}
+
+// confirm prints the risks to stderr and reads a yes from stdin. Only "y" or "yes" is a yes.
+func confirm(cmd *ucli.Command, risks []space.Risk) bool {
+	w := cmd.Root().ErrWriter
+	t := ui.NewTable(w)
+	for _, r := range risks {
+		var parts []string
+		if r.Changed > 0 {
+			parts = append(parts, fmt.Sprintf("%d changed", r.Changed))
+		}
+		if r.Unpushed > 0 {
+			parts = append(parts, fmt.Sprintf("%d not pushed", r.Unpushed))
+		}
+		t.Row("  "+r.Name, strings.Join(parts, ", "))
+	}
+
+	if _, err := fmt.Fprintln(w, "These worktrees have work that a removal loses or leaves only in the branch:"); err != nil {
+		return false
+	}
+	if t.Flush() != nil {
+		return false
+	}
+	if _, err := fmt.Fprint(w, "Remove them? [y/N] "); err != nil {
+		return false
+	}
+
+	// A read error or EOF before an answer is a no; "y" at EOF without a newline is a yes.
+	line, _ := bufio.NewReader(cmd.Root().Reader).ReadString('\n')
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes"
 }

@@ -14,8 +14,9 @@ import (
 )
 
 // Run runs tdm with the full argument list (args[0] is the program name) and returns the exit code.
-func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
-	root := newRoot(stdout, stderr)
+// stdin is read only for a confirmation.
+func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	root := newRoot(stdin, stdout, stderr)
 	if err := root.Run(ctx, args); err != nil {
 		if !errors.Is(err, errReported) {
 			// The exit code reports the failure; a broken stderr leaves nothing else to do.
@@ -26,10 +27,11 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func newRoot(stdout, stderr io.Writer) *ucli.Command {
+func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 	return &ucli.Command{
 		Name:                  "tdm",
 		Usage:                 "one branch across many repos, as git worktrees, with language workspace files",
+		Reader:                stdin,
 		Writer:                stdout,
 		ErrWriter:             stderr,
 		EnableShellCompletion: true,
@@ -46,6 +48,7 @@ func newRoot(stdout, stderr io.Writer) *ucli.Command {
 		Commands: []*ucli.Command{
 			newCommand(),
 			addCommand(),
+			removeCommand(),
 			pathCommand(),
 			statusCommand(),
 			repoCommand(),
