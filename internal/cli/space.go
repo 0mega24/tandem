@@ -26,11 +26,15 @@ func newCommand() *ucli.Command {
 			"The space also gets the always.* settings: a symlink to the main clone of each always.repos\n" +
 			"repo that is not named here, a copy of each always.files file in the space root, and a copy\n" +
 			"of each always.secrets file that a main clone has, in its worktree.\n\n" +
+			"Then the generators (generate.enabled, or --generate) write the workspace files, such as\n" +
+			"go.work. The space keeps this generator set for add, remove and generate.\n\n" +
 			repoArgsHelp + "\n\n" +
 			"All checks run before the first change. When a step fails, the steps before it are undone.",
 		Flags: []ucli.Flag{
 			&ucli.StringFlag{Name: "branch", Usage: "use branch `NAME` in place of git.branch_prefix + <space>"},
 			&ucli.StringFlag{Name: "path", Usage: "make the space in `DIR` in place of spaces.root_dir/<space>", TakesFile: true},
+			&ucli.StringFlag{Name: "generate", Usage: "use the generators `IDS` (comma list, or none) in place of generate.enabled"},
+			&ucli.BoolFlag{Name: "no-generate", Usage: "use no generators (the same as --generate=none)"},
 		},
 		Action: newSpace,
 	}
@@ -42,16 +46,32 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 		return errors.New("give a space name and at least one repo: tdm new <space> <repo>")
 	}
 
+	var generators []string // nil: generate.enabled
+	switch {
+	case cmd.IsSet("generate") && cmd.Bool("no-generate"):
+		return errors.New("--generate and --no-generate do not go together")
+	case cmd.Bool("no-generate"):
+		generators = []string{"none"}
+	case cmd.IsSet("generate"):
+		generators = []string{}
+		for id := range strings.SplitSeq(cmd.String("generate"), ",") {
+			if id = strings.TrimSpace(id); id != "" {
+				generators = append(generators, id)
+			}
+		}
+	}
+
 	m, err := newManager(cmd)
 	if err != nil {
 		return err
 	}
 
 	res, err := m.NewSpace(ctx, space.NewOptions{
-		Name:   args[0],
-		Repos:  args[1:],
-		Branch: cmd.String("branch"),
-		Path:   cmd.String("path"),
+		Name:       args[0],
+		Repos:      args[1:],
+		Branch:     cmd.String("branch"),
+		Path:       cmd.String("path"),
+		Generators: generators,
 	})
 	if err != nil {
 		return err
@@ -85,6 +105,10 @@ func printNew(cmd *ucli.Command, res space.NewResult) error {
 	}
 	for _, f := range res.Files {
 		t.Row("  "+f, "✓ copied")
+	}
+	generatedRows(t, res.Generated)
+	if err := printWarnings(cmd, res.Generated.Runs); err != nil {
+		return err
 	}
 	return t.Flush()
 }

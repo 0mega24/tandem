@@ -1,0 +1,62 @@
+# tdm new and tdm add run the generators of the space after the worktrees.
+mkrepo api lib web
+cp api.mod $HOME/repos/api/go.mod
+exec git -C $HOME/repos/api add go.mod
+exec git -C $HOME/repos/api commit -q -m 'add go.mod'
+exec git -C $HOME/repos/api push -q origin main
+cp lib.mod $HOME/repos/lib/go.mod
+exec git -C $HOME/repos/lib add go.mod
+exec git -C $HOME/repos/lib commit -q -m 'add go.mod'
+exec git -C $HOME/repos/lib push -q origin main
+mkdir $HOME/.config/tandem $HOME/bin
+cp config.toml $HOME/.config/tandem/config.toml
+cp hook.sh $HOME/bin/hook
+chmod 0755 $HOME/bin/hook
+
+exec tdm new feat api web
+stdout '^  go +✓ go.work +\(api\)$'
+stderr '^hook: create go.work$'
+exists $HOME/workspaces/feat/go.work
+grep '^generators:\n    - go$' $HOME/.local/share/tandem/spaces/feat.yaml
+
+exec tdm add feat lib
+stdout '^  go +✓ go.work +\(api, lib\)$'
+stderr '^hook: add go.work$'
+grep '\./lib' $HOME/workspaces/feat/go.work
+
+# A failed generator step undoes the add: go.work cannot be read, so lib does not join.
+exec tdm remove feat lib
+rm $HOME/workspaces/feat/go.work
+mkdir $HOME/workspaces/feat/go.work
+! exec tdm add feat lib
+stderr 'generate files: read go.work: .*\(rolled back\)'
+! exists $HOME/workspaces/feat/lib
+rm $HOME/workspaces/feat/go.work
+
+# The set comes from --generate or --no-generate, and the space keeps it.
+exec tdm new --no-generate other api
+! stdout 'go.work'
+! exists $HOME/workspaces/other/go.work
+grep '^generators:\n    - none$' $HOME/.local/share/tandem/spaces/other.yaml
+exec tdm add other lib
+! exists $HOME/workspaces/other/go.work
+
+! exec tdm new --generate=rusty third api
+stderr 'unknown generator "rusty"'
+! exists $HOME/workspaces/third
+! exec tdm new --generate=go --no-generate third api
+stderr 'do not go together'
+
+-- config.toml --
+always.run = "~/bin/hook"
+-- hook.sh --
+#!/bin/sh
+echo "hook: $TDM_SPACE_EVENT $TDM_GENERATED_FILES"
+-- api.mod --
+module example.com/api
+
+go 1.23
+-- lib.mod --
+module example.com/lib
+
+go 1.23

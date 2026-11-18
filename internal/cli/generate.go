@@ -54,12 +54,8 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
-	for _, r := range res.Runs {
-		for _, w := range r.Warnings {
-			if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s: %s\n", r.ID, w); err != nil {
-				return err
-			}
-		}
+	if err := printWarnings(cmd, res.Runs); err != nil {
+		return err
 	}
 
 	t := ui.NewTable(cmd.Root().Writer)
@@ -70,6 +66,18 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 	if cmd.Bool("dry-run") {
 		_, err := fmt.Fprintln(cmd.Root().Writer, "dry run: nothing was written")
 		return err
+	}
+	return nil
+}
+
+// printWarnings writes the warnings of the generators to stderr.
+func printWarnings(cmd *ucli.Command, runs []space.GeneratorRun) error {
+	for _, r := range runs {
+		for _, w := range r.Warnings {
+			if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s: %s\n", r.ID, w); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
