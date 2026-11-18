@@ -1,0 +1,51 @@
+# No file: defaults apply and the user path is under XDG_CONFIG_HOME.
+exec tdm config path
+stdout ^$WORK/home/.config/tandem/config.toml$
+exec tdm config
+stdout '^# no config file; defaults apply'
+
+# Layers print lowest priority first: system, user, then TDM_CONFIG.
+mkdir home/.config/tandem etc/xdg/tandem
+cp sys.toml etc/xdg/tandem/config.toml
+cp user.toml home/.config/tandem/config.toml
+env TDM_CONFIG=$WORK/explicit.yaml
+exec tdm config
+cmpenv stdout want-layers.txt
+exec tdm config path
+stdout ^$WORK/explicit.yaml$
+
+# --config wins over TDM_CONFIG, also after the subcommand.
+exec tdm config path --config $WORK/flag.toml
+stdout ^$WORK/flag.toml$
+
+# A typo in a key is an error.
+env TDM_CONFIG=
+cp typo.toml home/.config/tandem/config.toml
+! exec tdm config
+stderr 'branch_prefx'
+
+# A missing explicit file is an error.
+! exec tdm --config $WORK/nope.toml config
+stderr 'nope.toml'
+
+-- sys.toml --
+discovery.max_depth = 3
+-- user.toml --
+git.branch_prefix = "me/"
+-- explicit.yaml --
+spaces:
+  root_dir: ~/ws
+-- flag.toml --
+-- typo.toml --
+git.branch_prefx = "me/"
+-- want-layers.txt --
+# $WORK/etc/xdg/tandem/config.toml
+discovery.max_depth = 3
+
+# $WORK/home/.config/tandem/config.toml
+git.branch_prefix = "me/"
+
+# $WORK/explicit.yaml
+spaces:
+  root_dir: ~/ws
+

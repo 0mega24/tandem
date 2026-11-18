@@ -33,7 +33,15 @@ func newRoot(stdout, stderr io.Writer) *ucli.Command {
 		HideVersion:           true,
 		// Run returns the exit code; urfave/cli must not call os.Exit itself.
 		ExitErrHandler: func(context.Context, *ucli.Command, error) {},
+		Flags: []ucli.Flag{
+			&ucli.StringFlag{
+				Name:      "config",
+				Usage:     "config `FILE` that overrides all other layers (also: TDM_CONFIG)",
+				TakesFile: true,
+			},
+		},
 		Commands: []*ucli.Command{
+			configCommand(),
 			{
 				Name:  "version",
 				Usage: "Print the version",
