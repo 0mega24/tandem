@@ -24,7 +24,7 @@ type Runner interface {
 	Unpushed(ctx context.Context, repo, branch string) (int, error)
 
 	Fetch(ctx context.Context, repo string) error
-	FastForward(ctx context.Context, repo, branch string) error
+	FastForward(ctx context.Context, repo, branch string) (bool, error)
 }
 
 // OriginURL returns "" when the repo has no origin.
