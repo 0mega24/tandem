@@ -109,6 +109,7 @@ Rules:
 | `config init` in the core commands | comes with the generated template (P2) | The template is generated from the code (project spec). |
 | `[[generate.custom]]` | replaced by plugins | As the project spec says. |
 | Nightly integration job in ci.yml | `nightly.yml` runs `make check-full`; ci.yml runs integration only with the label; `ci-passed` gathers all jobs | Slow lanes stay out of PR runs; branch protection needs one check name. |
+| CI runs every job on every event | A new push cancels the old run; drafts get no CI; a docs-only change runs `make quick` only; PRs build the Nix package on Linux only (main adds macOS); the nightly run stops when main has no commit in 25 hours | Faster feedback and fewer runner minutes. All tools are pinned, so a skipped run cannot hide a change. |
 
 ## TUI
 
