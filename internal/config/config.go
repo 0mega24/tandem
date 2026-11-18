@@ -83,6 +83,19 @@ func (c Config) validate() error {
 	if c.Spaces.RootDir == "" {
 		errs = append(errs, errors.New("spaces.root_dir must not be empty"))
 	}
+	// A relative path would depend on the directory that tdm runs in. Two files with one base
+	// name would be copied to the same place in the space root.
+	bases := map[string]string{}
+	for _, f := range c.Always.Files {
+		if !filepath.IsAbs(f) {
+			errs = append(errs, fmt.Errorf("always.files: %q must be an absolute path or start with ~/", f))
+			continue
+		}
+		if other, ok := bases[filepath.Base(f)]; ok {
+			errs = append(errs, fmt.Errorf("always.files: %q and %q have the same base name", other, f))
+		}
+		bases[filepath.Base(f)] = f
+	}
 	for _, s := range c.Always.Secrets {
 		if s == "" || filepath.IsAbs(s) || strings.HasPrefix(s, "~") || hasDotDot(s) {
 			errs = append(errs, fmt.Errorf("always.secrets: %q must be relative to the repo root and must not contain \"..\"", s))
