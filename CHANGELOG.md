@@ -30,6 +30,8 @@ All notable changes to this project are in this file. The format follows
 - `tdm delete [-d|-D] <space>` removes the worktrees, symlinks, `always.files` copies, the space
   directory (when nothing else is in it) and the state. It asks first about unpushed work; `-d`
   deletes merged branches and `-D` all space branches.
+- `tdm exec <space> -- <command>` runs a command in each worktree in turn (not in symlinks). It
+  goes on after a failure, lists the failures, and exits 1.
 - `tdm path <space>` prints the space directory (for `tcd`), and completes space names.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
   does not have. The space that holds the current directory comes first.
