@@ -133,7 +133,7 @@ func printSync(out io.Writer, results []space.SyncResult) error {
 	for _, r := range results {
 		mark := "✓"
 		switch r.Outcome {
-		case space.SyncSkippedDirty:
+		case space.SyncSkippedDirty, space.SyncSkippedCheckedOut:
 			mark = "!"
 		case space.SyncFailed:
 			mark, failed = "✗", true

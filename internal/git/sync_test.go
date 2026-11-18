@@ -100,3 +100,30 @@ func TestFastForwardLocalAhead(t *testing.T) {
 		t.Errorf("FastForward(local ahead) = %v, %v; want not moved and no error: there is nothing to pull", moved, err)
 	}
 }
+
+func TestFastForwardRefusesOtherWorktree(t *testing.T) {
+	testhelper.Isolate(t)
+	dir := t.TempDir()
+	r := testhelper.NewRepo(t, dir, "api")
+	ctx := context.Background()
+	s := System{}
+
+	// main is checked out in a linked worktree, not in the main clone.
+	testhelper.Git(t, r.Path, "switch", "-q", "-c", "work")
+	wt := filepath.Join(dir, "wt-main")
+	testhelper.Git(t, r.Path, "worktree", "add", "-q", wt, "main")
+	before := testhelper.Git(t, wt, "rev-parse", "HEAD")
+
+	pushUpstream(t, dir, r, "up.txt")
+	if err := s.Fetch(ctx, r.Path); err != nil {
+		t.Fatal(err)
+	}
+
+	moved, err := s.FastForward(ctx, r.Path, "main")
+	if !errors.Is(err, ErrCheckedOutElsewhere) || moved {
+		t.Errorf("FastForward(main in another worktree) = %v, %v; want ErrCheckedOutElsewhere", moved, err)
+	}
+	if after := testhelper.Git(t, wt, "rev-parse", "HEAD"); after != before {
+		t.Errorf("the other worktree moved from %s to %s", before, after)
+	}
+}
