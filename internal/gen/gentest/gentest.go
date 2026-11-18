@@ -3,11 +3,16 @@
 // Each directory testdata/<case>/ is one space:
 //
 //	in/<member>/...        one directory per member worktree, named by its short name ("--" for "/")
-//	in/<name>.symlink/     an always.repos symlink: not a member, so the generator never sees it
+//	in/<name>.symlink/     a plain directory that stands for an always.repos symlink: it is not
+//	                       a member, so the generator never sees it
 //	origins.json           optional: {"<member>": "<origin URL>"}
 //	config.json            optional: the [generate.<id>] table
 //	want/...               the files that Plan writes, relative to the space root
-//	want.txt               optional: the warnings and stale paths ("warning: ...", "stale: ...")
+//	want.txt               optional: the warnings, stale paths and links ("warning: ...",
+//	                       "stale: ...", "link: <path> -> <target>")
+//
+// Each case also checks the rules that apply to every plan: the files are sorted by path with no
+// path twice, every path passes gen.CheckPath, and a second Plan gives the same result.
 //
 // `go test ./internal/gen/<id>/ -update` writes want/ and want.txt again from the plan.
 package gentest
@@ -20,6 +25,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -65,10 +71,12 @@ func runCase(t *testing.T, g gen.Generator, dir string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var memberDirs []string // the worktree paths relative to the root, for gen.CheckPath
 	for _, e := range entries {
 		if !e.IsDir() || strings.HasSuffix(e.Name(), ".symlink") {
 			continue
 		}
+		memberDirs = append(memberDirs, e.Name())
 		name := strings.ReplaceAll(e.Name(), "--", "/")
 		p := filepath.Join(in, e.Name())
 		space.Members = append(space.Members, gen.Member{Name: name, WorktreePath: p, RepoPath: p, OriginURL: origins[name]})
@@ -90,6 +98,14 @@ func runCase(t *testing.T, g gen.Generator, dir string) {
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
+	again, err := g.Plan(space, found)
+	if err != nil {
+		t.Fatalf("second Plan: %v", err)
+	}
+	if !reflect.DeepEqual(plan, again) {
+		t.Error("a second Plan gave another result: a plan must not depend on map order or time")
+	}
+	checkRules(t, in, plan, memberDirs)
 
 	got := files(plan)
 	notes := summary(plan)
@@ -109,6 +125,29 @@ func files(p gen.Plan) map[string][]byte {
 	return out
 }
 
+// checkRules fails the test for a plan that Prepare would refuse or that is not sorted.
+func checkRules(t *testing.T, root string, p gen.Plan, members []string) {
+	t.Helper()
+	for i, f := range p.Files {
+		if i > 0 && p.Files[i-1].Path >= f.Path {
+			t.Errorf("files are not sorted by path, or %s is there twice", f.Path)
+		}
+		if err := gen.CheckPath(root, f.Path, members); err != nil {
+			t.Error(err)
+		}
+	}
+	for _, s := range p.Stale {
+		if err := gen.CheckPath(root, s, members); err != nil {
+			t.Errorf("stale: %v", err)
+		}
+	}
+	for _, l := range p.Links {
+		if err := gen.CheckPath(root, l.Path, members); err != nil {
+			t.Errorf("link: %v", err)
+		}
+	}
+}
+
 func summary(p gen.Plan) string {
 	var b strings.Builder
 	for _, w := range p.Warnings {
@@ -116,6 +155,9 @@ func summary(p gen.Plan) string {
 	}
 	for _, s := range p.Stale {
 		b.WriteString("stale: " + s + "\n")
+	}
+	for _, l := range p.Links {
+		b.WriteString("link: " + l.Path + " -> " + l.Target + "\n")
 	}
 	return b.String()
 }
