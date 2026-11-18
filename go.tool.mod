@@ -16,6 +16,7 @@ require (
 	github.com/knadh/koanf/v2 v2.4.1
 	github.com/rogpeppe/go-internal v1.11.0
 	github.com/urfave/cli/v3 v3.14.0
+	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
@@ -30,7 +31,6 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.43.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
