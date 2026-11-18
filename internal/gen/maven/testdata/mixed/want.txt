@@ -1,0 +1,1 @@
+warning: api has both Maven and Gradle manifests; it is included in both plans
