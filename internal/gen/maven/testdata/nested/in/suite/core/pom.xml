@@ -1,0 +1,1 @@
+<project><modelVersion>4.0.0</modelVersion><parent><groupId>example</groupId><artifactId>suite</artifactId><version>1</version></parent><artifactId>core</artifactId></project>
