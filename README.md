@@ -243,6 +243,19 @@ Its generators cover many build systems, not only Go. It also has plugins and a 
 files that it made and nobody changed, and undoes a failed step. See the prior art in
 [docs/DESIGN.md](docs/DESIGN.md).
 
+Moving from wtg? `tdm import wtg` copies your wtg spaces and config into tandem and changes
+nothing in the worktrees. Run it with `--dry-run` first.
+
+## Agent skills
+
+Two skills teach coding agents to use tandem: `tandem` (work in a space) and `tandem-setup`
+(set up tandem for a person). Install them as a plugin:
+
+```sh
+claude plugin marketplace add 0mega24/tandem && claude plugin install tandem@tandem
+codex plugin marketplace add 0mega24/tandem
+```
+
 ## Documentation
 
 - [Generators](docs/generators.md): every generator and its options.
@@ -253,6 +266,7 @@ files that it made and nobody changed, and undoes a failed step. See the prior a
 
 To work on tandem, use `nix develop` or direnv; the Makefile enters the dev shell itself.
 `make build` builds `bin/tdm`, `make test` runs the tests, `make check` is the merge gate.
+`make newgen ID=zig MANIFEST=build.zig.zon` scaffolds a new generator.
 Read [AGENTS.md](AGENTS.md) for the repo rules.
 
 ## Acknowledgements
