@@ -32,6 +32,23 @@ type Space struct {
 	Branch    string      `yaml:"branch"` // the one branch of all worktrees
 	CreatedAt time.Time   `yaml:"created_at"`
 	Repos     []RepoEntry `yaml:"repos"`
+
+	// Generators is the generator set of this space, chosen at tdm new. Add and remove use it.
+	Generators []string `yaml:"generators,omitempty"`
+
+	// Generated lists the files that the generators wrote, with the hash that proves tdm owns them.
+	Generated []GeneratedFile `yaml:"generated,omitempty"`
+
+	// GoWorkspace is read from wtg state files only, for the migration to Generated.
+	GoWorkspace bool `yaml:"go_workspace,omitempty"`
+}
+
+// GeneratedFile is one file that a generator wrote in the space.
+type GeneratedFile struct {
+	Generator string   `yaml:"generator"`       // generator ID, e.g. "go"
+	Path      string   `yaml:"path"`            // relative to Space.Path, with "/"
+	SHA256    string   `yaml:"sha256"`          // hex hash of the bytes that tdm wrote
+	Stale     []string `yaml:"stale,omitempty"` // derived files deleted with this one, e.g. "go.work.sum"
 }
 
 // RepoEntry is one repo in a space: a worktree on the space branch, or a symlink to the main clone.
