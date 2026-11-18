@@ -19,7 +19,8 @@ import (
 // Run runs tdm with the full argument list (args[0] is the program name) and returns the exit code.
 // stdin is read only for a confirmation.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	// The registry is shared by embedded invocations; discovered plugins belong to this run.
+	// The registry is global, and discovered plugins belong to this run: so two Runs must not
+	// overlap in one process (the CLI tests do not run them in parallel).
 	defer func() {
 		for _, g := range gen.All() {
 			if _, ok := g.(external.Plugin); ok {

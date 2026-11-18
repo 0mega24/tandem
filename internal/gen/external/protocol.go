@@ -106,6 +106,13 @@ func (a planAnswer) plan(root string, members []string) (gen.Plan, error) {
 		seen[*l.Path] = true
 		p.Links = append(p.Links, link)
 	}
+	for _, s := range p.Stale {
+		if seen[s] {
+			return gen.Plan{}, fmt.Errorf("stale path %q is also planned", s)
+		}
+	}
+	slices.SortFunc(p.Files, func(a, b gen.File) int { return strings.Compare(a.Path, b.Path) })
+	slices.SortFunc(p.Links, func(a, b gen.Link) int { return strings.Compare(a.Path, b.Path) })
 	return p, nil
 }
 

@@ -12,9 +12,11 @@ Put the executable in one of these places, in search order:
 2. `$XDG_DATA_HOME/tandem/plugins` (default: `~/.local/share/tandem/plugins`).
 3. A directory on `PATH`, in path order.
 
-The first executable for each ID wins. Non-executable files are ignored. A bad
-answer from the first match is an error; Tandem does not try later matches.
-`plugin_dirs` entries must be absolute paths or start with `~/`.
+The first executable for each ID wins. Non-executable files and empty `PATH`
+entries are ignored. If the first match gives a bad `meta` answer, or has the ID
+of a built-in generator, Tandem prints a warning and does not use that ID; it
+does not try later matches. A config that enables the ID then fails as an unknown
+generator. `plugin_dirs` entries must be absolute paths or start with `~/`.
 
 ```toml
 [generate]
@@ -65,8 +67,9 @@ apply.
 ## Limits and path rules
 
 - Each process has a 60-second limit and a 16-MiB stdout limit. Tandem terminates
-  the process when it exceeds a limit. A descendant cannot hold output pipes
-  open indefinitely after the process ends.
+  the process group of the plugin when it exceeds a limit, so the programs that a
+  script starts stop too. A descendant cannot hold output pipes open
+  indefinitely after the process ends.
 - Stderr is streamed to the user. Each line starts with `<id>: `, including a
   final line without a newline. Stderr does not count toward the stdout limit.
 - A nonzero exit, invalid JSON, or an invalid plan fails generation. In a space

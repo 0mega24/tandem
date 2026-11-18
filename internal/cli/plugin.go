@@ -24,17 +24,16 @@ func loadGenerators(cmd *ucli.Command) (config.Loaded, config.Env, error) {
 	if err != nil {
 		return loaded, env, err
 	}
-	plugins, err := external.Discover(loaded.Config.Generate.PluginDirs, os.Getenv("PATH"))
+	plugins, broken, err := external.Discover(loaded.Config.Generate.PluginDirs, os.Getenv("PATH"), cmd.Root().ErrWriter)
 	if err != nil {
 		return loaded, env, err
 	}
-	for _, p := range plugins {
-		if _, ok := gen.ByID(p.Meta().ID); ok {
-			return loaded, env, fmt.Errorf("config: plugin ID %q conflicts with a built-in generator", p.Meta().ID)
+	for _, err := range broken {
+		if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, "warning:", err); werr != nil {
+			return loaded, env, werr
 		}
 	}
 	for _, p := range plugins {
-		p.Stderr = cmd.Root().ErrWriter
 		gen.Register(p)
 	}
 	if err := gen.CheckConfig(loaded.Config.Generate.Enabled, loaded.Config.Generate.Tables); err != nil {

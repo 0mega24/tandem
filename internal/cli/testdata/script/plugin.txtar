@@ -30,11 +30,12 @@ stderr 'fail: plan failed'
 stderr 'supported versions: 1'
 ! exists $HOME/workspaces/broken
 
-# A built-in ID must return a config error, without a panic.
+# A plugin with a built-in ID is a warning, so it does not block other commands; the built-in stays.
 cp collision $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
 exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
-! exec tdm generate --list
-stderr 'config: plugin ID "go" conflicts with a built-in generator'
+exec tdm generate --list
+stderr 'warning: plugin .*tdm-gen-go: the ID "go" is a built-in generator'
+stdout '^go +on +Go +go.mod +built-in$'
 ! stderr 'panic'
 
 -- manifest --

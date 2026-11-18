@@ -2,10 +2,13 @@ package external
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -26,6 +29,12 @@ func script(t *testing.T, dir, id, body string) string {
 	return p
 }
 
+// discover is Discover with the broken plugins as an error, as most tests want one or the other.
+func discover(dirs []string, path string) ([]Plugin, error) {
+	plugins, broken, err := Discover(dirs, path, nil)
+	return plugins, errors.Join(append(broken, err)...)
+}
+
 func isolate(t *testing.T) {
 	t.Helper()
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -40,7 +49,7 @@ func TestDiscover(t *testing.T) {
 	if err := os.Chmod(filepath.Join(first, "tdm-gen-ignored"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	plugins, err := Discover([]string{first}, second)
+	plugins, err := discover([]string{first}, second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +74,7 @@ func TestMetaErrors(t *testing.T) {
 			isolate(t)
 			dir := t.TempDir()
 			script(t, dir, "demo", tc.body)
-			_, err := Discover([]string{dir}, "")
+			_, err := discover([]string{dir}, "")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("Discover error = %v, want %s", err, tc.want)
 			}
@@ -87,7 +96,7 @@ func TestPlanLimits(t *testing.T) {
 			isolate(t)
 			dir := t.TempDir()
 			script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else "+tc.body+"; fi")
-			plugins, err := Discover([]string{dir}, "")
+			plugins, err := discover([]string{dir}, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -108,7 +117,7 @@ func TestPlanWireAndStderr(t *testing.T) {
 	isolate(t)
 	dir := t.TempDir()
 	script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else cat >&2; printf '\\nfirst\\nlast' >&2; echo '{\"files\":[{\"path\":\"hello\",\"content\":\"hello\\n\"}],\"stale\":[],\"links\":[],\"warnings\":[]}'; fi")
-	plugins, err := Discover([]string{dir}, "")
+	plugins, err := discover([]string{dir}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +141,7 @@ func TestPlanWireAndStderr(t *testing.T) {
 
 func TestExamples(t *testing.T) {
 	isolate(t)
-	plugins, err := Discover([]string{"../../../examples/plugins"}, "")
+	plugins, err := discover([]string{"../../../examples/plugins"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,12 +186,12 @@ func TestDiscoverSources(t *testing.T) {
 	}
 	user := script(t, userDir, "demo", "echo '"+validMeta+"'")
 	script(t, pathDir, "demo", "exit 1")
-	plugins, err := Discover(nil, pathDir)
+	plugins, err := discover(nil, pathDir)
 	if err != nil || len(plugins) != 1 || plugins[0].Path != user {
 		t.Fatalf("user discovery = %+v, %v", plugins, err)
 	}
 	first := script(t, configured, "demo", "echo '"+validMeta+"'")
-	plugins, err = Discover([]string{filepath.Join(data, "missing"), configured}, pathDir)
+	plugins, err = discover([]string{filepath.Join(data, "missing"), configured}, pathDir)
 	if err != nil || len(plugins) != 1 || plugins[0].Path != first {
 		t.Fatalf("configured discovery = %+v, %v", plugins, err)
 	}
@@ -190,7 +199,7 @@ func TestDiscoverSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	pathPlugin := script(t, pathDir, "demo", "echo '"+validMeta+"'")
-	plugins, err = Discover(nil, pathDir)
+	plugins, err = discover(nil, pathDir)
 	if err != nil || len(plugins) != 1 || plugins[0].Path != pathPlugin {
 		t.Fatalf("PATH discovery = %+v, %v", plugins, err)
 	}
@@ -213,6 +222,7 @@ func TestPlanPaths(t *testing.T) {
 		{"symlink", `{"files":[{"path":"redirect/out","content":"x"}],"stale":[],"links":[],"warnings":[]}`, false},
 		{"stale", `{"files":[],"stale":["app/out"],"links":[],"warnings":[]}`, false},
 		{"duplicate", `{"files":[{"path":"out","content":"a"},{"path":"out","content":"b"}],"stale":[],"links":[],"warnings":[]}`, false},
+		{"stale planned", `{"files":[{"path":"out","content":"a"}],"stale":["out"],"links":[],"warnings":[]}`, false},
 		{"bad link", fmt.Sprintf(`{"files":[],"stale":[],"links":[{"path":"app/file","target":%q}],"warnings":[]}`, filepath.Join(root, "lib")), false},
 		{"absolute target", fmt.Sprintf(`{"files":[],"stale":[],"links":[{"path":"app/subprojects/lib","target":%q}],"warnings":[]}`, filepath.Join(root, "lib")), false},
 		{"own member", `{"files":[],"stale":[],"links":[{"path":"app/subprojects/app","target":"../../app"}],"warnings":[]}`, false},
@@ -222,7 +232,7 @@ func TestPlanPaths(t *testing.T) {
 			isolate(t)
 			dir := t.TempDir()
 			script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else echo '"+tc.answer+"'; fi")
-			plugins, err := Discover([]string{dir}, "")
+			plugins, err := discover([]string{dir}, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -240,4 +250,76 @@ func TestPlanPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDiscoverReview(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+	script(t, dir, "demo", "echo '"+validMeta+"'")
+	script(t, dir, "bad", "exit 1")
+	script(t, dir, "go", "echo '"+validMeta+"'")
+	plugins, broken, err := Discover([]string{dir}, "", nil)
+	if err != nil || len(plugins) != 1 || plugins[0].Meta().ID != "demo" || len(broken) != 2 {
+		t.Fatalf("Discover = %+v, broken %v, %v; want demo, and bad and go broken", plugins, broken, err)
+	}
+
+	// An empty PATH entry is not the current directory.
+	t.Chdir(dir)
+	plugins, broken, err = Discover(nil, string(os.PathListSeparator), nil)
+	if err != nil || len(plugins)+len(broken) != 0 {
+		t.Fatalf("Discover(empty PATH entry) = %+v, %v, %v; want nothing", plugins, broken, err)
+	}
+}
+
+func TestPlanSortedAndLastStderrLine(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+	script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else printf 'no newline' >&2; echo '{\"files\":[{\"path\":\"b\",\"content\":\"\"},{\"path\":\"a\",\"content\":\"\"}],\"stale\":[],\"links\":[],\"warnings\":[]}'; fi")
+	var stderr bytes.Buffer
+	plugins, broken, err := Discover([]string{dir}, "", &stderr)
+	if err != nil || len(broken) != 0 {
+		t.Fatal(err, broken)
+	}
+	p, err := plugins[0].Plan(gen.Space{Root: t.TempDir()}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Files) != 2 || p.Files[0].Path != "a" {
+		t.Errorf("Files = %+v, want them sorted by path", p.Files)
+	}
+	if stderr.String() != "demo: no newline\n" {
+		t.Errorf("stderr = %q, want the last line ended", stderr.String())
+	}
+}
+
+func TestTimeLimitKillsChildren(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+	pidFile := filepath.Join(dir, "pid")
+	script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else sleep 30 & echo $! > "+pidFile+"; wait; fi")
+	plugins, err := discover([]string{dir}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := plugins[0]
+	p.timeout = 200 * time.Millisecond
+	if _, err := p.Plan(gen.Space{Root: t.TempDir()}, nil); err == nil || !strings.Contains(err.Error(), "time limit") {
+		t.Fatalf("Plan error = %v, want the time limit", err)
+	}
+	b, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The child is gone or a zombie that its killed parent left to init; poll a short time.
+	for range 50 {
+		if syscall.Kill(pid, 0) != nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("child %d of the plugin is still running", pid)
 }

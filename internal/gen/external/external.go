@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/0mega24/tandem/internal/gen"
@@ -38,13 +39,18 @@ type Plugin struct {
 var _ gen.Generator = Plugin{}
 
 // Discover searches dirs, the XDG user plugin directory, then path. The first executable
-// for each ID wins. Each selected executable runs meta exactly once.
-func Discover(dirs []string, path string) ([]Plugin, error) {
+// for each ID wins. Each selected executable runs meta exactly once; its stderr goes to stderr.
+//
+// A plugin whose meta fails, or whose ID is that of a built-in generator, is in broken and not in
+// plugins: a broken tdm-gen-* on PATH must not block commands that do not use it. Its ID then is
+// an unknown generator, so a config that enables it still fails. err is for a plugin directory
+// that cannot be read.
+func Discover(dirs []string, path string, stderr io.Writer) (plugins []Plugin, broken []error, err error) {
 	data := os.Getenv("XDG_DATA_HOME")
 	if !filepath.IsAbs(data) {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, fmt.Errorf("plugin home: %w", err)
+			return nil, nil, fmt.Errorf("plugin home: %w", err)
 		}
 		data = filepath.Join(home, ".local", "share")
 	}
@@ -54,17 +60,16 @@ func Discover(dirs []string, path string) ([]Plugin, error) {
 		search = append(search, filepath.SplitList(path)...)
 	}
 	seen := map[string]bool{}
-	var plugins []Plugin
 	for _, dir := range search {
 		if dir == "" {
-			dir = "."
+			continue // POSIX reads an empty PATH entry as ".": never run a plugin from the current dir
 		}
 		entries, err := os.ReadDir(dir)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("plugin directory %s: %w", dir, err)
+			return nil, nil, fmt.Errorf("plugin directory %s: %w", dir, err)
 		}
 		for _, entry := range entries {
 			id, ok := strings.CutPrefix(entry.Name(), "tdm-gen-")
@@ -77,34 +82,41 @@ func Discover(dirs []string, path string) ([]Plugin, error) {
 				continue
 			}
 			if err != nil {
-				return nil, fmt.Errorf("plugin %s: %w", file, err)
+				return nil, nil, fmt.Errorf("plugin %s: %w", file, err)
 			}
 			if !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
 				continue
 			}
 			absolute, err := filepath.Abs(file)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-			p := Plugin{Path: absolute, timeout: timeLimit, meta: gen.Meta{ID: id}}
+			seen[id] = true // a bad first match is not replaced by a later one
+			if _, ok := gen.ByID(id); ok {
+				broken = append(broken, fmt.Errorf("plugin %s: the ID %q is a built-in generator", absolute, id))
+				continue
+			}
+			p := Plugin{Path: absolute, Stderr: stderr, timeout: timeLimit, meta: gen.Meta{ID: id}}
 			var meta metadata
 			if err := p.run("meta", nil, &meta); err != nil {
-				return nil, err
+				broken = append(broken, err)
+				continue
 			}
 			if err := meta.validate(id); err != nil {
-				return nil, p.failure("meta", err)
+				broken = append(broken, p.failure("meta", err))
+				continue
 			}
 			p.meta = gen.Meta{ID: id, Languages: []string(*meta.Languages), Manifests: []string(*meta.Manifests), DefaultOn: *meta.DefaultOn}
 			plugins = append(plugins, p)
-			seen[id] = true
 		}
 	}
-	return plugins, nil
+	return plugins, broken, nil
 }
 
 func (p Plugin) Meta() gen.Meta { return p.meta }
 
-// Detect includes every member; the plugin decides which manifests apply during plan.
+// Detect includes every member; the plugin decides which manifests apply during plan, as tdm
+// cannot run plugin code in Detect. So the meta languages and manifests are only for the docs.
 func (Plugin) Detect(m gen.Member, _ gen.DetectOptions) (*gen.Detection, error) {
 	return &gen.Detection{Member: m}, nil
 }
@@ -155,10 +167,17 @@ func (p Plugin) run(verb string, input []byte, answer any) error {
 	if stderr == nil {
 		stderr = os.Stderr
 	}
-	cmd.Stderr = &prefixWriter{out: stderr, prefix: p.meta.ID + ": ", start: true}
-	// A descendant must not keep the stdout/stderr pipes open after the process exits.
+	errOut := &prefixWriter{out: stderr, prefix: p.meta.ID + ": ", start: true}
+	cmd.Stderr = errOut
+	// A plugin is often a script that starts other programs: the time and output limits kill its
+	// whole process group, not only the script. WaitDelay closes the pipes that a child still holds.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = time.Second
 	err := cmd.Run()
+	if !errOut.start {
+		_, _ = io.WriteString(stderr, "\n") // end a last line with no newline; stderr is best effort
+	}
 	if out.overflow {
 		return p.failure(verb, errors.New("16 MiB stdout limit exceeded"))
 	}
