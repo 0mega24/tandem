@@ -103,6 +103,7 @@
               "gradle",
               "js",
               "maven",
+              "meson",
               "rust",
               "ts",
               "uv",
@@ -151,6 +152,12 @@
         "maven": {
           "additionalProperties": false,
           "description": "Options of the maven generator (Java).",
+          "properties": {},
+          "type": "object"
+        },
+        "meson": {
+          "additionalProperties": false,
+          "description": "Options of the meson generator (C, C++).",
           "properties": {},
           "type": "object"
         },

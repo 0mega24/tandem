@@ -168,6 +168,7 @@ feat         ~/workspaces/feat
   gradle     - no members
   js         - no members
   maven      - no members
+  meson      - no members
   rust       - no members
 
 $ tdm status feat
