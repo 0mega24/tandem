@@ -48,6 +48,9 @@ All notable changes to this project are in this file. The format follows
 - `tdm new` and `tdm add` run the generators of the space after the worktrees; a failure undoes
   the command. `tdm new --generate=<ids>|--no-generate` chooses the set, and the space keeps it.
   The `always.run` hook gets `TDM_GENERATED_FILES`.
+- `tdm remove` writes the generated files again for the members that are left, and deletes the
+  files of a generator with no members. `tdm delete` deletes the generated files that nobody
+  changed, with their derived files; a changed file stays, and a failure is a warning.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

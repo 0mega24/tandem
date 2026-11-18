@@ -10,6 +10,7 @@ import (
 
 	ucli "github.com/urfave/cli/v3"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/state"
 	"github.com/0mega24/tandem/internal/ui"
@@ -313,14 +314,15 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
-	removed, err := m.RemoveRepos(ctx, args[0], args[1:], space.RemoveOptions{
+	removed, generated, err := m.RemoveRepos(ctx, args[0], args[1:], space.RemoveOptions{
 		DeleteBranch: cmd.Bool("delete-branch"),
 		Confirm:      func(risks []space.Risk) bool { return confirm(cmd, risks) },
 	})
 
 	t := ui.NewTable(cmd.Root().Writer)
 	removedRows(t, removed, cmd.Bool("delete-branch"))
-	return errors.Join(err, t.Flush())
+	generatedRows(t, generated)
+	return errors.Join(err, printWarnings(cmd, generated.Runs), t.Flush())
 }
 
 // removedRows writes one row for each repo that remove or delete took out.
@@ -384,6 +386,14 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 	removedRows(t, res.Repos, force || cmd.Bool("delete-branch"))
 	for _, f := range res.Files {
 		t.Row(f, "✓ removed")
+	}
+	for _, c := range res.Generated {
+		switch c.Action {
+		case gen.Delete:
+			t.Row(c.Path, "✓ removed")
+		case gen.Skip:
+			t.Row(c.Path, "! kept: "+c.Reason)
+		}
 	}
 	if err == nil {
 		if res.KeptDir {

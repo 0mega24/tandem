@@ -24,8 +24,8 @@ Today, repo status and sync help you inspect and update those main clones from o
 
 ## How it works
 
-Today, `tdm new` makes the worktrees and writes `go.work` for the Go repos; `tdm add` and
-`tdm generate` write it again. The other generators are **planned**:
+Today, `tdm new` makes the worktrees and writes `go.work` for the Go repos; `tdm add`,
+`tdm remove` and `tdm generate` write it again, and `tdm delete` deletes it. The other generators are **planned**:
 
 ```mermaid
 flowchart LR
