@@ -35,6 +35,9 @@ All notable changes to this project are in this file. The format follows
 - The `always.run` hook runs after `new`, `add`, `remove` and `delete` with `TDM_SPACE_NAME`,
   `TDM_SPACE_ROOT`, `TDM_SPACE_BRANCH`, `TDM_SPACE_EVENT`, `TDM_REPOS`, `TDM_REPO_PATHS` and
   `TDM_EVENT_REPOS`. Its output goes to stderr; a failure is a warning.
+- Auto-heal: `status`, `add`, `remove`, `delete` and `exec` check the worktrees of a space first.
+  A deleted worktree is pruned in git and leaves the space (with a warning); a worktree that git
+  does not know is repaired with `git worktree repair`.
 - `tdm path <space>` prints the space directory (for `tcd`), and completes space names.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
   does not have. The space that holds the current directory comes first.
