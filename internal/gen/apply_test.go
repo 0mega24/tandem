@@ -159,6 +159,16 @@ func TestPrepareRejectsBadPaths(t *testing.T) {
 		}
 	}
 
+	for _, s := range []string{"../x", "/etc/x", "api/go.mod"} {
+		if _, err := Prepare(root, nil, map[string]Plan{"go": {Stale: []string{s}}}, []string{"api"}, false); err == nil {
+			t.Errorf("Prepare with stale %q = nil, want an error", s)
+		}
+		owned := []Owned{{Generator: "go", Path: "go.work", SHA256: "x", Stale: []string{s}}}
+		if _, err := Prepare(root, owned, map[string]Plan{"go": {}}, []string{"api"}, false); err == nil {
+			t.Errorf("Prepare with owned stale %q = nil, want an error", s)
+		}
+	}
+
 	twice := map[string]Plan{"go": plan(file("go.work", "a")), "rust": plan(file("go.work", "b"))}
 	if _, err := Prepare(root, nil, twice, nil, false); err == nil || !strings.Contains(err.Error(), "planned twice") {
 		t.Errorf("two generators on one path: %v", err)

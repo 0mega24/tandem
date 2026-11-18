@@ -102,6 +102,11 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 		if len(plans[id].Links) > 0 {
 			return Applied{}, fmt.Errorf("generator %s: links are not supported yet", id) // they come with meson
 		}
+		for _, s := range plans[id].Stale {
+			if err := checkPath(s, members); err != nil {
+				return Applied{}, fmt.Errorf("generator %s: stale %w", id, err)
+			}
+		}
 		for _, f := range plans[id].Files {
 			if err := checkPath(f.Path, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: %w", id, err)
@@ -122,6 +127,16 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			}
 			if c.Action == Write {
 				a.stale = append(a.stale, plans[id].Stale...)
+			}
+		}
+	}
+
+	// The state came from disk and the members may have changed since, so the owned paths go
+	// through the same check before a delete can touch them.
+	for _, o := range owned {
+		for _, p := range append([]string{o.Path}, o.Stale...) {
+			if err := checkPath(p, members); err != nil {
+				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
 			}
 		}
 	}
