@@ -35,7 +35,6 @@ type System struct{}
 
 var _ Runner = System{}
 
-// run runs git in dir and returns stdout.
 func (System) run(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	//nolint:gosec // G204: this package builds the args; no shell is involved.
 	cmd := exec.CommandContext(ctx, "git", args...)
