@@ -11,7 +11,10 @@ import (
 	"github.com/0mega24/tandem/internal/state"
 )
 
-type fakeBackend struct{ spaces []space.SpaceStatus }
+type fakeBackend struct {
+	*space.Manager
+	spaces []space.SpaceStatus
+}
 
 func (f fakeBackend) Status(context.Context, []string, string) ([]space.SpaceStatus, error) {
 	return f.spaces, nil
@@ -45,5 +48,14 @@ func TestChooseSpace(t *testing.T) {
 	m = press(press(m, "down"), "enter")
 	if got := m.(model).chosen; got != "/ws/fix" {
 		t.Errorf("chosen = %q, want /ws/fix", got)
+	}
+}
+
+func TestHelpAndPanels(t *testing.T) {
+	m := press(newModel(context.Background(), fakeBackend{}, "/"), "?")
+	for _, want := range []string{"Spaces", "Repos", "Details", "n: new", "G: dry-run"} {
+		if !strings.Contains(m.View().Content, want) {
+			t.Errorf("view = %q, want %q", m.View().Content, want)
+		}
 	}
 }

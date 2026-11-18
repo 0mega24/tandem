@@ -268,7 +268,10 @@ Generators will update the workspace files when the member repos change. Go is a
 A .NET solution will group projects; it will not replace package references with project references.
 See the [generator requirements](docs/spec/generators.md#generators-by-language).
 
-The planned `tdm ui` will provide a lazygit-style TUI with Spaces, Repos, Details, and a log.
+`tdm ui` is a lazygit-style TUI with Spaces, Repos, Details and a log. Keys: `n` new, `a` add,
+`r` remove, `d` delete (both ask first and show dirty or unpushed work), `g` generate, `G` dry-run
+diff, `s` repo sync, `e` exec, `/` filter, `?` help, `q` quit. `enter` prints the path of the
+space, for `cd "$(tdm ui)"`.
 See the [TUI design](docs/DESIGN.md#tui).
 
 External generator plugins are planned. Executables named `tdm-gen-<id>` will

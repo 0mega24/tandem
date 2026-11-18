@@ -28,7 +28,7 @@ buildGoLatestModule (finalAttrs: {
   };
 
   # Run `make nix-vendor-hash` after a go.mod change.
-  vendorHash = "sha256-4ri6XREY8fSY2tWwBNuGtH4nd1y5CaHH9xSQEO66+OQ=";
+  vendorHash = "sha256-MsJ9w1c4eIMk+H/xdSVcIeFIIh+GoHju26Ldk/zxPP0=";
 
   # Generated files are committed, so the build does not run go generate.
   # No subPackages: with it, checkPhase runs only the cmd/tdm tests. tools/* are dev-only mains.
