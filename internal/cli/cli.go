@@ -16,7 +16,8 @@ import (
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := newRoot(stdout, stderr)
 	if err := root.Run(ctx, args); err != nil {
-		fmt.Fprintln(stderr, "tdm:", err)
+		// The exit code reports the failure; a broken stderr leaves nothing else to do.
+		_, _ = fmt.Fprintln(stderr, "tdm:", err)
 		return 1
 	}
 	return 0
