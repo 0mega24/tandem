@@ -45,10 +45,11 @@ type Space struct {
 
 // GeneratedFile is one file that a generator wrote in the space.
 type GeneratedFile struct {
-	Generator string   `yaml:"generator"`       // generator ID, e.g. "go"
-	Path      string   `yaml:"path"`            // relative to Space.Path, with "/"
-	SHA256    string   `yaml:"sha256"`          // hex hash of the bytes that tdm wrote
-	Stale     []string `yaml:"stale,omitempty"` // derived files deleted with this one, e.g. "go.work.sum"
+	Generator string   `yaml:"generator"`        // generator ID, e.g. "go"
+	Path      string   `yaml:"path"`             // relative to Space.Path, with "/"
+	SHA256    string   `yaml:"sha256"`           // hex hash of the bytes that tdm wrote; "" for a link
+	Target    string   `yaml:"target,omitempty"` // for a symlink that tdm made: where it points
+	Stale     []string `yaml:"stale,omitempty"`  // derived files deleted with this one, e.g. "go.work.sum"
 }
 
 // RepoEntry is one repo in a space: a worktree on the space branch, or a symlink to the main clone.

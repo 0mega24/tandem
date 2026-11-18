@@ -16,6 +16,8 @@ The state file gets two keys, as the generator spec says:
 - `generators`: the generator IDs of the space.
 - `generated`: one entry per file: `generator`, `path` (relative to the space root), `sha256` of
   the bytes that tdm wrote, and `stale` (derived files, such as go.work.sum, that go with it).
+  A symlink that a plan makes (meson's subprojects/<dir>) has `target` in place of `sha256`: the
+  link is tdm's when it still points there.
 
 The hash is the ownership record. A file on disk with the same hash is tdm's; a different hash
 means a person changed it, and tdm skips it unless `--force`. JSON files have no comment for an

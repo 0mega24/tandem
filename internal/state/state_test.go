@@ -202,7 +202,10 @@ func TestFileFormatGenerated(t *testing.T) {
 	sp := sample("g")
 	sp.Repos = sp.Repos[:1]
 	sp.Generators = []string{"go", "rust"}
-	sp.Generated = []GeneratedFile{{Generator: "go", Path: "go.work", SHA256: "ab12", Stale: []string{"go.work.sum"}}}
+	sp.Generated = []GeneratedFile{
+		{Generator: "go", Path: "go.work", SHA256: "ab12", Stale: []string{"go.work.sum"}},
+		{Generator: "meson", Path: "myorg/api/subprojects/lib", Target: "/ws/g/lib"},
+	}
 	if err := s.Save(sp); err != nil {
 		t.Fatal(err)
 	}
@@ -228,6 +231,10 @@ generated:
       sha256: ab12
       stale:
         - go.work.sum
+    - generator: meson
+      path: myorg/api/subprojects/lib
+      sha256: ""
+      target: /ws/g/lib
 `
 	if string(b) != want {
 		t.Errorf("state file =\n%s\nwant\n%s", b, want)
