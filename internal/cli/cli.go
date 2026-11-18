@@ -44,8 +44,11 @@ func newRoot(stdout, stderr io.Writer) *ucli.Command {
 			},
 		},
 		Commands: []*ucli.Command{
-			configCommand(),
+			newCommand(),
+			pathCommand(),
+			statusCommand(),
 			repoCommand(),
+			configCommand(),
 			{
 				Name:  "version",
 				Usage: "Print the version",
