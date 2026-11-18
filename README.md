@@ -305,6 +305,7 @@ Use `nix develop` or direnv (`.envrc` uses the flake). The Makefile also enters 
 | `make fmt` / `make fmt-check` | Format files / check formatting |
 | `make check` | Run the merge gate |
 | `make clean` | Remove build output |
+| `make newgen ID=zig MANIFEST=build.zig.zon` | Scaffold a generator and update the registry |
 
 Read [AGENTS.md](AGENTS.md) for repo rules and [docs/DESIGN.md](docs/DESIGN.md) for the structure,
 prior art, and changes from the specs. See [CHANGELOG.md](CHANGELOG.md) for current changes.

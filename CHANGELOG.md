@@ -8,6 +8,7 @@ All notable changes to this project are in this file. The format follows
 
 ### Added
 - Agent skills `tandem` and `tandem-setup`, with Claude Code and Codex plugin manifests.
+- `make newgen ID=zig MANIFEST=build.zig.zon` scaffolds a generator with six golden cases and updates the registry.
 - Project skeleton: `tdm version`, shell completion, Makefile, Nix flake (package, overlay, dev
   shells, NixOS and home-manager modules), golangci-lint with depguard structure rules, layout test.
 - Layered config: `/etc/xdg/tandem`, `$XDG_CONFIG_HOME/tandem`, then `TDM_CONFIG` or `--config`.

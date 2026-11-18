@@ -1,0 +1,9 @@
+package {{.Package}}
+
+import (
+ "testing"
+
+ "github.com/0mega24/tandem/internal/gen/gentest"
+)
+
+func TestGolden(t *testing.T) { gentest.Run(t, Generator{}) }

@@ -1,0 +1,44 @@
+package {{.Package}}
+
+import (
+ "errors"
+ "io/fs"
+ "os"
+
+ "github.com/0mega24/tandem/internal/gen"
+)
+
+func init() { gen.Register(Generator{}) }
+
+// Generator plans workspace files for {{.ID}} members.
+type Generator struct{}
+
+// Config is empty until this generator needs settings.
+type Config struct{}
+
+func (Generator) Meta() gen.Meta {
+ return gen.Meta{ID: {{printf "%q" .ID}}, Manifests: []string{ {{printf "%q" .Manifest}} }, Config: Config{}}
+}
+
+func (Generator) Detect(m gen.Member, _ gen.DetectOptions) (*gen.Detection, error) {
+ root, err := os.OpenRoot(m.WorktreePath)
+ if err != nil {
+  return nil, err
+ }
+ defer root.Close() //nolint:errcheck // read-only directory
+ info, err := root.Stat({{printf "%q" .Manifest}})
+ if errors.Is(err, fs.ErrNotExist) {
+  return nil, nil
+ }
+ if err != nil {
+  return nil, err
+ }
+ if info.IsDir() {
+  return nil, nil
+ }
+ return &gen.Detection{Member: m, Manifest: {{printf "%q" .Manifest}}}, nil
+}
+
+func (Generator) Plan(_ gen.Space, _ []gen.Detection) (gen.Plan, error) {
+ return gen.Plan{}, errors.New({{printf "%q" (printf "not implemented: edit internal/gen/%s/%s.go" .ID .ID)}})
+}
