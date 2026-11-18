@@ -8,9 +8,9 @@ connect their build systems.
 [![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat)](go.mod)
 
 > [!NOTE]
-> Tandem is in early development. Today, `tdm` can print its version and config, show the status
-> of main clones, sync their default branches, and generate shell completion scripts.
-> Space creation, workspace generators, the TUI, and plugin support are planned.
+> Tandem is in early development. Today, `tdm` can make a space (`new`), print its path and
+> status, show and sync the main clones, and print its config. `add`, `remove`, `delete`, `exec`,
+> the `always.*` settings, workspace generators, the TUI, and plugins are planned.
 
 ## Why
 
@@ -23,7 +23,7 @@ Today, repo status and sync help you inspect and update those main clones from o
 
 ## How it works
 
-The space workflow below is **planned**:
+Today, `tdm new` makes the worktrees. The generated workspace files are **planned**:
 
 ```mermaid
 flowchart LR
@@ -38,10 +38,10 @@ Example of the planned files on disk for two Go repos:
 ~/repos/                       # existing main clones
 ├── api/
 └── shared/
-~/workspaces/my-feature/       # planned space
+~/workspaces/my-feature/       # tdm new my-feature api shared
 ├── api/                       # worktree on my-feature
 ├── shared/                    # worktree on my-feature
-└── go.work                    # generated local module links
+└── go.work                    # planned: generated local module links
 ```
 
 Generators will use each build tool's workspace or local override mechanism. They will not build,
@@ -75,12 +75,11 @@ In a Home Manager module with access to `inputs`:
 imports = [ inputs.tandem.homeManagerModules.default ];
 programs.tandem = {
   enable = true;
-  shellHelper = false;
   settings.discovery.root_dir = "~/repos";
 };
 ```
 
-Keep `shellHelper = false` for now. The default `tcd` helper calls `tdm path`, which is planned.
+The `tcd <space>` shell helper (on by default) changes to the space directory.
 See the [module options](nix/hm-module.nix).
 
 </details>
@@ -150,6 +149,29 @@ tdm completion bash        # print a completion script; zsh and fish also work
 Sync skips clones with local changes and default branches checked out in a worktree.
 It does not touch worktrees. Discovery excludes linked worktrees and does not follow symlinks.
 
+Make a space with a worktree on branch `feat` in three repos (output from the
+[space test](internal/cli/testdata/script/space.txtar)):
+
+```text
+$ tdm new feat api web lib
+feat         ~/workspaces/feat
+  api        ✓ worktree  [feat]  new branch
+  web        ✓ worktree  [feat]  existing branch
+  myorg/lib  ✓ worktree  [feat]  new branch
+
+$ tdm status feat
+feat         ~/workspaces/feat
+  api        [feat]  ! 1 changed
+  web        [feat]  ✓ clean  ↑1
+  myorg/lib  [feat]  ✓ clean
+
+$ cd "$(tdm path feat)"    # or: tcd feat
+```
+
+A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
+branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and the
+directory. When a step fails, `tdm new` undoes the steps before it.
+
 ## Configuration
 
 Tandem loads these layers in order. Later values override earlier values:
@@ -192,7 +214,7 @@ See the [config types and defaults](internal/config/config.go).
 
 ## Planned
 
-Space commands will create, add, remove, and delete worktrees on one branch. Generators will
+Space commands will add and remove repos, delete a space, and run a command in each worktree. Generators will
 update the workspace files when the member repos change. All entries below are planned;
 release numbers are targets from the spec.
 
