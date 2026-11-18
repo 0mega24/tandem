@@ -41,6 +41,8 @@ All notable changes to this project are in this file. The format follows
 - Auto-heal: `status`, `add`, `remove`, `delete` and `exec` check the worktrees of a space first.
   A deleted worktree is pruned in git and leaves the space (with a warning); a worktree that git
   does not know is repaired with `git worktree repair`.
+- `tdm ui`: a terminal UI that lists the spaces; enter prints the path of the chosen one, for
+  `cd "$(tdm ui)"`.
 - `tdm path <space>` prints the space directory (for `tcd`), and completes space names.
 - `tdm generate [-n|-f] <space>` runs the generators of a space and writes their files; the first
   generator is `go` (`go.work`, with the highest `go` version of the members). tdm writes only files
