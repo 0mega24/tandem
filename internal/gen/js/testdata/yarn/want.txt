@@ -1,0 +1,2 @@
+stale: yarn.lock
+stale: node_modules

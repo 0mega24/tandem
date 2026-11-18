@@ -1,0 +1,1 @@
+{"name": "shared", "packageManager": "npm@10", "workspaces": ["packages/*"]}

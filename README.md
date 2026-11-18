@@ -161,6 +161,7 @@ feat         ~/workspaces/feat
   web        ✓ worktree  [feat]  existing branch
   myorg/lib  ✓ worktree  [feat]  new branch from main
   go         - no members
+  js         - no members
   rust       - no members
 
 $ tdm status feat

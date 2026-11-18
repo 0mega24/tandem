@@ -54,6 +54,8 @@ All notable changes to this project are in this file. The format follows
   that cannot be deleted is a warning, not an error.
 - `rust` generator: Cargo `[patch]` tables in `.cargo/config.toml` (or a root `Cargo.toml`
   workspace) for the crates of the members, also for git dependencies on another member.
+- `js` generator: a root `pnpm-workspace.yaml` or a private root `package.json` with
+  `workspaces` for the JavaScript and TypeScript members (pnpm, npm, yarn, bun).
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

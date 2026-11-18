@@ -41,4 +41,5 @@ feat         $HOME/workspaces/feat
   infra      ✓ symlink   → main clone (always.repos)
   AGENTS.md  ✓ copied
   go         - no members
+  js         - no members
   rust       - no members

@@ -1,0 +1,2 @@
+stale: pnpm-lock.yaml
+stale: node_modules
