@@ -1,0 +1,4 @@
+-- Root package is deliberately excluded.
+packages:
+  libs/*, tools/cli/cli.cabal
+constraints: base >= 4

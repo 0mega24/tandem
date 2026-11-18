@@ -1,0 +1,2 @@
+warning: my app has its own cabal.project; only its package locations are copied to the space project
+stale: dist-newstyle
