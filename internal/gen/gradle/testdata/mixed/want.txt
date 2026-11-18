@@ -1,0 +1,3 @@
+warning: api has both Gradle and Maven manifests; it is included in both generator plans
+stale: .gradle
+stale: build

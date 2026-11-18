@@ -63,6 +63,8 @@ All notable changes to this project are in this file. The format follows
   FetchContent or CPM dependency that is another member.
 - `uv` generator (off by default): a virtual root `pyproject.toml` uv workspace for the Python
   members.
+- `gradle` generator: a root `settings.gradle.kts` composite build with `includeBuild` for each
+  Gradle member.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
