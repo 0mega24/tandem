@@ -1,0 +1,4 @@
+# tdm version prints one line with the version.
+exec tdm version
+stdout '^tdm \S+'
+! stderr .
