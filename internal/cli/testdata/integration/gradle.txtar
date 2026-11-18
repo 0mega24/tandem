@@ -1,0 +1,43 @@
+# gradle: the includeBuild of the space settings file makes api use the local lib, which is not
+# published anywhere. Run from the space root, with the gradle of the dev shell.
+[!exec:gradle] skip 'needs gradle'
+mkrepo api lib
+exec tdm new feat api lib
+mkdir $HOME/workspaces/feat/lib/src/main/java/example/lib $HOME/workspaces/feat/api/src/main/java/example/api
+cp lib.settings $HOME/workspaces/feat/lib/settings.gradle.kts
+cp lib.build $HOME/workspaces/feat/lib/build.gradle.kts
+cp Lib.java $HOME/workspaces/feat/lib/src/main/java/example/lib/Lib.java
+cp api.settings $HOME/workspaces/feat/api/settings.gradle.kts
+cp api.build $HOME/workspaces/feat/api/build.gradle.kts
+cp Main.java $HOME/workspaces/feat/api/src/main/java/example/api/Main.java
+exec tdm generate feat
+stdout 'gradle +✓ settings.gradle.kts'
+
+cd $HOME/workspaces/feat
+exec gradle --console=plain -q :api:run
+stdout '^local lib$'
+
+-- lib.settings --
+rootProject.name = "lib"
+-- lib.build --
+plugins { `java-library` }
+group = "example"
+version = "1.0"
+-- Lib.java --
+package example.lib;
+
+public final class Lib {
+	public static String name() { return "local lib"; }
+}
+-- api.settings --
+rootProject.name = "api"
+-- api.build --
+plugins { application }
+dependencies { implementation("example:lib:1.0") }
+application { mainClass.set("example.api.Main") }
+-- Main.java --
+package example.api;
+
+public final class Main {
+	public static void main(String[] args) { System.out.println(example.lib.Lib.name()); }
+}
