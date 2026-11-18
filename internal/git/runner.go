@@ -12,6 +12,12 @@ type Runner interface {
 	DefaultBranch(ctx context.Context, repo string) (string, error)
 	BranchExists(ctx context.Context, repo, branch string) (bool, error)
 	DeleteBranch(ctx context.Context, repo, branch string, force bool) error
+
+	AddWorktree(ctx context.Context, repo, path, branch, from string) error
+	Worktrees(ctx context.Context, repo string) ([]Worktree, error)
+	RemoveWorktree(ctx context.Context, repo, path string, force bool) error
+	PruneWorktrees(ctx context.Context, repo string) error
+	RepairWorktree(ctx context.Context, repo, path string) error
 }
 
 // OriginURL is the URL of the origin remote, or "" when the repo has no origin.
