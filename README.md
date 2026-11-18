@@ -24,7 +24,8 @@ Today, repo status and sync help you inspect and update those main clones from o
 
 ## How it works
 
-Today, `tdm new` makes the worktrees. The generated workspace files are **planned**:
+Today, `tdm new` makes the worktrees, and `tdm generate` writes `go.work` for the Go repos. The
+other generators are **planned**:
 
 ```mermaid
 flowchart LR
@@ -33,7 +34,7 @@ flowchart LR
     G --> F[Workspace files in the space root]
 ```
 
-Example of the planned files on disk for two Go repos:
+Example of the files on disk for two Go repos:
 
 ```text
 ~/repos/                       # existing main clones
@@ -42,7 +43,7 @@ Example of the planned files on disk for two Go repos:
 ~/workspaces/my-feature/       # tdm new my-feature api shared
 ├── api/                       # worktree on my-feature
 ├── shared/                    # worktree on my-feature
-└── go.work                    # planned: generated local module links
+└── go.work                    # tdm generate my-feature: local module links
 ```
 
 Generators will use each build tool's workspace or local override mechanism. They will not build,
@@ -225,13 +226,14 @@ run = ""
   `TDM_REPOS`, `TDM_REPO_PATHS` and `TDM_EVENT_REPOS` (one entry per line). Its output goes to
   stderr. A failure is a warning: the command still succeeds.
 
-Generator config is planned and is not accepted yet.
+The `[generate]` table chooses the generators: `enabled = ["go"]` (or `["none"]`) and
+`detect_depth`. `tdm generate --list` shows the generators and their defaults.
 See the [config types and defaults](internal/config/config.go).
 
 ## Planned
 
-Generators will update the workspace files when the member repos change. All entries below are planned;
-release numbers are targets from the spec.
+Generators will update the workspace files when the member repos change. Go is available through
+`tdm generate`; the other entries below are planned. Release numbers are targets from the spec.
 
 | Language / tool | Files written | Release |
 |---|---|---|
