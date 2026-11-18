@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -115,5 +116,29 @@ func TestImportWTGAbsentAndErrors(t *testing.T) {
 				t.Fatal("invalid source accepted")
 			}
 		})
+	}
+}
+
+// Review 0016, finding 1: a wtg config that tandem cannot load must not be written, as every
+// tdm command would fail. The spaces still import.
+func TestImportWTGInvalidConfig(t *testing.T) {
+	for _, body := range []string{"[discovery]\nmax_depth = 0\n", "[always]\nfiles = ['CLAUDE.md']\n"} {
+		home := t.TempDir()
+		env := config.Env{Home: home, XDGDataHome: filepath.Join(home, "data"), XDGConfigHome: filepath.Join(home, "config")}
+		importWrite(t, filepath.Join(env.XDGDataHome, "wtg", "spaces", "feat.yaml"), "name: feat\npath: "+home+"/w\nbranch: feat\ncreated_at: 2026-03-27T10:00:00Z\nrepos: []\n")
+		importWrite(t, filepath.Join(env.XDGConfigHome, "wtg", "config.toml"), body)
+		rows, err := ImportWTG(env, "", false)
+		if err != nil {
+			t.Fatalf("%s: import = %v", body, err)
+		}
+		if _, err := os.Stat(filepath.Join(env.XDGConfigHome, "tandem", "config.toml")); !os.IsNotExist(err) {
+			t.Fatalf("%s: wrote a config that tandem cannot load", body)
+		}
+		if _, err := state.NewStore(state.DefaultDir(home, env.XDGDataHome)).Load("feat"); err != nil {
+			t.Fatalf("%s: space not imported: %v", body, err)
+		}
+		if !slices.ContainsFunc(rows, func(r ImportRow) bool { return r.Name == "config" && r.Skipped }) {
+			t.Fatalf("%s: rows = %+v, want a skipped config row", body, rows)
+		}
 	}
 }

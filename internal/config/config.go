@@ -96,6 +96,12 @@ func Defaults() Config {
 }
 
 // validate checks the values that the code after Load trusts.
+// Check reports whether tdm can load c: the checks of Load after its ~ expansion.
+func Check(c Config, home string) error {
+	c.expand(home)
+	return c.validate()
+}
+
 func (c Config) validate() error {
 	var errs []error
 	if c.Discovery.RootDir == "" {

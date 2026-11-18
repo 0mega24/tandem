@@ -43,11 +43,16 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 	if strings.HasPrefix(wtgConfig, "~/") {
 		wtgConfig = filepath.Join(env.Home, wtgConfig[2:])
 	}
-	body, unknown, err := importConfig(wtgConfig, explicit)
-	if err != nil {
+	body, unknown, err := importConfig(wtgConfig, explicit, env.Home)
+	var rows []ImportRow
+	var invalid invalidConfig
+	switch {
+	case errors.As(err, &invalid):
+		// Every tdm command would fail with this config: import the spaces, not the config.
+		rows = append(rows, ImportRow{Name: "config", Skipped: true, Reason: "not imported: " + err.Error()})
+	case err != nil:
 		return nil, err
 	}
-	var rows []ImportRow
 	for _, sp := range spaces {
 		row := ImportRow{Name: sp.Name, Reason: sp.Path}
 		// Lstat also protects malformed files and dangling links from replacement.
@@ -86,7 +91,10 @@ func ImportWTG(env config.Env, wtgConfig string, dryRun bool) ([]ImportRow, erro
 	return rows, nil
 }
 
-func importConfig(file string, explicit bool) ([]byte, []string, error) {
+// invalidConfig is a wtg config that decodes but that tdm cannot load.
+type invalidConfig struct{ error }
+
+func importConfig(file string, explicit bool, home string) ([]byte, []string, error) {
 	b, err := os.ReadFile(file) //nolint:gosec // G304: the user selects the wtg config to import
 	if errors.Is(err, fs.ErrNotExist) && !explicit {
 		return nil, nil, nil
@@ -137,6 +145,9 @@ func importConfig(file string, explicit bool) ([]byte, []string, error) {
 	}
 	if err := decoder.Decode(mapped); err != nil {
 		return nil, nil, fmt.Errorf("wtg config %s: %w", file, err)
+	}
+	if err := config.Check(cfg, home); err != nil {
+		return nil, nil, invalidConfig{fmt.Errorf("wtg config %s: %w", file, err)}
 	}
 	slices.Sort(unknown)
 	b, err = parser.Marshal(mapped)
