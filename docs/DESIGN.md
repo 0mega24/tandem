@@ -69,6 +69,7 @@ tandem/
 ├── nix/                      # package.nix, nixos-module.nix, hm-module.nix, devshells.nix
 ├── skills/                   # tandem/, tandem-setup/
 ├── .claude-plugin/  .codex-plugin/
+├── .agents/plugins/      # Codex marketplace for the plugin
 ├── .github/workflows/ci.yml
 ├── flake.nix  flake.lock  .envrc
 ├── Makefile

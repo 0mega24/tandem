@@ -288,12 +288,10 @@ This repo has two skills for coding agents: `tandem` (use `tdm` in a task) and `
 ```sh
 claude plugin marketplace add 0mega24/tandem
 claude plugin install tandem@tandem
+codex plugin marketplace add 0mega24/tandem
 ```
 
-Codex reads `.codex-plugin/plugin.json`. Copy the folders in `skills/` to `~/.agents/skills/` to
-use them there.
-
-The skills are in [skills/](skills/). The manifests are in `.claude-plugin/` and `.codex-plugin/`.
+The skills are in [skills/](skills/). The manifests are in `.claude-plugin/`, `.codex-plugin/` and `.agents/plugins/`.
 
 ## Development
 
