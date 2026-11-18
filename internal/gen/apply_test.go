@@ -427,3 +427,45 @@ func TestCheckLink(t *testing.T) {
 		t.Errorf("CheckLink(valid) = %v", err)
 	}
 }
+
+func TestLinkOwnership(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "app/subprojects/x.wrap", "")
+	writeFile(t, root, "libfoo/meson.build", "")
+	writeFile(t, root, "libbar/meson.build", "")
+	members := []string{"app", "libbar", "libfoo"}
+	yes := func(string) (bool, error) { return true, nil }
+	p := filepath.Join(root, "app/subprojects/dep")
+
+	// A person's link with the planned target stays theirs.
+	if err := os.Symlink("../../libfoo", p); err != nil {
+		t.Fatal(err)
+	}
+	foo := Link{Path: "app/subprojects/dep", Target: "../../libfoo"}
+	a, err := Prepare(root, nil, map[string]Plan{"meson": {Links: []Link{foo}}}, members, false, yes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Changes[0].Action != Skip || len(a.Owned) != 0 {
+		t.Errorf("a person's link: %+v, owned %+v; want a skip, not owned", a.Changes[0], a.Owned)
+	}
+
+	// tdm's link and a new target: the link is replaced.
+	owned := []Owned{{Generator: "meson", Path: foo.Path, Target: foo.Target}}
+	bar := Link{Path: foo.Path, Target: "../../libbar"}
+	a, err = Prepare(root, owned, map[string]Plan{"meson": {Links: []Link{bar}}}, members, false, yes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(t, a)
+	if got, _ := os.Readlink(p); got != bar.Target || a.Owned[0].Target != bar.Target {
+		t.Errorf("link = %q, owned %+v; want the new target", got, a.Owned)
+	}
+
+	// An owned link whose member left: dropped with a warning, not an error.
+	gone := []Owned{{Generator: "meson", Path: "old/subprojects/dep", Target: "../../libfoo"}}
+	a, err = Prepare(root, gone, map[string]Plan{"meson": {}}, members, false, yes)
+	if err != nil || len(a.Owned) != 0 || len(a.Warnings()) != 1 {
+		t.Errorf("owned link of a member that left: err %v, owned %+v, warnings %q", err, a.Owned, a.Warnings())
+	}
+}

@@ -21,6 +21,11 @@ import (
 //   - tdm makes a link only where nothing is, and only where git ignores the path in that member,
 //     so the link never shows as a change in the repo. --force does not change this.
 //   - The owned record is the target. tdm deletes a path only while it is a symlink to that target.
+//     A link that tdm did not make is a person's, also with the same target: it is skipped and
+//     never owned, so a later run cannot delete it.
+//   - A link of a removed worktree goes with the worktree: git worktree remove deletes ignored
+//     files and does not follow symlinks (Meson rule 7).
+//   - A failed delete is a warning, as for files: the link stays and leaves the state.
 
 // CheckLink enforces the rules for a link path and target. members are as in Prepare.
 func CheckLink(root string, l Link, members []string) error {
@@ -65,7 +70,7 @@ func cleanRel(p string) bool {
 }
 
 // decideLink decides about one planned link. It returns the owned record, or nil.
-func decideLink(root, id string, l Link, ignored func(string) (bool, error)) (Change, *Owned, error) {
+func decideLink(root, id string, l Link, byPath map[string]Owned, ignored func(string) (bool, error)) (Change, *Owned, error) {
 	c := Change{Generator: id, Path: l.Path, Target: l.Target}
 	own := &Owned{Generator: id, Path: l.Path, Target: l.Target}
 	full := filepath.Join(root, filepath.FromSlash(l.Path))
@@ -75,16 +80,22 @@ func decideLink(root, id string, l Link, ignored func(string) (bool, error)) (Ch
 		return c, nil, nil
 	}
 
+	prev, isOwned := byPath[l.Path]
+	isOwned = isOwned && prev.Target != ""
 	fi, err := os.Lstat(full)
+	isLink := err == nil && fi.Mode()&fs.ModeSymlink != 0
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
 		return c, nil, err
-	case fi.Mode()&fs.ModeSymlink != 0 && readlink(full) == l.Target:
+	case isLink && isOwned && readlink(full) == l.Target && prev.Target == l.Target:
 		c.Action = Unchanged
 		return c, own, nil
+	case isLink && isOwned && readlink(full) == prev.Target:
+		c.Action, c.Reason, c.relink = Write, "the target changed from "+prev.Target, prev.Target
+		return c, own, nil // still where git ignores it: the check passed when tdm made it
 	default:
-		c.Action, c.Reason = Skip, "something else is there; delete it so that tdm can link it"
+		c.Action, c.Reason = Skip, "something that tdm did not make is there; delete it so that tdm can link it"
 		return c, nil, nil
 	}
 
@@ -132,12 +143,34 @@ func linkStep(root string, c Change) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(c.Path))
 	return saga.Step{
 		Name: "link " + c.Path,
-		Do:   func(context.Context) error { return os.Symlink(c.Target, p) },
+		Do: func(context.Context) error {
+			if c.relink != "" {
+				if readlink(p) != c.relink {
+					return fmt.Errorf("%s changed since the plan", c.Path)
+				}
+				if err := os.Remove(p); err != nil {
+					return err
+				}
+			}
+			if err := os.Symlink(c.Target, p); err != nil {
+				if c.relink != "" {
+					return errors.Join(err, os.Symlink(c.relink, p)) // the saga undoes only finished steps
+				}
+				return err
+			}
+			return nil
+		},
 		Undo: func(context.Context) error {
 			if readlink(p) != c.Target {
 				return nil // someone changed it since: not ours to delete
 			}
-			return os.Remove(p)
+			if err := os.Remove(p); err != nil {
+				return err
+			}
+			if c.relink != "" {
+				return os.Symlink(c.relink, p)
+			}
+			return nil
 		},
 	}
 }
