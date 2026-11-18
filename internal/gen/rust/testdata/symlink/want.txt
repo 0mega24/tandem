@@ -1,0 +1,3 @@
+warning: rust auto selected workspace mode: no member has a workspace
+stale: Cargo.lock
+stale: target

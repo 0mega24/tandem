@@ -5,4 +5,5 @@ package all
 
 import (
 	_ "github.com/0mega24/tandem/internal/gen/golang"
+	_ "github.com/0mega24/tandem/internal/gen/rust"
 )

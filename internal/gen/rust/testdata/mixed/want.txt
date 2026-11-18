@@ -1,0 +1,1 @@
+warning: myorg/lib/Cargo.toml has a workspace; using patch mode

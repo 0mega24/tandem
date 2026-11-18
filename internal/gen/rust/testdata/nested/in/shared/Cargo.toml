@@ -1,0 +1,6 @@
+[workspace]
+members = ["crates/*"]
+exclude = ["crates/ignored"]
+
+[workspace.dependencies]
+other = { git = "https://example.org/other" }

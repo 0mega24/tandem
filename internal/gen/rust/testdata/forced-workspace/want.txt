@@ -1,0 +1,2 @@
+warning: lib/Cargo.toml has a workspace; using patch mode
+warning: rust workspace mode requested, but nested workspaces require patch mode
