@@ -1,0 +1,9 @@
+{
+  "name": "tandem",
+  "description": "Skills for tdm (Tandem): one feature branch across many repos as git worktrees.",
+  "author": { "name": "0mega24" },
+  "homepage": "https://github.com/0mega24/tandem",
+  "repository": "https://github.com/0mega24/tandem",
+  "license": "MIT",
+  "keywords": ["git", "worktree", "multi-repo"]
+}
