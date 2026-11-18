@@ -50,6 +50,8 @@ Generators will use each build tool's workspace or local override mechanism. The
 install, or lock dependencies. Most generated files will stay in the space root; Meson will use
 ignored symlinks inside consumer worktrees. See the [generator spec](docs/spec/generators.md).
 
+Migrate existing spaces and config with `tdm import wtg` (`--dry-run` previews the import).
+
 ## Install
 
 With Nix flakes:

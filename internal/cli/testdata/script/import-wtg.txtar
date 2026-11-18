@@ -1,0 +1,40 @@
+env WTG_CONFIG=
+exec tdm import wtg
+stdout '^No wtg spaces or config to import.$'
+! exists home/.local/share/tandem
+
+# Nondefault XDG paths and an explicit wtg config.
+env XDG_DATA_HOME=$WORK/data
+env XDG_CONFIG_HOME=$WORK/config
+env WTG_CONFIG=$WORK/wtg.toml
+mkdir data/wtg/spaces
+cp space.yaml data/wtg/spaces/feat.yaml
+exec tdm import wtg --dry-run
+stdout 'feat.*would import'
+stdout 'config.*would import'
+stdout 'git.obsolete.*unsupported'
+! exists data/tandem
+! exists config/tandem
+exec tdm import wtg
+stdout 'feat.*✓ imported'
+stdout 'config.*✓ imported'
+exists data/tandem/spaces/feat.yaml
+exists config/tandem/config.toml
+exec tdm path feat
+stdout '^/work/feat$'
+exec tdm import wtg
+stdout 'feat.*- skipped.*exists'
+stdout 'config.*- skipped.*merge'
+! exec tdm import wtg extra
+stderr 'no arguments'
+
+-- space.yaml --
+name: feat
+path: /work/feat
+branch: me/feat
+created_at: 2026-03-27T10:00:00Z
+repos: []
+-- wtg.toml --
+[git]
+branch_prefix = "me/"
+obsolete = true

@@ -76,6 +76,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 			statusCommand(),
 			repoCommand(),
 			configCommand(),
+			importCommand(),
 			{
 				Name:  "version",
 				Usage: "Print the version",
