@@ -125,6 +125,7 @@ Put your main clones under `~/repos`, or set `discovery.root_dir` in your config
 ```sh
 tdm version
 tdm config path            # find the user config file
+tdm config init            # write it, with the generator settings as comments
 tdm config                 # print the config files read, lowest priority first
 tdm repo status            # inspect all main clones
 ```
@@ -199,6 +200,9 @@ Tandem loads these layers in order. Later values override earlier values:
 Each config directory uses `config.toml`, or `config.yaml` if no TOML file exists.
 Explicit files ending in `.yaml` or `.yml` use YAML; other extensions use TOML.
 Missing system and user files are allowed. A missing explicit file or an unknown key is an error.
+`tdm config init` starts the file with a `#:schema` line for
+[schema/config.schema.json](schema/config.schema.json), so editors with Taplo complete and check
+the keys. [docs/generators.md](docs/generators.md) lists the generators and their options.
 
 This TOML example uses the current defaults:
 
