@@ -1,0 +1,46 @@
+# ts: the solution tsconfig.json of the space builds both composite projects in order with one
+# `tsc --build`, api importing the local lib. tsc comes from the npm package (the shell has none).
+[!exec:npm] skip 'needs npm'
+[!exec:node] skip 'needs node'
+mkdir $WORK/tools
+cp tools.json $WORK/tools/package.json
+cd $WORK/tools
+exec npm install --no-audit --no-fund
+cd $WORK
+
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+mkrepo tsapi tslib
+exec tdm new feat tsapi tslib
+cp lib.json $HOME/workspaces/feat/tslib/tsconfig.json
+mkdir $HOME/workspaces/feat/tslib/src
+cp lib.ts $HOME/workspaces/feat/tslib/src/lib.ts
+cp api.json $HOME/workspaces/feat/tsapi/tsconfig.json
+mkdir $HOME/workspaces/feat/tsapi/src
+cp main.ts $HOME/workspaces/feat/tsapi/src/main.ts
+exec tdm generate feat
+stdout 'ts +✓ tsconfig.json'
+grep '"path": "./tsapi/tsconfig.json"' $HOME/workspaces/feat/tsconfig.json
+grep '"path": "./tslib/tsconfig.json"' $HOME/workspaces/feat/tsconfig.json
+
+cd $HOME/workspaces/feat
+exec $WORK/tools/node_modules/.bin/tsc --build
+exists tslib/dist/lib.js
+exec node tsapi/dist/main.js
+stdout '^local lib$'
+
+-- tools.json --
+{"name": "tools", "private": true, "dependencies": {"typescript": "5.6.3"}}
+-- config.toml --
+[generate]
+enabled = ["ts"]
+-- lib.json --
+{"compilerOptions": {"composite": true, "outDir": "dist", "rootDir": "src", "module": "commonjs", "target": "es2020"}, "include": ["src"]}
+-- api.json --
+{"compilerOptions": {"composite": true, "outDir": "dist", "rootDir": "src", "module": "commonjs", "target": "es2020", "types": []}, "include": ["src"], "references": [{"path": "../tslib"}]}
+-- lib.ts --
+export const name = (): string => "local lib";
+-- main.ts --
+import { name } from "../../tslib/dist/lib";
+declare const console: { log(s: string): void };
+console.log(name());
