@@ -1,0 +1,74 @@
+# rust: workspace mode (no member has a [workspace]) and patch mode (a member has one). Neither
+# crate is published: patch mode must reach the local crate through the generated config file.
+[!exec:cargo] skip 'needs cargo'
+env CARGO_NET_OFFLINE=true
+
+# Workspace mode: one Cargo.toml and one target/ in the space root.
+mkrepo wapi wlib
+exec tdm new ws wapi wlib
+cp wlib.toml $HOME/workspaces/ws/wlib/Cargo.toml
+mkdir $HOME/workspaces/ws/wlib/src
+cp wlib.rs $HOME/workspaces/ws/wlib/src/lib.rs
+cp wapi.toml $HOME/workspaces/ws/wapi/Cargo.toml
+mkdir $HOME/workspaces/ws/wapi/src
+cp main.rs $HOME/workspaces/ws/wapi/src/main.rs
+exec tdm generate ws
+stdout 'rust +✓ Cargo.toml'
+cd $HOME/workspaces/ws
+exec cargo run -q -p wapi
+stdout '^local lib$'
+exists target
+exists Cargo.lock
+
+# Patch mode: papi is a workspace itself, so the space gets .cargo/config.toml with a [patch].
+cd $WORK
+mkrepo papi plib
+exec tdm new pt papi plib
+cp plib.toml $HOME/workspaces/pt/plib/Cargo.toml
+mkdir $HOME/workspaces/pt/plib/src
+cp wlib.rs $HOME/workspaces/pt/plib/src/lib.rs
+cp papi.toml $HOME/workspaces/pt/papi/Cargo.toml
+mkdir $HOME/workspaces/pt/papi/src
+cp pmain.rs $HOME/workspaces/pt/papi/src/main.rs
+exec tdm generate pt
+stdout 'rust +✓ \.cargo/config\.toml'
+exists $HOME/workspaces/pt/.cargo/config.toml
+! exists $HOME/workspaces/pt/Cargo.toml
+cd $HOME/workspaces/pt/papi
+exec cargo run -q
+stdout '^local lib$'
+
+-- wlib.toml --
+[package]
+name = "wlib"
+version = "0.1.0"
+edition = "2021"
+-- wapi.toml --
+[package]
+name = "wapi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wlib = { path = "../wlib" }
+-- wlib.rs --
+pub fn name() -> &'static str { "local lib" }
+-- main.rs --
+fn main() { println!("{}", wlib::name()); }
+-- pmain.rs --
+fn main() { println!("{}", tdm_itest_plib::name()); }
+-- plib.toml --
+[package]
+name = "tdm-itest-plib"
+version = "0.1.0"
+edition = "2021"
+-- papi.toml --
+[package]
+name = "papi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tdm-itest-plib = "0.1.0"
+
+[workspace]
