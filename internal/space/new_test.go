@@ -29,10 +29,10 @@ func TestNewSpace(t *testing.T) {
 		t.Fatalf("space = %+v, %d repos", sp, len(repos))
 	}
 
-	wantNew := map[string]bool{"api": true, "myorg/web": false}
+	wantFrom := map[string]string{"api": "main", "myorg/web": ""}
 	for _, r := range repos {
-		if r.NewBranch != wantNew[r.Entry.Name] {
-			t.Errorf("%s NewBranch = %v, want %v", r.Entry.Name, r.NewBranch, wantNew[r.Entry.Name])
+		if r.From != wantFrom[r.Entry.Name] {
+			t.Errorf("%s From = %q, want %q", r.Entry.Name, r.From, wantFrom[r.Entry.Name])
 		}
 		if head := testhelper.Git(t, r.Entry.WorktreePath, "branch", "--show-current"); head != "feat" {
 			t.Errorf("%s worktree is on %q, want feat", r.Entry.Name, head)
@@ -88,6 +88,9 @@ func TestNewSpacePreflight(t *testing.T) {
 		{"unknown repo", NewOptions{Name: "b", Repos: []string{"nope"}}, `no repo "nope"`},
 		{"dir not empty", NewOptions{Name: "c", Repos: []string{"web"}, Path: full}, "is not empty"},
 		{"branch checked out", NewOptions{Name: "d", Repos: []string{"api", "web"}, Branch: "busy"}, "web: branch busy is checked out in"},
+		{"bad branch", NewOptions{Name: "e", Repos: []string{"api"}, Branch: "a b"}, `"a b" is not a valid branch name`},
+		{"inside repo", NewOptions{Name: "g", Repos: []string{"api"}, Path: filepath.Join(f.repos["web"].Path, "sub")}, "is inside repo web"},
+		{"inside space", NewOptions{Name: "h", Repos: []string{"web"}, Path: filepath.Join(f.dir, "spaces", "taken", "x")}, "is inside space taken"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -105,7 +108,7 @@ func TestNewSpacePreflight(t *testing.T) {
 	if ok, _ := (git.System{}).BranchExists(ctx, f.repos["api"].Path, "busy"); ok {
 		t.Error("pre-flight made a branch in api")
 	}
-	for _, n := range []string{"a", "b", "d"} {
+	for _, n := range []string{"a", "b", "d", "e"} {
 		if _, err := os.Stat(filepath.Join(f.dir, "spaces", n)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("space dir %s exists after a failed pre-flight", n)
 		}
@@ -129,17 +132,19 @@ func TestNewSpaceRollback(t *testing.T) {
 	f := newFixture(t, "myorg/api", "web")
 	m := New(f.m.cfg, failAdd{repo: f.repos["web"].Path}, f.m.store)
 
-	_, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}})
+	// The parents of the space directory are missing too; the rollback removes them.
+	dir := filepath.Join(f.dir, "a", "b", "feat")
+	_, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}, Path: dir})
 	if !saga.IsRolledBack(err) {
 		t.Fatalf("err = %v, want a full rollback", err)
+	}
+	if _, err := os.Stat(filepath.Join(f.dir, "a")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("rollback kept the parents of the space dir: %v", err)
 	}
 
 	api := f.repos["myorg/api"].Path
 	if out := testhelper.Git(t, api, "branch", "--list", "feat"); out != "" {
 		t.Errorf("rollback kept the new branch in api: %q", out)
-	}
-	if _, err := os.Stat(filepath.Join(f.dir, "spaces", "feat")); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("rollback kept the space dir: %v", err)
 	}
 	if _, err := m.Space("feat"); !errors.Is(err, state.ErrNotFound) {
 		t.Errorf("rollback kept the state: %v", err)

@@ -34,8 +34,8 @@ type SpaceStatus struct {
 // MemberStatus is the status of one repo in a space.
 type MemberStatus struct {
 	Entry    state.RepoEntry
-	Status   git.Status // zero for a symlink
-	Unpushed int        // commits on the space branch that origin does not have
+	Status   git.Status // zero for a symlink; Status.Branch is what the worktree has checked out
+	Unpushed int        // commits on the checked-out branch that origin does not have
 	Err      error
 }
 
@@ -81,9 +81,15 @@ func (m *Manager) memberStatus(ctx context.Context, e state.RepoEntry, branch st
 	}
 
 	ms.Status, ms.Err = m.git.Status(ctx, e.WorktreePath)
-	if ms.Err == nil {
-		ms.Unpushed, ms.Err = m.git.Unpushed(ctx, e.RepoPath, branch)
+	if ms.Err != nil {
+		return ms
 	}
+
+	// The user may have switched the worktree to another branch; count what is checked out.
+	if ms.Status.Branch != "" {
+		branch = ms.Status.Branch
+	}
+	ms.Unpushed, ms.Err = m.git.Unpushed(ctx, e.RepoPath, branch)
 	return ms
 }
 
@@ -105,8 +111,21 @@ func (m *Manager) loadSpaces(names []string) ([]state.Space, error) {
 	return spaces, nil
 }
 
-// within reports whether dir is root or inside it.
+// within reports whether dir is root or inside it, after symlinks are resolved on both sides:
+// the shell may show the current directory through a link.
 func within(dir, root string) bool {
-	rel, err := filepath.Rel(root, dir)
+	rel, err := filepath.Rel(resolve(root), resolve(dir))
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// resolve resolves the symlinks in the part of p that exists, and keeps the rest as it is.
+func resolve(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	parent := filepath.Dir(p)
+	if parent == p {
+		return p
+	}
+	return filepath.Join(resolve(parent), filepath.Base(p))
 }

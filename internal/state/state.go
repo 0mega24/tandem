@@ -22,6 +22,9 @@ import (
 // ErrNotFound is returned by Load when no space has the name.
 var ErrNotFound = errors.New("space not found")
 
+// ErrExists is returned by Create when a space has the name.
+var ErrExists = errors.New("space exists")
+
 // Space is the stored state of one space.
 type Space struct {
 	Name      string      `yaml:"name"`
@@ -119,6 +122,21 @@ func (s Store) List() ([]Space, error) {
 
 // Save writes the space atomically: a reader sees the old file or the new one, never a part.
 func (s Store) Save(sp Space) error {
+	return s.write(sp, os.Rename)
+}
+
+// Create writes a new space like Save, but fails with ErrExists when the file is there, so two
+// tdm new with one name cannot both win.
+func (s Store) Create(sp Space) error {
+	err := s.write(sp, os.Link)
+	if errors.Is(err, fs.ErrExist) {
+		return fmt.Errorf("%w: %s", ErrExists, sp.Name)
+	}
+	return err
+}
+
+// write puts the encoded space in a temp file, then gives it its name with place.
+func (s Store) write(sp Space, place func(tmp, file string) error) error {
 	if err := ValidateName(sp.Name); err != nil {
 		return err
 	}
@@ -133,7 +151,7 @@ func (s Store) Save(sp Space) error {
 	if err != nil {
 		return fmt.Errorf("write state: %w", err)
 	}
-	defer os.Remove(tmp.Name()) //nolint:errcheck // after the rename the temp name is gone; this only cleans up a failure
+	defer os.Remove(tmp.Name()) //nolint:errcheck // gone after a rename; after a link or a failure this removes it
 	if _, err := tmp.Write(b); err != nil {
 		_ = tmp.Close() // the write error is the one to report
 		return fmt.Errorf("write state: %w", err)
@@ -141,7 +159,7 @@ func (s Store) Save(sp Space) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("write state: %w", err)
 	}
-	if err := os.Rename(tmp.Name(), s.file(sp.Name)); err != nil {
+	if err := place(tmp.Name(), s.file(sp.Name)); err != nil {
 		return fmt.Errorf("write state: %w", err)
 	}
 	return nil

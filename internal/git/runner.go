@@ -2,6 +2,8 @@ package git
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -12,6 +14,7 @@ type Runner interface {
 	OriginURL(ctx context.Context, repo string) (string, error)
 	DefaultBranch(ctx context.Context, repo string) (string, error)
 	BranchExists(ctx context.Context, repo, branch string) (bool, error)
+	CheckBranchName(ctx context.Context, repo, branch string) error
 	DeleteBranch(ctx context.Context, repo, branch string, force bool) error
 
 	AddWorktree(ctx context.Context, repo, path, branch, from string) error
@@ -64,6 +67,15 @@ func (s System) BranchExists(ctx context.Context, repo, branch string) (bool, er
 		return false, nil
 	}
 	return false, err
+}
+
+// CheckBranchName fails when git does not allow branch as a branch name.
+func (s System) CheckBranchName(ctx context.Context, repo, branch string) error {
+	_, err := s.run(ctx, repo, "check-ref-format", "--branch", branch)
+	if _, ok := errors.AsType[*Error](err); ok { // git ran and refused the name ("-x" too)
+		return fmt.Errorf("%q is not a valid branch name", branch)
+	}
+	return err
 }
 
 // DeleteBranch refuses an unmerged branch unless force is set.

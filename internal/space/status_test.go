@@ -41,6 +41,26 @@ func TestStatus(t *testing.T) {
 	}
 }
 
+func TestStatusShowsTheCheckedOutBranch(t *testing.T) {
+	f := newFixture(t, "api")
+	ctx := context.Background()
+	if _, _, err := f.m.NewSpace(ctx, NewOptions{Name: "a", Repos: []string{"api"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	wt := filepath.Join(f.dir, "spaces", "a", "api")
+	testhelper.Git(t, wt, "switch", "-q", "-c", "other")
+	testhelper.Commit(t, wt, "o.txt", "o\n", "on other")
+
+	got, err := f.m.Status(ctx, []string{"a"}, f.dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := got[0].Repos[0]; r.Status.Branch != "other" || r.Unpushed != 1 {
+		t.Errorf("api = branch %q, %d unpushed; want other with 1", r.Status.Branch, r.Unpushed)
+	}
+}
+
 func TestStatusNames(t *testing.T) {
 	f := newFixture(t, "api")
 	ctx := context.Background()

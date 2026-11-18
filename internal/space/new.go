@@ -24,14 +24,14 @@ type NewOptions struct {
 
 // NewRepo is one repo that NewSpace put in the space.
 type NewRepo struct {
-	Entry     state.RepoEntry
-	NewBranch bool // false when the branch existed and was checked out as it was
+	Entry state.RepoEntry
+	From  string // the branch that a new branch started from; "" when the branch existed
 }
 
 // planned is one worktree that pre-flight checked.
 type planned struct {
 	entry state.RepoEntry
-	from  string // start point of a new branch; "" when the branch exists
+	from  string // start point of a new branch, as a full ref; "" when the branch exists
 }
 
 // NewSpace makes a space: one worktree on one branch in each repo, and the state file. All checks
@@ -48,7 +48,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (state.Space, [
 	}
 	steps = append(steps, saga.Step{
 		Name: "save state",
-		Do:   func(context.Context) error { return m.store.Save(sp) },
+		Do:   func(context.Context) error { return m.store.Create(sp) },
 		Undo: func(context.Context) error { return m.store.Delete(sp.Name) },
 	})
 
@@ -58,7 +58,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (state.Space, [
 
 	out := make([]NewRepo, len(plan))
 	for i, p := range plan {
-		out[i] = NewRepo{Entry: p.entry, NewBranch: p.from != ""}
+		out[i] = NewRepo{Entry: p.entry, From: strings.TrimPrefix(p.from, "refs/heads/")}
 	}
 	return sp, out, nil
 }
@@ -77,7 +77,11 @@ func (m *Manager) preflight(ctx context.Context, opts NewOptions) (state.Space, 
 		return state.Space{}, nil, err
 	}
 
-	repos, err := m.selectRepos(opts.Repos)
+	all, err := m.Repos()
+	if err != nil {
+		return state.Space{}, nil, err
+	}
+	repos, err := ResolveAll(all, opts.Repos)
 	if err != nil {
 		return state.Space{}, nil, err
 	}
@@ -100,6 +104,14 @@ func (m *Manager) preflight(ctx context.Context, opts NewOptions) (state.Space, 
 
 	// The worktrees go inside the root, so an empty root also means that no worktree path exists.
 	if err := checkEmptyDir(sp.Path); err != nil {
+		return state.Space{}, nil, err
+	}
+	if err := m.checkNotNested(sp.Path, all); err != nil {
+		return state.Space{}, nil, err
+	}
+
+	// Without this check a bad name fails only in the first worktree step, after a change.
+	if err := m.git.CheckBranchName(ctx, repos[0].Path, sp.Branch); err != nil {
 		return state.Space{}, nil, err
 	}
 
@@ -136,6 +148,9 @@ func (m *Manager) branchStart(ctx context.Context, r Repo, branch string) (strin
 			return "", err
 		}
 		for _, t := range trees {
+			if t.Branch == branch && t.Prunable {
+				return "", fmt.Errorf("branch %s is held by worktree %s, whose directory is gone (git worktree prune frees it)", branch, t.Path)
+			}
 			if t.Branch == branch {
 				return "", fmt.Errorf("branch %s is checked out in %s", branch, t.Path)
 			}
@@ -159,6 +174,27 @@ func (m *Manager) branchStart(ctx context.Context, r Repo, branch string) (strin
 	return "refs/heads/" + def, nil
 }
 
+// checkNotNested refuses a space directory inside a main clone, where the worktrees would be
+// files of that repo, or inside another space.
+func (m *Manager) checkNotNested(dir string, repos []Repo) error {
+	for _, r := range repos {
+		if within(dir, r.Path) {
+			return fmt.Errorf("space directory %s is inside repo %s", dir, r.Name)
+		}
+	}
+
+	spaces, err := m.store.List()
+	if err != nil {
+		return err
+	}
+	for _, sp := range spaces {
+		if within(dir, sp.Path) {
+			return fmt.Errorf("space directory %s is inside space %s", dir, sp.Name)
+		}
+	}
+	return nil
+}
+
 func checkEmptyDir(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -173,24 +209,42 @@ func checkEmptyDir(dir string) error {
 	return nil
 }
 
-// rootStep makes the space directory. Undo removes it only when this step made it.
+// rootStep makes the space directory and its missing parents. Undo removes what it made.
 func rootStep(root string) saga.Step {
-	made := false
+	top := "" // the highest directory that this step made
 	return saga.Step{
 		Name: "make " + root,
 		Do: func(context.Context) error {
-			if _, err := os.Stat(root); err == nil {
+			top = firstMissing(root)
+			if top == "" {
 				return nil
 			}
-			made = true
 			return os.MkdirAll(root, 0o755) //nolint:gosec // a space holds source checkouts that other tools and users read
 		},
 		Undo: func(context.Context) error {
-			if !made {
+			if top == "" {
 				return nil
 			}
-			return os.Remove(root)
+			if err := os.Remove(root); err != nil {
+				return err
+			}
+			removeEmptyParents(filepath.Dir(root), filepath.Dir(top))
+			return nil
 		},
+	}
+}
+
+// firstMissing returns the highest missing directory on the way to dir, or "" when dir exists.
+func firstMissing(dir string) string {
+	top := ""
+	for p := dir; ; p = filepath.Dir(p) {
+		if _, err := os.Stat(p); err == nil {
+			return top
+		}
+		top = p
+		if filepath.Dir(p) == p {
+			return top
+		}
 	}
 }
 

@@ -81,3 +81,14 @@ func TestStatusAndUnpushed(t *testing.T) {
 		t.Errorf("Unpushed() after push = %d, %v; want 1", n, err)
 	}
 }
+
+func TestUnpushedWithoutOrigin(t *testing.T) {
+	testhelper.Isolate(t)
+	dir := t.TempDir()
+	testhelper.Git(t, dir, "init", "-q")
+	testhelper.Commit(t, dir, "a.txt", "a\n", "one")
+
+	if n, err := (System{}).Unpushed(context.Background(), dir, "main"); err != nil || n != 0 {
+		t.Errorf("Unpushed() = %d, %v; want 0 for a repo with no origin", n, err)
+	}
+}

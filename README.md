@@ -155,9 +155,9 @@ Make a space with a worktree on branch `feat` in three repos (output from the
 ```text
 $ tdm new feat api web lib
 feat         ~/workspaces/feat
-  api        ✓ worktree  [feat]  new branch
+  api        ✓ worktree  [feat]  new branch from main
   web        ✓ worktree  [feat]  existing branch
-  myorg/lib  ✓ worktree  [feat]  new branch
+  myorg/lib  ✓ worktree  [feat]  new branch from main
 
 $ tdm status feat
 feat         ~/workspaces/feat

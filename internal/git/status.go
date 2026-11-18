@@ -81,8 +81,14 @@ func entryPath(f string) (path string, extra int, err error) {
 	return parts[n-1], extra, nil
 }
 
-// Unpushed counts the commits on branch that origin does not have.
+// Unpushed counts the commits on branch that origin does not have. It is 0 for a repo with no
+// origin: there is nowhere to push, and a count of all commits would look like local work.
 func (s System) Unpushed(ctx context.Context, repo, branch string) (int, error) {
+	url, err := s.OriginURL(ctx, repo)
+	if err != nil || url == "" {
+		return 0, err
+	}
+
 	out, err := s.line(ctx, repo, "rev-list", "--count", "refs/heads/"+branch, "--not", "--remotes=origin")
 	if err != nil {
 		return 0, err
