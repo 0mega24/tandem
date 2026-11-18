@@ -1,56 +1,39 @@
 # Tandem
 
-One feature branch across many repos, with git worktrees in one space and workspace files that
-connect their build systems.
+**One feature branch across many repos.** `tdm` puts each repo on the branch as a git worktree in
+one space directory, and writes the workspace files that connect their build systems.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/0mega24/tandem/ci.yml?branch=main&style=flat)](https://github.com/0mega24/tandem/actions/workflows/ci.yml)
 [![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 [![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat)](go.mod)
 
 > [!NOTE]
-> Tandem is in early development. Today, `tdm` can make a space (`new`, with the `always.*`
-> links and copies), add and remove repos, delete it, print its path and status, show and sync
-> the main clones, run a command in each worktree, run the `always.run` hook, and print its
-> config. Workspace generators, the TUI, and plugins are planned.
+> Tandem is in early development. Commands and config can still change.
+
+```text
+$ tdm new my-feature api shared client
+my-feature  ~/workspaces/my-feature
+  api       ✓ worktree  [my-feature]  new branch from main
+  shared    ✓ worktree  [my-feature]  new branch from main
+  client    ✓ worktree  [my-feature]  new branch from main
+  go        ✓ go.work  (api, shared)
+  js        ✓ package.json  (client)
+```
+
+A scripted run of `tdm new` and `tdm ui` is in the [demo tape](docs/demo/tandem.tape) (`vhs`).
 
 ## Why
 
-A feature can need changes in an API, a shared library, and a client at the same time.
-Switching branches in each repo and setting up local dependencies takes separate steps.
+A change can touch an API, a shared library and a client at once. You switch branches in each
+repo, then wire the local copies into each build tool by hand. Tandem does both in one command:
 
-Tandem aims to put those changes in one space: each repo gets a worktree on the feature branch,
-and workspace files connect the local source for each build system. Main clones stay in place.
-Today, repo status and sync help you inspect and update those main clones from one command.
-
-## How it works
-
-Today, `tdm new` makes the worktrees and writes `go.work` for the Go repos; `tdm add`,
-`tdm remove` and `tdm generate` write it again, and `tdm delete` deletes it. The other generators are **planned**:
-
-```mermaid
-flowchart LR
-    R[Repos root: main clones] --> S[Space directory: feature-branch worktrees]
-    S --> G[Generators detect build systems]
-    G --> F[Workspace files in the space root]
-```
-
-Example of the files on disk for two Go repos:
-
-```text
-~/repos/                       # existing main clones
-├── api/
-└── shared/
-~/workspaces/my-feature/       # tdm new my-feature api shared
-├── api/                       # worktree on my-feature
-├── shared/                    # worktree on my-feature
-└── go.work                    # tdm generate my-feature: local module links
-```
-
-Generators will use each build tool's workspace or local override mechanism. They will not build,
-install, or lock dependencies. Most generated files will stay in the space root; Meson will use
-ignored symlinks inside consumer worktrees. See the [generator spec](docs/spec/generators.md).
-
-Migrate existing spaces and config with `tdm import wtg` (`--dry-run` previews the import).
+- **One space per feature.** A worktree on the same branch in each repo. Your main clones stay
+  where they are.
+- **Workspace files for the build tools.** `go.work`, Cargo `[patch]`, pnpm, Gradle, Maven, .NET,
+  CMake, Meson, uv and more. Tandem does not build, install or lock anything.
+- **Safe.** It writes only files that it made and that nobody changed. A failed step undoes the
+  steps before it. `tdm delete` and `tdm remove` ask before they drop unpushed work.
+- **A TUI** in the style of lazygit, and plugins for build systems it does not know.
 
 ## Install
 
@@ -109,8 +92,6 @@ See the [module options](nix/nixos-module.nix).
 <details>
 <summary>From source</summary>
 
-In a checkout of this repo:
-
 ```sh
 make build                 # enters the Nix dev shell when needed
 ./bin/tdm version
@@ -125,192 +106,137 @@ Or use `nix build` to get `result/bin/tdm`.
 Put your main clones under `~/repos`, or set `discovery.root_dir` in your config.
 
 ```sh
-tdm version
-tdm config path            # find the user config file
-tdm config init            # write it, with the generator settings as comments
-tdm config                 # print the config files read, lowest priority first
-tdm repo status            # inspect all main clones
+tdm config init                      # write the user config
+tdm repo status                      # inspect all main clones
+tdm repo sync                        # fast-forward default branches first
+tdm new my-feature api shared client # one worktree on my-feature in each repo
+tcd my-feature                       # or: cd "$(tdm path my-feature)"
 ```
 
-With the three clean clones from the [command test](internal/cli/testdata/script/repo.txtar),
-`tdm repo status` prints:
+Work in the space. `tdm status` shows each repo (output from a real run):
 
 ```text
-api        main  ✓ clean
-myorg/api  main  ✓ clean
-web        main  ✓ clean
+$ tdm status my-feature
+my-feature  ~/workspaces/my-feature
+  api       [my-feature]  ✓ clean
+  shared    [my-feature]  ✓ clean
+  client    [my-feature]  ✓ clean
 ```
 
-Select repos by their path under the root, or by the last part when it is unique:
-
-```sh
-tdm repo status -l web     # also show the origin URL and path
-tdm repo status myorg/api
-tdm repo sync              # fetch and fast-forward default branches
-tdm repo sync web          # sync only this clone
-tdm completion bash        # print a completion script; zsh and fish also work
-```
-
-Sync skips clones with local changes and default branches checked out in a worktree.
-It does not touch worktrees. Discovery excludes linked worktrees and does not follow symlinks.
-
-Make a space with a worktree on branch `feat` in three repos (output from the
-[space test](internal/cli/testdata/script/space.txtar)):
+`tdm` writes `go.work` in the space root, so `go build` in `api` uses the local `shared`:
 
 ```text
-$ tdm new feat api web lib
-feat         ~/workspaces/feat
-  api        ✓ worktree  [feat]  new branch from main
-  web        ✓ worktree  [feat]  existing branch
-  myorg/lib  ✓ worktree  [feat]  new branch from main
-  cabal      - no members
-  cmake      - no members
-  dotnet     - no members
-  go         - no members
-  gradle     - no members
-  js         - no members
-  maven      - no members
-  meson      - no members
-  rust       - no members
+// Generated by tandem for space my-feature. Do not edit. Run 'tdm generate my-feature' to update.
 
-$ tdm status feat
-feat         ~/workspaces/feat
-  api        [feat]  ! 1 changed
-  web        [feat]  ✓ clean  ↑1
-  myorg/lib  [feat]  ✓ clean
+go 1.22
 
-$ cd "$(tdm path feat)"    # or: tcd feat
+use (
+	./api
+	./shared
+)
 ```
 
-If you delete a worktree with `rm`, the next command prunes it in git and takes it out of the
-space, with a warning. Its commits stay on the branch.
+| Command | Does |
+|---|---|
+| `tdm new <space> <repo>...` | Make the space: a worktree on one branch in each repo, then the generators |
+| `tdm add` / `tdm remove` | Change the repos of a space; the generated files follow |
+| `tdm exec <space> -- <cmd>` | Run a command in each worktree |
+| `tdm generate [-n] <space>` | Write the workspace files again; `-n` shows a diff only |
+| `tdm delete [-d\|-D] <space>` | Remove the worktrees, the files and the space |
+| `tdm status`, `tdm path` | Inspect a space; print its directory |
+| `tdm repo status`, `tdm repo sync` | Inspect and update the main clones |
+| `tdm ui` | The terminal UI |
 
 A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
 branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and the
-directory. `--generate=go` or `--no-generate` chooses the generators for this space in place of
-`generate.enabled`. When a step fails, `tdm new` undoes the steps before it.
+directory. If you delete a worktree with `rm`, the next command prunes it with a warning.
+
+## Generators
+
+Each generator finds its manifests in the worktrees and writes files in the space root. Run
+`tdm generate --list` to see them. `--generate=go` or `--no-generate` on `tdm new` picks the set
+for one space; `generate.enabled` in the config picks it for all.
+
+| Language / tool | Files written | Default |
+|---|---|---|
+| Go | `go.work` | on |
+| Rust | `.cargo/config.toml` `[patch]` tables, or a root `Cargo.toml` workspace | on |
+| JavaScript / TypeScript | `pnpm-workspace.yaml` or `package.json` | on |
+| Java / Kotlin / Groovy / Scala (Gradle) | `settings.gradle.kts` | on |
+| Java (Maven) | `pom.xml` aggregator | on |
+| C# / F# / VB (.NET) | `<space>.slnx` or `<space>.sln` | on |
+| C / C++ (CMake) | `.tandem/cmake/overrides.cmake` | on |
+| C / C++ (Meson) | `subprojects/<dir>` symlinks in consumer worktrees | on |
+| Haskell (Cabal) | `cabal.project` | on |
+| TypeScript references | `tsconfig.json` | off |
+| Python (uv) | `pyproject.toml` | off |
+| VS Code | `<space>.code-workspace` | off |
+
+Options for each generator are in [docs/generators.md](docs/generators.md).
+
+## Terminal UI
+
+`tdm ui` opens a lazygit-style view with Spaces, Repos, Details and a log. Press `?` for help.
+
+| Key | Does | Key | Does |
+|---|---|---|---|
+| `n` | new space | `g` / `G` | generate / dry-run diff |
+| `a` | add repos | `s` | sync main clones |
+| `r` | remove repos | `e` | run a command |
+| `d` | delete (shows dirty and unpushed work) | `/` | filter |
+| `enter` | print the space path and quit | `q` | quit |
+
+`cd "$(tdm ui)"` goes to the space you choose. Bare `tdm` prints help, so scripts never open it.
+
+## Plugins
+
+A build system that Tandem does not know? Write an executable `tdm-gen-<id>` (any language). It
+reads a JSON request on stdin and answers with the files to write. Tandem applies the plan with
+its ownership checks and rollback, so a plugin never writes files itself. `tdm plugin check <id>`
+tests one. See the [plugin protocol](docs/plugins.md) and the [examples](examples/plugins).
 
 ## Configuration
 
-Tandem loads these layers in order. Later values override earlier values:
-
-1. Built-in defaults.
-2. `tandem/config.toml` in each directory of `$XDG_CONFIG_DIRS` (default `/etc/xdg`).
-   The first directory has the highest priority.
-3. `$XDG_CONFIG_HOME/tandem/config.toml` (default `~/.config/tandem/config.toml`).
-4. The file set by `TDM_CONFIG`, or by `--config` if both are set.
-
-Each config directory uses `config.toml`, or `config.yaml` if no TOML file exists.
-Explicit files ending in `.yaml` or `.yml` use YAML; other extensions use TOML.
-Missing system and user files are allowed. A missing explicit file or an unknown key is an error.
-`tdm config init` starts the file with a `#:schema` line for
-[schema/config.schema.json](schema/config.schema.json), so editors with Taplo complete and check
-the keys. [docs/generators.md](docs/generators.md) lists the generators and their options.
-
-This TOML example uses the current defaults:
+Later layers override earlier ones: the built-in defaults, `tandem/config.toml` in each
+`$XDG_CONFIG_DIRS` directory, `$XDG_CONFIG_HOME/tandem/config.toml`, then `TDM_CONFIG` or
+`--config`. YAML works too. Unknown keys are errors. `tdm config` prints the files read.
 
 ```toml
 [discovery]
-root_dir = "~/repos"
+root_dir = "~/repos"       # where the main clones are
 max_depth = 2
 
 [spaces]
 root_dir = "~/workspaces"
 
-[git]
-branch_prefix = ""
+[always]                   # applied by tdm new
+repos = []                 # symlinked into each space, not branched
+files = []                 # copied into the space root
+secrets = []               # e.g. ".env", copied into each worktree
+run = ""                   # hook after new, add, remove and delete
 
-[always]
-repos = []
-files = []
-secrets = []
-run = ""
+[generate]
+# enabled = ["go"]         # default: the generators marked "on" above; or ["none"]
 ```
 
-`discovery.max_depth` counts directory levels below the root; `1` scans direct children only.
-`tdm new` uses the `always` keys:
+`tdm config init` writes the file with a `#:schema` line for
+[schema/config.schema.json](schema/config.schema.json), so editors with Taplo complete the keys.
+The hook gets `TDM_SPACE_*` and `TDM_REPOS` variables; see `internal/cli/testdata/script/hook.txtar`.
 
-- `repos`: each repo that is not on the command line becomes a symlink to its main clone. It has
-  no branch, and its edits show in all spaces.
-- `files`: absolute paths (or `~/`) copied into the space root by base name, e.g. `AGENTS.md`.
-- `secrets`: paths relative to each repo, e.g. `.env`, copied from the main clone into its
-  worktree with the same mode. A repo that does not have one is skipped.
+## How it differs from wtg
 
-- `run`: an executable (absolute, `~/`, or a name on `PATH`) that runs in the space root after
-  `new`, `add`, `remove` and `delete`. It gets `TDM_SPACE_NAME`, `TDM_SPACE_ROOT`,
-  `TDM_SPACE_BRANCH`, `TDM_SPACE_EVENT` (`create`, `add`, `remove`, `delete`), and the lists
-  `TDM_REPOS`, `TDM_REPO_PATHS`, `TDM_EVENT_REPOS` and `TDM_GENERATED_FILES` (one entry per
-  line). Its output goes to
-  stderr. A failure is a warning: the command still succeeds.
-
-The `[generate]` table chooses the generators: `enabled = ["go"]` (or `["none"]`) and
-`detect_depth`. `tdm generate --list` shows the generators and their defaults.
-See the [config types and defaults](internal/config/config.go).
-
-## Planned
-
-Generators will update the workspace files when the member repos change. Go is available through
-`tdm generate`; the other entries below are planned. Release numbers are targets from the spec.
-
-| Language / tool | Files written | Release |
-|---|---|---|
-| Go | `go.work` | 1 |
-| Rust | `Cargo.toml` workspace or `.cargo/config.toml` patches | 1 |
-| JavaScript / TypeScript | `pnpm-workspace.yaml` or `package.json` | 1 |
-| TypeScript references | `tsconfig.json` (off by default) | 1 |
-| Java / Kotlin / Groovy / Scala (Gradle) | `settings.gradle.kts` | 1 |
-| Java / Kotlin (Maven) | `pom.xml` aggregator | 1 |
-| C# / F# / VB (.NET) | `<space>.slnx` or `<space>.sln` | 1 |
-| C / C++ (CMake) | `.tandem/cmake/overrides.cmake` | 1 |
-| C / C++ (Meson) | `subprojects/<dir>` symlinks in consumer worktrees | 1 |
-| Python (uv) | `pyproject.toml` (off by default) | 1 |
-| Haskell (Cabal) | `cabal.project` | 2 |
-| VS Code | `<space>.code-workspace` (off by default) | 2 |
-
-A .NET solution will group projects; it will not replace package references with project references.
-See the [generator requirements](docs/spec/generators.md#generators-by-language).
-
-`tdm ui` is a lazygit-style TUI with Spaces, Repos, Details and a log. Keys: `n` new, `a` add,
-`r` remove, `d` delete (both ask first and show dirty or unpushed work), `g` generate, `G` dry-run
-diff, `s` repo sync, `e` exec, `/` filter, `?` help, `q` quit. `enter` prints the path of the
-space, for `cd "$(tdm ui)"`.
-See the [TUI design](docs/DESIGN.md#tui).
-
-External generator plugins are planned. Executables named `tdm-gen-<id>` will
-exchange JSON requests and plans with Tandem. Tandem will write the files and handle ownership
-checks and rollback. A planned `tdm import wtg` command will import existing wtg state and config.
-See the [plugin protocol](docs/spec/project.md#external-generator-plugins) and
-[migration plan](docs/spec/project.md#migration-from-wtg).
-
-## Agent skills
-
-This repo has two skills for coding agents: `tandem` (use `tdm` in a task) and `tandem-setup`
-(set up `tdm` for a person). Install them as a plugin:
-
-```sh
-claude plugin marketplace add 0mega24/tandem
-claude plugin install tandem@tandem
-codex plugin marketplace add 0mega24/tandem
-```
-
-The skills are in [skills/](skills/). The manifests are in `.claude-plugin/`, `.codex-plugin/` and `.agents/plugins/`.
+Tandem takes the idea of [wtg](https://github.com/geoffamey/wtg) and is a new implementation.
+Its generators cover many build systems, not only Go. It also has plugins and a TUI, writes only
+files that it made and nobody changed, and undoes a failed step. See the prior art in
+[docs/DESIGN.md](docs/DESIGN.md).
 
 ## Development
 
-Use `nix develop` or direnv (`.envrc` uses the flake). The Makefile also enters the dev shell.
+Use `nix develop` or direnv. The Makefile enters the dev shell itself.
 
-| Command | Purpose |
-|---|---|
-| `make build` | Build `bin/tdm` |
-| `make test` | Run tests; use `RUN=regex` to filter |
-| `make lint` | Check Go, Nix, and GitHub Actions |
-| `make fmt` / `make fmt-check` | Format files / check formatting |
-| `make check` | Run the merge gate |
-| `make clean` | Remove build output |
-| `make newgen ID=zig MANIFEST=build.zig.zon` | Scaffold a generator and update the registry |
-
-Read [AGENTS.md](AGENTS.md) for repo rules and [docs/DESIGN.md](docs/DESIGN.md) for the structure,
-prior art, and changes from the specs. See [CHANGELOG.md](CHANGELOG.md) for current changes.
+`make build` builds `bin/tdm`, `make test` runs the tests, `make check` is the merge gate.
+Read [AGENTS.md](AGENTS.md) for repo rules, [docs/DESIGN.md](docs/DESIGN.md) for the design and
+[CHANGELOG.md](CHANGELOG.md) for changes.
 
 ## Acknowledgements
 
