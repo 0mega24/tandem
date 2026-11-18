@@ -52,6 +52,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 			removeCommand(),
 			deleteCommand(),
 			execCommand(),
+			generateCommand(),
 			pathCommand(),
 			statusCommand(),
 			repoCommand(),
