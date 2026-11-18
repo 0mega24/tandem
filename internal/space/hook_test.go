@@ -59,7 +59,7 @@ func TestHookFailureIsAWarning(t *testing.T) {
 	}
 	f.m.cfg.Always.Run = hook
 	var out bytes.Buffer
-	f.m.SetHookOutput(&out)
+	f.m.SetOutput(&out)
 
 	if _, err := f.m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api"}}); err != nil {
 		t.Fatalf("NewSpace() = %v, want success after a failed hook", err)

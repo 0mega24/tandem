@@ -2,8 +2,6 @@ package space
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,10 +16,6 @@ const (
 	EventRemove = "remove"
 	EventDelete = "delete"
 )
-
-// SetHookOutput sets where the always.run hook writes, and where a hook failure is reported. Without
-// it, the output is dropped.
-func (m *Manager) SetHookOutput(w io.Writer) { m.hookOut = w }
 
 // runHook runs always.run after a command that succeeded. repos are the repos of the space after
 // the event (before it for delete), and changed are the ones that the event added or removed.
@@ -46,10 +40,10 @@ func (m *Manager) runHook(ctx context.Context, sp state.Space, event string, rep
 		"TDM_REPO_PATHS="+joinEntries(repos, func(e state.RepoEntry) string { return e.WorktreePath }),
 		"TDM_EVENT_REPOS="+joinEntries(changed, func(e state.RepoEntry) string { return e.Name }),
 	)
-	cmd.Stdout, cmd.Stderr = m.hookOut, m.hookOut
+	cmd.Stdout, cmd.Stderr = m.out, m.out
 
-	if err := cmd.Run(); err != nil && m.hookOut != nil {
-		_, _ = fmt.Fprintf(m.hookOut, "tdm: warning: always.run %s (%s): %v\n", m.cfg.Always.Run, event, err) // nowhere else to report it
+	if err := cmd.Run(); err != nil {
+		m.warn("always.run %s (%s): %v", m.cfg.Always.Run, event, err)
 	}
 }
 

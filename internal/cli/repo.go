@@ -34,7 +34,7 @@ func newManager(cmd *ucli.Command) (*space.Manager, error) {
 	m := space.New(loaded.Config, git.System{}, store)
 
 	// stderr, so that the output of tdm stays clean for scripts.
-	m.SetHookOutput(cmd.Root().ErrWriter)
+	m.SetOutput(cmd.Root().ErrWriter)
 	return m, nil
 }
 
