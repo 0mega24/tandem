@@ -1,0 +1,15 @@
+# vscode: the .code-workspace file is valid JSON and lists the folders of the space.
+[!exec:python3] skip 'needs python3'
+mkrepo api lib
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+exec tdm new feat api lib
+stdout 'vscode +✓ feat.code-workspace'
+
+cd $HOME/workspaces/feat
+exec python3 -c 'import json; print(*[f["path"] for f in json.load(open("feat.code-workspace"))["folders"]])'
+stdout '^api lib$'
+
+-- config.toml --
+[generate]
+enabled = ["vscode"]
