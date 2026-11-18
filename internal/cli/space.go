@@ -11,6 +11,7 @@ import (
 	ucli "github.com/urfave/cli/v3"
 
 	"github.com/0mega24/tandem/internal/space"
+	"github.com/0mega24/tandem/internal/state"
 	"github.com/0mega24/tandem/internal/ui"
 )
 
@@ -398,4 +399,52 @@ func confirm(cmd *ucli.Command, risks []space.Risk) bool {
 	line, _ := bufio.NewReader(cmd.Root().Reader).ReadString('\n')
 	answer := strings.ToLower(strings.TrimSpace(line))
 	return answer == "y" || answer == "yes"
+}
+
+func execCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "exec",
+		Usage:     "Run a command in each worktree of a space, one after the other",
+		ArgsUsage: "<space> -- <command> [args...]",
+		Description: "The command runs in each worktree in turn, after a '== <repo> ==' line. It does not run in\n" +
+			"always.repos symlinks: they are the main clones. A failure does not stop the other repos;\n" +
+			"the failures are listed at the end, and the exit status is 1.",
+		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
+			if cmd.Args().Len() == 0 {
+				completeSpaces(cmd)
+			}
+		},
+		Action: execSpace,
+	}
+}
+
+func execSpace(ctx context.Context, cmd *ucli.Command) error {
+	args := cmd.Args().Slice()
+	if len(args) < 2 {
+		return errors.New("give a space and a command: tdm exec <space> -- <command> [args...]")
+	}
+
+	m, err := newManager(cmd)
+	if err != nil {
+		return err
+	}
+
+	out, errOut := cmd.Root().Writer, cmd.Root().ErrWriter
+	results, err := m.Exec(ctx, args[0], args[1:], out, errOut, func(e state.RepoEntry) {
+		_, _ = fmt.Fprintf(out, "== %s ==\n", e.Name) // a broken stdout shows in the command's own output
+	})
+	if err != nil {
+		return err
+	}
+
+	var failed []string
+	for _, r := range results {
+		if r.Err != nil {
+			failed = append(failed, fmt.Sprintf("%s (%v)", r.Entry.Name, r.Err))
+		}
+	}
+	if len(failed) == 0 {
+		return nil
+	}
+	return fmt.Errorf("failed in %d of %d repos: %s", len(failed), len(results), strings.Join(failed, ", "))
 }
