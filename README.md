@@ -160,6 +160,7 @@ feat         ~/workspaces/feat
   api        ✓ worktree  [feat]  new branch from main
   web        ✓ worktree  [feat]  existing branch
   myorg/lib  ✓ worktree  [feat]  new branch from main
+  dotnet     - no members
   go         - no members
   js         - no members
   maven      - no members

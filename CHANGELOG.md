@@ -58,6 +58,7 @@ All notable changes to this project are in this file. The format follows
   `workspaces` for the JavaScript and TypeScript members (pnpm, npm, yarn, bun).
 - `ts` generator (off by default): a root `tsconfig.json` with `references` to the members.
 - `maven` generator: an aggregator `pom.xml` with a module for each Maven member.
+- `dotnet` generator: `<space>.slnx` (or `.sln`) with a folder for each .NET member.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
