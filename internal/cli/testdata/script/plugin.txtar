@@ -38,6 +38,19 @@ stderr 'warning: plugin .*tdm-gen-go: the ID "go" is a built-in generator'
 stdout '^go +on +Go +go.mod +built-in$'
 ! stderr 'panic'
 
+# A command that needs no generator runs no plugin: meta waits until a command needs it.
+cp marker $XDG_DATA_HOME/tandem/plugins/tdm-gen-marker
+exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-marker
+exec tdm status feat
+exec tdm path feat
+! exists $WORK/meta-ran
+exec tdm generate --list
+exists $WORK/meta-ran
+
+-- marker --
+#!/bin/sh
+touch "$WORK/meta-ran"
+echo '{"protocol":1,"id":"marker","languages":[],"manifests":[],"default_on":false,"config_schema":{}}'
 -- manifest --
 .{}
 -- forks.args --

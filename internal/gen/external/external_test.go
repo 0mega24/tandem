@@ -32,6 +32,9 @@ func script(t *testing.T, dir, id, body string) string {
 // discover is Discover with the broken plugins as an error, as most tests want one or the other.
 func discover(dirs []string, path string) ([]Plugin, error) {
 	plugins, broken, err := Discover(dirs, path, nil)
+	for _, p := range plugins {
+		broken = append(broken, p.Load())
+	}
 	return plugins, errors.Join(append(broken, err)...)
 }
 
@@ -257,10 +260,15 @@ func TestDiscoverReview(t *testing.T) {
 	dir := t.TempDir()
 	script(t, dir, "demo", "echo '"+validMeta+"'")
 	script(t, dir, "bad", "exit 1")
-	script(t, dir, "go", "echo '"+validMeta+"'")
+	script(t, dir, "builtin", "echo '"+validMeta+"'")
+	gen.RegisterID("builtin", builtin{})
+	t.Cleanup(func() { gen.Unregister("builtin") })
 	plugins, broken, err := Discover([]string{dir}, "", nil)
-	if err != nil || len(plugins) != 1 || plugins[0].Meta().ID != "demo" || len(broken) != 2 {
-		t.Fatalf("Discover = %+v, broken %v, %v; want demo, and bad and go broken", plugins, broken, err)
+	if err != nil || len(plugins) != 2 || len(broken) != 1 {
+		t.Fatalf("Discover = %+v, broken %v, %v; want bad and demo, and builtin broken", plugins, broken, err)
+	}
+	if plugins[0].ID() != "bad" || plugins[0].Load() == nil || plugins[0].Meta().DefaultOn || plugins[1].Load() != nil {
+		t.Fatalf("Load: want an error for bad only, and bad off by default")
 	}
 
 	// An empty PATH entry is not the current directory.
@@ -323,3 +331,37 @@ func TestTimeLimitKillsChildren(t *testing.T) {
 	}
 	t.Fatalf("child %d of the plugin is still running", pid)
 }
+
+func TestMetaRunsOnceAndOnlyWhenNeeded(t *testing.T) {
+	isolate(t)
+	dir := t.TempDir()
+	count := filepath.Join(dir, "count")
+	script(t, dir, "demo", "echo x >> "+count+"; echo '"+validMeta+"'")
+	plugins, broken, err := Discover([]string{dir}, "", nil)
+	if err != nil || len(broken) != 0 || len(plugins) != 1 {
+		t.Fatal(plugins, broken, err)
+	}
+	if _, err := os.Stat(count); err == nil {
+		t.Fatal("Discover ran meta; it must wait until a command needs it")
+	}
+	if plugins[0].ID() != "demo" {
+		t.Fatalf("ID = %q", plugins[0].ID())
+	}
+	for range 2 {
+		if m := plugins[0].Meta(); m.ID != "demo" || len(m.Languages) != 1 {
+			t.Fatalf("Meta = %+v", m)
+		}
+	}
+	if b, _ := os.ReadFile(count); string(b) != "x\n" {
+		t.Fatalf("meta ran %q times, want once", b)
+	}
+}
+
+// builtin stands for a built-in generator; this package does not import gen/all.
+type builtin struct{}
+
+func (builtin) Meta() gen.Meta { return gen.Meta{ID: "builtin"} }
+
+func (builtin) Detect(gen.Member, gen.DetectOptions) (*gen.Detection, error) { return nil, nil }
+
+func (builtin) Plan(gen.Space, []gen.Detection) (gen.Plan, error) { return gen.Plan{}, nil }

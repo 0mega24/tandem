@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,23 +29,29 @@ const (
 
 var idPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
-// Plugin caches meta and runs plan on demand. Stderr defaults to os.Stderr.
+// Plugin runs meta once, when a command first needs it, and plan on demand. Stderr defaults to
+// os.Stderr. Most commands (status, path, exec) never need a plugin, so they run none.
 type Plugin struct {
 	Path    string
 	Stderr  io.Writer
-	meta    gen.Meta
+	id      string
 	timeout time.Duration
+	loaded  *loaded // shared by the copies of a Plugin, so meta runs once
+}
+
+type loaded struct {
+	once sync.Once
+	meta gen.Meta
+	err  error
 }
 
 var _ gen.Generator = Plugin{}
 
 // Discover searches dirs, the XDG user plugin directory, then path. The first executable
-// for each ID wins. Each selected executable runs meta exactly once; its stderr goes to stderr.
+// for each ID wins. It runs no plugin: see Load. A plugin's stderr goes to stderr.
 //
-// A plugin whose meta fails, or whose ID is that of a built-in generator, is in broken and not in
-// plugins: a broken tdm-gen-* on PATH must not block commands that do not use it. Its ID then is
-// an unknown generator, so a config that enables it still fails. err is for a plugin directory
-// that cannot be read.
+// A plugin with the ID of a built-in generator is in broken and not in plugins, so a stray
+// tdm-gen-go on PATH does not block commands. err is for a plugin directory that cannot be read.
 func Discover(dirs []string, path string, stderr io.Writer) (plugins []Plugin, broken []error, err error) {
 	data := os.Getenv("XDG_DATA_HOME")
 	if !filepath.IsAbs(data) {
@@ -96,24 +103,40 @@ func Discover(dirs []string, path string, stderr io.Writer) (plugins []Plugin, b
 				broken = append(broken, fmt.Errorf("plugin %s: the ID %q is a built-in generator", absolute, id))
 				continue
 			}
-			p := Plugin{Path: absolute, Stderr: stderr, timeout: timeLimit, meta: gen.Meta{ID: id}}
-			var meta metadata
-			if err := p.run("meta", nil, &meta); err != nil {
-				broken = append(broken, err)
-				continue
-			}
-			if err := meta.validate(id); err != nil {
-				broken = append(broken, p.failure("meta", err))
-				continue
-			}
-			p.meta = gen.Meta{ID: id, Languages: []string(*meta.Languages), Manifests: []string(*meta.Manifests), DefaultOn: *meta.DefaultOn}
-			plugins = append(plugins, p)
+			plugins = append(plugins, Plugin{Path: absolute, Stderr: stderr, id: id, timeout: timeLimit, loaded: &loaded{}})
 		}
 	}
 	return plugins, broken, nil
 }
 
-func (p Plugin) Meta() gen.Meta { return p.meta }
+// ID is the ID from the executable name; it needs no meta.
+func (p Plugin) ID() string { return p.id }
+
+// Load runs meta the first time and returns its error after that.
+func (p Plugin) Load() error {
+	p.loaded.once.Do(func() {
+		var meta metadata
+		if err := p.run("meta", nil, &meta); err != nil {
+			p.loaded.err = err
+			return
+		}
+		if err := meta.validate(p.id); err != nil {
+			p.loaded.err = p.failure("meta", err)
+			return
+		}
+		p.loaded.meta = gen.Meta{ID: p.id, Languages: []string(*meta.Languages), Manifests: []string(*meta.Manifests), DefaultOn: *meta.DefaultOn}
+	})
+	return p.loaded.err
+}
+
+// Meta runs meta if no command did yet. A plugin whose meta fails is off by default; Plan and
+// Load return the error.
+func (p Plugin) Meta() gen.Meta {
+	if p.Load() != nil {
+		return gen.Meta{ID: p.id}
+	}
+	return p.loaded.meta
+}
 
 // Detect includes every member; the plugin decides which manifests apply during plan, as tdm
 // cannot run plugin code in Detect. So the meta languages and manifests are only for the docs.
@@ -124,6 +147,9 @@ func (Plugin) Detect(m gen.Member, _ gen.DetectOptions) (*gen.Detection, error) 
 // Plan is the exception to the pure generator API: it runs the plugin process. Only
 // Tandem's apply layer writes the returned files; plugins must only read member files.
 func (p Plugin) Plan(s gen.Space, _ []gen.Detection) (gen.Plan, error) {
+	if err := p.Load(); err != nil {
+		return gen.Plan{}, err
+	}
 	request := planRequest{Space: spaceRequest{Name: s.Name, Root: s.Root, Branch: s.Branch}, Members: []memberRequest{}, Config: s.Config}
 	if request.Config == nil {
 		request.Config = map[string]any{}
@@ -153,7 +179,7 @@ func (p Plugin) Plan(s gen.Space, _ []gen.Detection) (gen.Plan, error) {
 }
 
 func (p Plugin) failure(verb string, err error) error {
-	return fmt.Errorf("plugin %s %s (%s): %w", p.meta.ID, verb, supported, err)
+	return fmt.Errorf("plugin %s %s (%s): %w", p.id, verb, supported, err)
 }
 
 func (p Plugin) run(verb string, input []byte, answer any) error {
@@ -167,7 +193,7 @@ func (p Plugin) run(verb string, input []byte, answer any) error {
 	if stderr == nil {
 		stderr = os.Stderr
 	}
-	errOut := &prefixWriter{out: stderr, prefix: p.meta.ID + ": ", start: true}
+	errOut := &prefixWriter{out: stderr, prefix: p.id + ": ", start: true}
 	cmd.Stderr = errOut
 	// A plugin is often a script that starts other programs: the time and output limits kill its
 	// whole process group, not only the script. WaitDelay closes the pipes that a child still holds.

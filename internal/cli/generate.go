@@ -145,6 +145,13 @@ func listGenerators(cmd *ucli.Command) error {
 	t := ui.NewTable(cmd.Root().Writer)
 	t.Row("ID", "DEFAULT", "LANGUAGES", "MANIFESTS", "SOURCE")
 	for _, g := range gen.All() {
+		if p, ok := g.(external.Plugin); ok {
+			if err := p.Load(); err != nil {
+				if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, "warning:", err); werr != nil {
+					return werr
+				}
+			}
+		}
 		meta := g.Meta()
 		on := "off"
 		if meta.DefaultOn {

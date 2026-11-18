@@ -19,8 +19,11 @@ var (
 
 // Register adds a generator. Each generator package calls it in init(), like a database/sql
 // driver. A duplicate or empty ID panics, so the first test run finds it.
-func Register(g Generator) {
-	id := g.Meta().ID
+func Register(g Generator) { RegisterID(g.Meta().ID, g) }
+
+// RegisterID adds a generator under id without a call to Meta, so a plugin runs its meta only
+// when a command needs it.
+func RegisterID(id string, g Generator) {
 	if !idPattern.MatchString(id) || id == "none" {
 		panic(fmt.Sprintf("gen: invalid generator ID %q", id))
 	}
@@ -38,11 +41,15 @@ func All() []Generator {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	out := make([]Generator, 0, len(registry))
-	for _, g := range registry {
-		out = append(out, g)
+	ids := make([]string, 0, len(registry))
+	for id := range registry {
+		ids = append(ids, id)
 	}
-	slices.SortFunc(out, func(a, b Generator) int { return strings.Compare(a.Meta().ID, b.Meta().ID) })
+	slices.Sort(ids)
+	out := make([]Generator, len(ids))
+	for i, id := range ids {
+		out[i] = registry[id]
+	}
 	return out
 }
 
@@ -56,11 +63,13 @@ func ByID(id string) (Generator, bool) {
 
 // IDs returns the IDs of all generators, sorted.
 func IDs() []string {
-	all := All()
-	ids := make([]string, len(all))
-	for i, g := range all {
-		ids[i] = g.Meta().ID
+	mu.RLock()
+	defer mu.RUnlock()
+	ids := make([]string, 0, len(registry))
+	for id := range registry {
+		ids = append(ids, id)
 	}
+	slices.Sort(ids)
 	return ids
 }
 
@@ -69,9 +78,10 @@ func IDs() []string {
 func Select(enabled []string) ([]string, error) {
 	if enabled == nil {
 		var ids []string
-		for _, g := range All() {
+		for _, id := range IDs() {
+			g, _ := ByID(id)
 			if g.Meta().DefaultOn {
-				ids = append(ids, g.Meta().ID)
+				ids = append(ids, id)
 			}
 		}
 		return ids, nil
@@ -99,8 +109,10 @@ func Select(enabled []string) ([]string, error) {
 // CheckConfig checks the [generate] settings against the registry: the enabled IDs and the
 // names of the [generate.<id>] tables, so a typo such as [generate.rusty] is an error.
 func CheckConfig(enabled []string, tables map[string]any) error {
-	if _, err := Select(enabled); err != nil {
-		return err
+	if enabled != nil { // the default set needs the meta of each plugin, and it cannot be wrong
+		if _, err := Select(enabled); err != nil {
+			return err
+		}
 	}
 	for id := range tables {
 		if _, ok := ByID(id); !ok {

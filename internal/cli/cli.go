@@ -23,8 +23,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	// overlap in one process (the CLI tests do not run them in parallel).
 	defer func() {
 		for _, g := range gen.All() {
-			if _, ok := g.(external.Plugin); ok {
-				gen.Unregister(g.Meta().ID)
+			if p, ok := g.(external.Plugin); ok {
+				gen.Unregister(p.ID())
 			}
 		}
 	}()

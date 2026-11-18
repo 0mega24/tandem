@@ -13,10 +13,10 @@ Put the executable in one of these places, in search order:
 3. A directory on `PATH`, in path order.
 
 The first executable for each ID wins. Non-executable files and empty `PATH`
-entries are ignored. If the first match gives a bad `meta` answer, or has the ID
-of a built-in generator, Tandem prints a warning and does not use that ID; it
-does not try later matches. A config that enables the ID then fails as an unknown
-generator. `plugin_dirs` entries must be absolute paths or start with `~/`.
+entries are ignored. If the first match has the ID of a built-in generator,
+Tandem prints a warning and uses the built-in. If the first match gives a bad
+`meta` answer, a command that uses the plugin fails. Tandem does not try later
+matches. `plugin_dirs` entries must be absolute paths or start with `~/`.
 
 ```toml
 [generate]
@@ -46,7 +46,10 @@ allowed. Unknown fields, missing required fields, null values where the schemas
 require another type, and unknown protocol versions are errors. Errors name the
 supported versions: `1`.
 
-`meta` receives no input. Tandem calls it once per discovered plugin per command.
+`meta` receives no input. Tandem calls it at most once per command, and only when the
+command needs the plugin: `generate --list`, `plugin check`, a plan, or the default
+generator set. `status`, `path` and `exec` run no plugin. A failed `meta` makes the
+plugin off by default, and a command that uses it fails with that error.
 It describes the generator; `default_on` controls selection when
 `generate.enabled` is unset. `config_schema` describes settings for plugin
 consumers. The plugin must validate its own settings; Tandem does not interpret

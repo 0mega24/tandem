@@ -34,7 +34,7 @@ func loadGenerators(cmd *ucli.Command) (config.Loaded, config.Env, error) {
 		}
 	}
 	for _, p := range plugins {
-		gen.Register(p)
+		gen.RegisterID(p.ID(), p)
 	}
 	if err := gen.CheckConfig(loaded.Config.Generate.Enabled, loaded.Config.Generate.Tables); err != nil {
 		return loaded, env, fmt.Errorf("config: %w", err)
@@ -66,6 +66,9 @@ func checkPlugin(_ context.Context, cmd *ucli.Command) (err error) {
 	p, ok := g.(external.Plugin)
 	if !ok {
 		return fmt.Errorf("%s is a built-in generator, not an external plugin", id)
+	}
+	if err := p.Load(); err != nil {
+		return err
 	}
 	if _, err := fmt.Fprintf(cmd.Root().Writer, "%s: meta passed (protocol 1)\n", id); err != nil {
 		return err
