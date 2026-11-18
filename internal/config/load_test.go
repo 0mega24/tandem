@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -190,5 +191,29 @@ func TestDefaultXDGDirs(t *testing.T) {
 		if !strings.HasPrefix(f, "/etc/xdg/tandem/") {
 			t.Errorf("layers() = %v, want only /etc/xdg/tandem files", files)
 		}
+	}
+}
+
+func TestLoadGenerate(t *testing.T) {
+	env, root := testEnv(t)
+	write(t, root, "home/.config/tandem/config.toml", "[generate]\nenabled = [\"go\"]\n\n[generate.rust]\nmode = \"patch\"\n")
+
+	got, err := Load(env, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(got.Config.Generate.Enabled, []string{"go"}) {
+		t.Errorf("enabled = %v, want [go]", got.Config.Generate.Enabled)
+	}
+	if rust := got.Config.Generate.Table("rust"); rust["mode"] != "patch" {
+		t.Errorf("generate.rust = %v, want mode patch", rust)
+	}
+	if got.Config.Generate.Table("go") != nil {
+		t.Error("generate.go table, want none")
+	}
+
+	write(t, root, "home/.config/tandem/config.toml", "[generate]\nrust = 1\n")
+	if _, err := Load(env, ""); err == nil || !strings.Contains(err.Error(), "generate.rust must be a table") {
+		t.Errorf("err = %v, want a table error", err)
 	}
 }
