@@ -112,3 +112,19 @@ func TestSyncDiverged(t *testing.T) {
 		t.Errorf("api = %v (%v), want failed with ErrNotFastForward", got[0].Outcome, got[0].Err)
 	}
 }
+
+func TestSyncSkipsBranchInOtherWorktree(t *testing.T) {
+	f := newFixture(t, "api")
+	api := f.repos["api"].Path
+	testhelper.Git(t, api, "switch", "-q", "-c", "work")
+	testhelper.Git(t, api, "worktree", "add", "-q", filepath.Join(f.dir, "wt-main"), "main")
+	f.pushUpstream(t, "api")
+
+	got, err := f.m.SyncRepos(context.Background(), []string{"api"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Outcome != SyncSkippedCheckedOut || !errors.Is(got[0].Err, git.ErrCheckedOutElsewhere) {
+		t.Errorf("api = %v (%v), want skipped with ErrCheckedOutElsewhere", got[0].Outcome, got[0].Err)
+	}
+}

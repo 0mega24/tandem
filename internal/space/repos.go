@@ -2,6 +2,7 @@ package space
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/0mega24/tandem/internal/git"
@@ -59,6 +60,7 @@ const (
 	SyncUpToDate SyncOutcome = iota
 	SyncUpdated
 	SyncSkippedDirty
+	SyncSkippedCheckedOut
 	SyncFailed
 )
 
@@ -70,6 +72,8 @@ func (o SyncOutcome) String() string {
 		return "updated"
 	case SyncSkippedDirty:
 		return "skipped: local changes"
+	case SyncSkippedCheckedOut:
+		return "skipped" // Err names the worktree.
 	case SyncFailed:
 		return "failed"
 	}
@@ -124,6 +128,8 @@ func (m *Manager) syncRepo(ctx context.Context, repo Repo) SyncResult {
 
 	moved, err := m.git.FastForward(ctx, repo.Path, res.Branch)
 	switch {
+	case errors.Is(err, git.ErrCheckedOutElsewhere):
+		res.Outcome, res.Err = SyncSkippedCheckedOut, err
 	case err != nil:
 		res.Err = err
 	case moved:
