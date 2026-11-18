@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -16,8 +17,10 @@ import (
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	root := newRoot(stdout, stderr)
 	if err := root.Run(ctx, args); err != nil {
-		// The exit code reports the failure; a broken stderr leaves nothing else to do.
-		_, _ = fmt.Fprintln(stderr, "tdm:", err)
+		if !errors.Is(err, errReported) {
+			// The exit code reports the failure; a broken stderr leaves nothing else to do.
+			_, _ = fmt.Fprintln(stderr, "tdm:", err)
+		}
 		return 1
 	}
 	return 0
@@ -42,6 +45,7 @@ func newRoot(stdout, stderr io.Writer) *ucli.Command {
 		},
 		Commands: []*ucli.Command{
 			configCommand(),
+			repoCommand(),
 			{
 				Name:  "version",
 				Usage: "Print the version",

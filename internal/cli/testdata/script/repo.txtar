@@ -1,0 +1,43 @@
+# Repos are found under discovery.root_dir (default ~/repos).
+mkrepo api web myorg/api
+
+exec tdm repo status
+cmp stdout want-status.txt
+
+exec tdm repo status --long web
+stdout '^web +main +✓ clean +'$WORK'/origins/web.git +'$HOME'/repos/web$'
+
+# A change shows in the status, and its main clone is skipped by sync.
+exec git -C $HOME/repos/web checkout -q -b wip
+cp $WORK/dirty.txt $HOME/repos/web/dirty.txt
+exec tdm repo status web
+stdout '^web +wip +! 1 changed$'
+
+# A new upstream commit on api: sync fast-forwards main.
+exec git clone -q $WORK/origins/api.git $WORK/other
+cp $WORK/dirty.txt $WORK/other/up.txt
+exec git -C $WORK/other add up.txt
+exec git -C $WORK/other commit -q -m upstream
+exec git -C $WORK/other push -q origin main
+
+exec tdm repo sync
+cmp stdout want-sync.txt
+exec git -C $HOME/repos/api log -1 --format=%s
+stdout '^upstream$'
+
+# Ambiguous and unknown names fail with a hint.
+! exec tdm repo status api2
+stderr 'no repo "api2"'
+! exec tdm repo status org
+stderr 'did you mean myorg/api'
+
+-- dirty.txt --
+x
+-- want-status.txt --
+api        main  ✓ clean
+myorg/api  main  ✓ clean
+web        main  ✓ clean
+-- want-sync.txt --
+api        main  ✓ updated
+myorg/api  main  ✓ up to date
+web              ! skipped: local changes
