@@ -27,7 +27,7 @@ in
     };
 
     settings = lib.mkOption {
-      type = toml.type;
+      inherit (toml) type;
       default = { };
       description = "System-wide defaults, written to /etc/xdg/tandem/config.toml. A user config overrides them.";
     };
