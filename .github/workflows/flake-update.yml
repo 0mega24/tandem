@@ -9,6 +9,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: flake-update
+  cancel-in-progress: true
+
 jobs:
   update:
     runs-on: ubuntu-latest
