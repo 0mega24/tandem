@@ -1,0 +1,42 @@
+# A space with a Go client, a Rust server and a JS web app: each generator takes only its own
+# members, and their files do not collide. A repo with go.mod and Cargo.toml in its root is a
+# member of both.
+mkrepo client server shared web
+exec tdm new feat client server shared web
+cp client.mod $HOME/workspaces/feat/client/go.mod
+cp server.toml $HOME/workspaces/feat/server/Cargo.toml
+cp shared.mod $HOME/workspaces/feat/shared/go.mod
+cp shared.toml $HOME/workspaces/feat/shared/Cargo.toml
+cp web.json $HOME/workspaces/feat/web/package.json
+
+exec tdm generate feat
+stdout '^  go +✓ go.work +\(client, shared\)$'
+stdout '^  rust +✓ .* +\(server, shared\)$'
+stdout '^  js +✓ .* +\(web\)$'
+grep '\./client' $HOME/workspaces/feat/go.work
+grep '\./shared' $HOME/workspaces/feat/go.work
+! grep 'server|web' $HOME/workspaces/feat/go.work
+
+-- client.mod --
+module example.org/client
+
+go 1.22
+
+require example.org/shared v0.1.0
+-- shared.mod --
+module example.org/shared
+
+go 1.22
+-- server.toml --
+[package]
+name = "server"
+version = "0.1.0"
+
+[dependencies]
+shared = { git = "https://example.org/shared" }
+-- shared.toml --
+[package]
+name = "shared"
+version = "0.1.0"
+-- web.json --
+{"name": "web", "version": "0.1.0"}
