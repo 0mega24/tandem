@@ -19,6 +19,8 @@ rm $HOME/workspaces/feat/lib/go.mod
 exec tdm generate --dry-run feat
 stdout '^  go +✓ go.work +\(api\)$'
 stdout '^dry run: nothing was written$'
+stdout '^-\t\./lib$'
+stdout '^--- go.work$'
 cmp $HOME/workspaces/feat/go.work two.work
 cp $HOME/.local/share/tandem/spaces/feat.yaml before.yaml
 mv $HOME/workspaces/feat/go.work saved.work
