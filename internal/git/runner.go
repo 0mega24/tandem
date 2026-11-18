@@ -21,6 +21,9 @@ type Runner interface {
 
 	Status(ctx context.Context, dir string) (Status, error)
 	Unpushed(ctx context.Context, repo, branch string) (int, error)
+
+	Fetch(ctx context.Context, repo string) error
+	FastForward(ctx context.Context, repo, branch string) error
 }
 
 // OriginURL is the URL of the origin remote, or "" when the repo has no origin.
