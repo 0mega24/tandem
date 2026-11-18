@@ -62,7 +62,7 @@ func TestOwnershipTable(t *testing.T) {
 		file("theirs.txt", "v2"), file("update.txt", "v2"),
 	)}
 
-	a, err := Prepare(root, owned, plans, nil, false)
+	a, err := Prepare(root, owned, plans, nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestForce(t *testing.T) {
 	writeFile(t, root, "theirs.txt", "not ours")
 	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1"))}}
 
-	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("theirs.txt", "v2"))}, nil, true)
+	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("theirs.txt", "v2"))}, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestForceKeepsAnOlderBackup(t *testing.T) {
 	writeFile(t, root, "theirs.txt", "not ours")
 	writeFile(t, root, "theirs.txt"+backupSuffix, "an older backup")
 
-	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true)
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestDeleteWhenNoLongerPlanned(t *testing.T) {
 	writeFile(t, root, "Cargo.lock", "lock")
 
 	// rust ran and found no members; js did not run.
-	a, err := Prepare(root, owned, map[string]Plan{"rust": {}}, nil, false)
+	a, err := Prepare(root, owned, map[string]Plan{"rust": {}}, nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,24 +181,24 @@ func TestPrepareRejectsBadPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range []string{"../x", "/etc/x", "a/../b", "", "api/go.work", "api", `a\b`, "API/x", "infra/go.work", "link.txt"} {
-		_, err := Prepare(root, nil, map[string]Plan{"go": plan(file(p, "x"))}, []string{"api"}, false)
+		_, err := Prepare(root, nil, map[string]Plan{"go": plan(file(p, "x"))}, []string{"api"}, false, nil)
 		if err == nil {
 			t.Errorf("Prepare(%q) = nil, want an error", p)
 		}
 	}
 
 	for _, s := range []string{"../x", "/etc/x", "api/go.mod"} {
-		if _, err := Prepare(root, nil, map[string]Plan{"go": {Stale: []string{s}}}, []string{"api"}, false); err == nil {
+		if _, err := Prepare(root, nil, map[string]Plan{"go": {Stale: []string{s}}}, []string{"api"}, false, nil); err == nil {
 			t.Errorf("Prepare with stale %q = nil, want an error", s)
 		}
 		owned := []Owned{{Generator: "go", Path: "go.work", SHA256: "x", Stale: []string{s}}}
-		if _, err := Prepare(root, owned, map[string]Plan{"go": {}}, []string{"api"}, false); err == nil {
+		if _, err := Prepare(root, owned, map[string]Plan{"go": {}}, []string{"api"}, false, nil); err == nil {
 			t.Errorf("Prepare with owned stale %q = nil, want an error", s)
 		}
 	}
 
 	twice := map[string]Plan{"go": plan(file("go.work", "a")), "rust": plan(file("go.work", "b"))}
-	if _, err := Prepare(root, nil, twice, nil, false); err == nil || !strings.Contains(err.Error(), "planned twice") {
+	if _, err := Prepare(root, nil, twice, nil, false, nil); err == nil || !strings.Contains(err.Error(), "planned twice") {
 		t.Errorf("two generators on one path: %v", err)
 	}
 }
@@ -218,7 +218,7 @@ func TestStepsUndo(t *testing.T) {
 		"rust": {},
 	}
 
-	a, err := Prepare(root, owned, plans, nil, true)
+	a, err := Prepare(root, owned, plans, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestStepsUndo(t *testing.T) {
 func TestWriteStepCleansUpAFailure(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "theirs.txt", "not ours")
-	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true)
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func TestForceDeleteKeepsACopy(t *testing.T) {
 	writeFile(t, root, "edited.txt", "a person's edit")
 	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1"))}}
 
-	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, true)
+	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestOwnedWithPlannedBytes(t *testing.T) {
 		{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1")), Stale: []string{"old.sum"}},
 	}
 
-	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("go.work", "v2"))}, nil, false)
+	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("go.work", "v2"))}, nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestOwnedWithPlannedBytes(t *testing.T) {
 
 func TestStaleStepsOnce(t *testing.T) {
 	root := t.TempDir()
-	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("a", "a"), file("b", "b"))}, nil, false)
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("a", "a"), file("b", "b"))}, nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +341,7 @@ func TestFailedDeleteIsAWarning(t *testing.T) {
 	writeFile(t, root, "locked/go.work", "v1")
 	writeFile(t, root, "locked/go.work.sum", "sum")
 	owned := []Owned{{Generator: "go", Path: "locked/go.work", SHA256: Hash([]byte("v1")), Stale: []string{"locked/go.work.sum"}}}
-	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, false)
+	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,5 +359,71 @@ func TestFailedDeleteIsAWarning(t *testing.T) {
 	}
 	if readFile(t, root, "locked/go.work") != "v1" || readFile(t, root, "locked/go.work.sum") != "sum" {
 		t.Error("the files are gone")
+	}
+}
+
+func TestLinks(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "app/subprojects/libfoo.wrap", "[wrap-git]\n")
+	writeFile(t, root, "libfoo/meson.build", "")
+	writeFile(t, root, "app/subprojects/taken/x", "")
+	members := []string{"app", "libfoo"}
+	yes := func(string) (bool, error) { return true, nil }
+	links := func(ls ...Link) map[string]Plan { return map[string]Plan{"meson": {Links: ls}} }
+	foo := Link{Path: "app/subprojects/libfoo", Target: "../../libfoo"}
+
+	a, err := Prepare(root, nil, links(foo, Link{Path: "app/subprojects/taken", Target: "../../libfoo"}), members, true, yes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Changes[0].Action != Write || a.Changes[1].Action != Skip {
+		t.Fatalf("changes = %+v, want the link made and the taken path skipped, also with force", a.Changes)
+	}
+	run(t, a)
+	if got, _ := os.Readlink(filepath.Join(root, foo.Path)); got != foo.Target {
+		t.Fatalf("link = %q, want %q", got, foo.Target)
+	}
+	if len(a.Owned) != 1 || a.Owned[0].Target != foo.Target || a.Owned[0].SHA256 != "" {
+		t.Errorf("owned = %+v, want the link with its target", a.Owned)
+	}
+
+	// The same plan again: unchanged. Not ignored by git: skipped.
+	if a, _ := Prepare(root, a.Owned, links(foo), members, false, yes); a.Changes[0].Action != Unchanged {
+		t.Errorf("second run: %+v, want unchanged", a.Changes[0])
+	}
+	bar := Link{Path: "app/subprojects/bar", Target: "../../libfoo"}
+	if a, _ := Prepare(root, nil, links(bar), members, false, nil); a.Changes[0].Action != Skip || !strings.Contains(a.Changes[0].Reason, "does not ignore") {
+		t.Errorf("not ignored: %+v, want a skip", a.Changes[0])
+	}
+
+	// No longer planned: the link goes, and only the link.
+	d, err := Prepare(root, a.Owned, links(), members, false, yes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(t, d)
+	if _, err := os.Lstat(filepath.Join(root, foo.Path)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("link = %v, want it deleted", err)
+	}
+	if readFile(t, root, "libfoo/meson.build") != "" {
+		t.Error("the target is gone")
+	}
+}
+
+func TestCheckLink(t *testing.T) {
+	root := t.TempDir()
+	members := []string{"app", "libfoo"}
+	for _, l := range []Link{
+		{Path: "subprojects/x", Target: "../libfoo"},        // not in a member
+		{Path: "app/subprojects/x", Target: "/abs/libfoo"},  // absolute target
+		{Path: "app/subprojects/x", Target: "../../../out"}, // target outside the root
+		{Path: "app/../x", Target: "../libfoo"},
+	} {
+		if err := CheckLink(root, l, members); err == nil {
+			t.Errorf("CheckLink(%+v) = nil, want an error", l)
+		}
+	}
+	if err := CheckLink(root, Link{Path: "app/subprojects/x", Target: "../../libfoo"}, members); err != nil {
+		t.Errorf("CheckLink(valid) = %v", err)
 	}
 }

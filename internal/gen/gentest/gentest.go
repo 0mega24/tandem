@@ -12,7 +12,8 @@
 //	                       "stale: ...", "link: <path> -> <target>")
 //
 // Each case also checks the rules that apply to every plan: the files are sorted by path with no
-// path twice, every path passes gen.CheckPath, and a second Plan gives the same result.
+// path twice, every path passes gen.CheckPath (gen.CheckLink for links), and a second Plan gives
+// the same result.
 //
 // `go test ./internal/gen/<id>/ -update` writes want/ and want.txt again from the plan.
 package gentest
@@ -142,7 +143,7 @@ func checkRules(t *testing.T, root string, p gen.Plan, members []string) {
 		}
 	}
 	for _, l := range p.Links {
-		if err := gen.CheckPath(root, l.Path, members); err != nil {
+		if err := gen.CheckLink(root, l, members); err != nil {
 			t.Errorf("link: %v", err)
 		}
 	}

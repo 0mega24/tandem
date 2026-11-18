@@ -60,7 +60,7 @@ func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOption
 		return GenerateResult{}, err
 	}
 
-	a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(sp), opts.Force)
+	a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(sp), opts.Force, m.ignored(ctx, sp))
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("space %s: %w", sp.Name, err)
 	}
@@ -99,7 +99,7 @@ func (m *Manager) generateStep(sp *state.Space, ids []string, out *GenerateResul
 			if err != nil {
 				return err
 			}
-			a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(*sp), false)
+			a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(*sp), false, m.ignored(ctx, *sp))
 			if err != nil {
 				return err
 			}
@@ -197,6 +197,23 @@ func memberDirs(sp state.Space) []string {
 	return out
 }
 
+// ignored returns the git check-ignore test for gen.Prepare: a link path relative to the space
+// root is checked in the worktree of the member that holds it.
+func (m *Manager) ignored(ctx context.Context, sp state.Space) func(string) (bool, error) {
+	return func(rel string) (bool, error) {
+		p := filepath.Join(sp.Path, filepath.FromSlash(rel))
+		for _, e := range sp.Repos {
+			if e.Symlink {
+				continue
+			}
+			if in, err := filepath.Rel(e.WorktreePath, p); err == nil && filepath.IsLocal(in) {
+				return m.git.CheckIgnore(ctx, e.WorktreePath, filepath.ToSlash(in))
+			}
+		}
+		return false, nil
+	}
+}
+
 // recordSet is the generator set as the state keeps it. An empty set is ["none"], because the
 // state file omits an empty list and a missing list means the default set.
 func recordSet(ids []string) []string {
@@ -206,12 +223,10 @@ func recordSet(ids []string) []string {
 	return ids
 }
 
-// owned and generated do not carry GeneratedFile.Target: Prepare refuses links until the meson
-// generator adds them, so no entry has one yet.
 func owned(files []state.GeneratedFile) []gen.Owned {
 	out := make([]gen.Owned, len(files))
 	for i, f := range files {
-		out[i] = gen.Owned{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Stale: f.Stale}
+		out[i] = gen.Owned{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Stale: f.Stale}
 	}
 	return out
 }
@@ -219,7 +234,7 @@ func owned(files []state.GeneratedFile) []gen.Owned {
 func generated(files []gen.Owned) []state.GeneratedFile {
 	out := make([]state.GeneratedFile, len(files))
 	for i, f := range files {
-		out[i] = state.GeneratedFile{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Stale: f.Stale}
+		out[i] = state.GeneratedFile{Generator: f.Generator, Path: f.Path, SHA256: f.SHA256, Target: f.Target, Stale: f.Stale}
 	}
 	return out
 }

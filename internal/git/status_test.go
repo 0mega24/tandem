@@ -92,3 +92,20 @@ func TestUnpushedWithoutOrigin(t *testing.T) {
 		t.Errorf("Unpushed() = %d, %v; want 0 for a repo with no origin", n, err)
 	}
 }
+
+func TestCheckIgnore(t *testing.T) {
+	testhelper.Isolate(t)
+	dir := t.TempDir()
+	testhelper.Git(t, dir, "init", "-q")
+	testhelper.Commit(t, dir, ".gitignore", "subprojects/*\n!subprojects/*.wrap\n", "ignore")
+
+	ctx := context.Background()
+	for p, want := range map[string]bool{"subprojects/libfoo": true, "subprojects/libfoo.wrap": false, "src/x": false} {
+		if got, err := (System{}).CheckIgnore(ctx, dir, p); err != nil || got != want {
+			t.Errorf("CheckIgnore(%s) = %v, %v; want %v", p, got, err, want)
+		}
+	}
+	if _, err := (System{}).CheckIgnore(ctx, t.TempDir(), "x"); err == nil {
+		t.Error("CheckIgnore outside a repo = nil error")
+	}
+}

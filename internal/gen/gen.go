@@ -46,7 +46,7 @@ type File struct {
 // worktree, the one exception to the rule that a plan writes nothing inside a member.
 type Link struct {
 	Path   string // relative to the space root, with "/"
-	Target string // absolute path that the link points to
+	Target string // relative to the directory of Path, with "/"; it stays inside the space root
 }
 
 // Plan is what one generator writes for the members that it found.
