@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -158,6 +159,7 @@ func (s Store) write(sp Space, place func(tmp, file string) error) error {
 	if err := ValidateName(sp.Name); err != nil {
 		return err
 	}
+	sp.GoWorkspace = false // read from wtg files only; generated replaces it
 	b, err := yaml.Marshal(sp)
 	if err != nil {
 		return fmt.Errorf("encode state: %w", err)
@@ -194,6 +196,12 @@ func (s Store) Delete(name string) error {
 	return nil
 }
 
+// insideRoot reports whether p is a clean relative path with "/" that stays in the space root.
+func insideRoot(p string) bool {
+	return p != "" && p != "." && !path.IsAbs(p) && path.Clean(p) == p && p != ".." &&
+		!strings.HasPrefix(p, "../") && !strings.Contains(p, `\`)
+}
+
 func decode(file string, b []byte) (Space, error) {
 	var sp Space
 	if err := yaml.Unmarshal(b, &sp); err != nil {
@@ -201,6 +209,15 @@ func decode(file string, b []byte) (Space, error) {
 	}
 	if sp.Name == "" || sp.Path == "" || sp.Branch == "" {
 		return Space{}, fmt.Errorf("parse state %s: name, path and branch must be set", file)
+	}
+
+	// Cleanup deletes these paths, so one that leaves the space root must not get that far.
+	for _, g := range sp.Generated {
+		for _, p := range append([]string{g.Path}, g.Stale...) {
+			if !insideRoot(p) {
+				return Space{}, fmt.Errorf("parse state %s: generated path %q is not inside the space", file, p)
+			}
+		}
 	}
 	return sp, nil
 }
