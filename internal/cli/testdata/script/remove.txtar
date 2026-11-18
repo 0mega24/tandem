@@ -10,7 +10,7 @@ cp x.txt $HOME/workspaces/feat/api/x.txt
 stdin no.txt
 ! exec tdm remove feat api
 stderr '^  api +1 changed$'
-stderr 'Remove them\? \[y/N\]'
+stderr 'Continue\? \[y/N\]'
 stderr 'nothing removed'
 exists $HOME/workspaces/feat/api/x.txt
 

@@ -1,0 +1,37 @@
+# delete removes the worktrees, the always.files copy, the directory and the state.
+mkrepo api web
+mkdir $HOME/.config/tandem $HOME/notes
+cp config.toml $HOME/.config/tandem/config.toml
+cp notes.md $HOME/notes/AGENTS.md
+exec tdm new feat api web
+exec tdm delete -d feat
+cmpenv stdout want-delete.txt
+! exists $HOME/workspaces/feat
+! exec tdm path feat
+
+# Unpushed work: tdm asks first; -D deletes the unmerged branch after a yes.
+exec tdm new two api
+exec git -C $HOME/workspaces/two/api commit -q --allow-empty -m work
+stdin no.txt
+! exec tdm delete -D two
+stderr '^  api +1 not pushed$'
+exec tdm path two
+stdin yes.txt
+exec tdm delete -D two
+stdout '^api +✓ removed +✓ branch deleted$'
+exec git -C $HOME/repos/api branch --list two
+! stdout .
+
+-- config.toml --
+always.files = ["~/notes/AGENTS.md"]
+-- notes.md --
+# notes
+-- no.txt --
+n
+-- yes.txt --
+y
+-- want-delete.txt --
+api        ✓ removed  ✓ branch deleted
+web        ✓ removed  ✓ branch deleted
+AGENTS.md  ✓ removed
+feat       ✓ deleted
