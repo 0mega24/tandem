@@ -18,6 +18,9 @@ type Runner interface {
 	RemoveWorktree(ctx context.Context, repo, path string, force bool) error
 	PruneWorktrees(ctx context.Context, repo string) error
 	RepairWorktree(ctx context.Context, repo, path string) error
+
+	Status(ctx context.Context, dir string) (Status, error)
+	Unpushed(ctx context.Context, repo, branch string) (int, error)
 }
 
 // OriginURL is the URL of the origin remote, or "" when the repo has no origin.
