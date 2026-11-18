@@ -1,0 +1,61 @@
+# maven: the aggregator pom of the space puts api and lib in one reactor, so api resolves the
+# unpublished lib from the reactor build.
+[!exec:mvn] skip 'needs mvn'
+[!exec:java] skip 'needs java'
+mkrepo api lib
+exec tdm new feat api lib
+mkdir $HOME/workspaces/feat/lib/src/main/java/example/lib $HOME/workspaces/feat/api/src/main/java/example/api
+cp lib.pom $HOME/workspaces/feat/lib/pom.xml
+cp Lib.java $HOME/workspaces/feat/lib/src/main/java/example/lib/Lib.java
+cp api.pom $HOME/workspaces/feat/api/pom.xml
+cp Main.java $HOME/workspaces/feat/api/src/main/java/example/api/Main.java
+exec tdm generate feat
+stdout 'maven +✓ pom.xml'
+! exists $HOME/workspaces/feat/.mvn
+
+cd $HOME/workspaces/feat
+exec mvn -q -B compile
+exec java -cp lib/target/classes:api/target/classes example.api.Main
+stdout '^local lib$'
+
+-- lib.pom --
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>example</groupId>
+  <artifactId>lib</artifactId>
+  <version>1.0</version>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+</project>
+-- api.pom --
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>example</groupId>
+  <artifactId>api</artifactId>
+  <version>1.0</version>
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>example</groupId>
+      <artifactId>lib</artifactId>
+      <version>1.0</version>
+    </dependency>
+  </dependencies>
+</project>
+-- Lib.java --
+package example.lib;
+
+public final class Lib {
+	public static String name() { return "local lib"; }
+}
+-- Main.java --
+package example.api;
+
+public final class Main {
+	public static void main(String[] args) { System.out.println(example.lib.Lib.name()); }
+}
