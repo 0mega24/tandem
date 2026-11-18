@@ -1,0 +1,49 @@
+# tdm new makes a worktree on one branch in each repo, under spaces.root_dir.
+mkrepo api web myorg/lib
+exec git -C $HOME/repos/web branch feat
+
+exec tdm new feat api web lib
+cmpenv stdout want-new.txt
+exec git -C $HOME/workspaces/feat/myorg/lib branch --show-current
+stdout '^feat$'
+
+# path prints the space directory; completion lists the spaces.
+exec tdm path feat
+stdout '^'$HOME'/workspaces/feat$'
+exec tdm path --generate-shell-completion
+stdout '^feat$'
+! exec tdm path nope
+stderr 'space not found: nope'
+
+# status shows changes and the commits that origin does not have.
+cp $WORK/x.txt $HOME/workspaces/feat/api/x.txt
+exec git -C $HOME/workspaces/feat/web commit -q --allow-empty -m work
+exec tdm status
+cmpenv stdout want-status.txt
+exec tdm status -l feat
+stdout '^      x.txt$'
+
+# A second space cannot use a branch that the first one has checked out; nothing is made.
+! exec tdm new other api --branch feat
+stderr 'api: branch feat is checked out in '$HOME'/workspaces/feat/api'
+! exists $HOME/workspaces/other
+! exec tdm path other
+
+# A name that is taken, and a repo that is not there.
+! exec tdm new feat api
+stderr 'space "feat" exists'
+! exec tdm new x nope
+stderr 'no repo "nope"'
+
+-- x.txt --
+x
+-- want-new.txt --
+feat         $HOME/workspaces/feat
+  api        ✓ worktree  [feat]  new branch
+  web        ✓ worktree  [feat]  existing branch
+  myorg/lib  ✓ worktree  [feat]  new branch
+-- want-status.txt --
+feat         $HOME/workspaces/feat
+  api        [feat]  ! 1 changed
+  web        [feat]  ✓ clean  ↑1
+  myorg/lib  [feat]  ✓ clean
