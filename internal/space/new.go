@@ -120,15 +120,7 @@ func (m *Manager) preflight(ctx context.Context, opts NewOptions) (newPlan, erro
 		return newPlan{}, err
 	}
 
-	var errs []error
-	for i := range worktrees {
-		p := &worktrees[i]
-		if p.secrets, err = secretsOf(p.entry.RepoPath, m.cfg.Always.Secrets); err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", p.entry.Name, err))
-		}
-	}
-
-	return newPlan{space: sp, worktrees: worktrees, links: links}, errors.Join(errs...)
+	return newPlan{space: sp, worktrees: worktrees, links: links}, nil
 }
 
 // preflightWorktrees checks the name, the space directory and the branch in each repo. It also
@@ -188,20 +180,31 @@ func (m *Manager) preflightWorktrees(ctx context.Context, opts NewOptions) (stat
 	plan := make([]planned, len(repos))
 	var errs []error
 	for i, r := range repos {
-		entry := state.RepoEntry{
-			Name:         r.Name,
-			RepoPath:     r.Path,
-			WorktreePath: filepath.Join(sp.Path, filepath.FromSlash(r.Name)),
+		if plan[i], err = m.planWorktree(ctx, r, sp); err != nil {
+			errs = append(errs, err)
 		}
-		from, err := m.branchStart(ctx, r, sp.Branch)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", r.Name, err))
-		}
-		plan[i] = planned{entry: entry, from: from}
-		sp.Repos = append(sp.Repos, entry)
+		sp.Repos = append(sp.Repos, plan[i].entry)
 	}
 
 	return sp, plan, all, errors.Join(errs...)
+}
+
+// planWorktree checks one repo for a worktree in sp: the branch rules and the secrets.
+func (m *Manager) planWorktree(ctx context.Context, r Repo, sp state.Space) (planned, error) {
+	p := planned{entry: state.RepoEntry{
+		Name:         r.Name,
+		RepoPath:     r.Path,
+		WorktreePath: filepath.Join(sp.Path, filepath.FromSlash(r.Name)),
+	}}
+
+	var err error
+	if p.from, err = m.branchStart(ctx, r, sp.Branch); err != nil {
+		return p, fmt.Errorf("%s: %w", r.Name, err)
+	}
+	if p.secrets, err = secretsOf(r.Path, m.cfg.Always.Secrets); err != nil {
+		return p, fmt.Errorf("%s: %w", r.Name, err)
+	}
+	return p, nil
 }
 
 // branchStart applies the branch rules for one repo. It returns the start point for a new branch,
