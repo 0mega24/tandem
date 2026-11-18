@@ -1,0 +1,18 @@
+# config init writes the user file with a #:schema line and the generator settings as comments.
+exec tdm config init
+stdout ^$WORK/home/.config/tandem/config.toml$
+grep '^#:schema https://.*/schema/config.schema.json$' home/.config/tandem/config.toml
+grep '^# \[generate\]$' home/.config/tandem/config.toml
+grep '^# enabled = \[.*"go".*\]$' home/.config/tandem/config.toml
+
+# The file loads as it is: all its settings are comments.
+exec tdm config
+stdout 'config.toml'
+
+# An existing file is not changed.
+! exec tdm config init
+stderr 'exists; tdm config init does not change it'
+
+# A YAML user file cannot be written.
+! exec tdm config init --config $WORK/c.yaml
+stderr 'writes TOML only'
