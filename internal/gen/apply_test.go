@@ -53,9 +53,9 @@ func TestOwnershipTable(t *testing.T) {
 	writeFile(t, root, "theirs.txt", "not ours")
 	writeFile(t, root, "go.work.sum", "sum")
 	owned := []Owned{
-		{Generator: "go", Path: "same.txt", SHA256: hash([]byte("v1"))},
-		{Generator: "go", Path: "update.txt", SHA256: hash([]byte("v1"))},
-		{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1"))},
+		{Generator: "go", Path: "same.txt", SHA256: Hash([]byte("v1"))},
+		{Generator: "go", Path: "update.txt", SHA256: Hash([]byte("v1"))},
+		{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1"))},
 	}
 	plans := map[string]Plan{"go": plan(
 		file("edited.txt", "v2"), file("new/dir/new.txt", "v2"), file("same.txt", "v1"),
@@ -89,7 +89,7 @@ func TestOwnershipTable(t *testing.T) {
 	for _, o := range a.Owned {
 		paths[o.Path] = o.SHA256
 	}
-	if paths["edited.txt"] != hash([]byte("v1")) || paths["theirs.txt"] != "" || paths["new/dir/new.txt"] != hash([]byte("v2")) {
+	if paths["edited.txt"] != Hash([]byte("v1")) || paths["theirs.txt"] != "" || paths["new/dir/new.txt"] != Hash([]byte("v2")) {
 		t.Errorf("owned = %+v", a.Owned)
 	}
 }
@@ -98,7 +98,7 @@ func TestForce(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "edited.txt", "a person's edit")
 	writeFile(t, root, "theirs.txt", "not ours")
-	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1"))}}
+	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1"))}}
 
 	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("theirs.txt", "v2"))}, nil, true)
 	if err != nil {
@@ -144,9 +144,9 @@ func TestDeleteWhenNoLongerPlanned(t *testing.T) {
 	writeFile(t, root, "edited.txt", "a person's edit")
 	writeFile(t, root, "other.txt", "x")
 	owned := []Owned{
-		{Generator: "rust", Path: ".cargo/config.toml", SHA256: hash([]byte("v1")), Stale: []string{"Cargo.lock"}},
-		{Generator: "rust", Path: "edited.txt", SHA256: hash([]byte("v1"))},
-		{Generator: "js", Path: "other.txt", SHA256: hash([]byte("x"))},
+		{Generator: "rust", Path: ".cargo/config.toml", SHA256: Hash([]byte("v1")), Stale: []string{"Cargo.lock"}},
+		{Generator: "rust", Path: "edited.txt", SHA256: Hash([]byte("v1"))},
+		{Generator: "js", Path: "other.txt", SHA256: Hash([]byte("x"))},
 	}
 	writeFile(t, root, "Cargo.lock", "lock")
 
@@ -210,8 +210,8 @@ func TestStepsUndo(t *testing.T) {
 	writeFile(t, root, "theirs.txt", "not ours")
 	writeFile(t, root, "go.work.sum", "sum")
 	owned := []Owned{
-		{Generator: "go", Path: "update.txt", SHA256: hash([]byte("v1"))},
-		{Generator: "rust", Path: "gone.txt", SHA256: hash([]byte("g"))},
+		{Generator: "go", Path: "update.txt", SHA256: Hash([]byte("v1"))},
+		{Generator: "rust", Path: "gone.txt", SHA256: Hash([]byte("g"))},
 	}
 	plans := map[string]Plan{
 		"go":   plan(file("update.txt", "v2"), file("new/dir/new.txt", "n"), file("theirs.txt", "v2")),
@@ -269,7 +269,7 @@ func TestWriteStepCleansUpAFailure(t *testing.T) {
 func TestForceDeleteKeepsACopy(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "edited.txt", "a person's edit")
-	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1"))}}
+	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1"))}}
 
 	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, true)
 	if err != nil {
@@ -288,8 +288,8 @@ func TestOwnedWithPlannedBytes(t *testing.T) {
 	writeFile(t, root, "go.work", "v2")
 	writeFile(t, root, "edited.txt", "a person's edit")
 	owned := []Owned{
-		{Generator: "go", Path: "go.work", SHA256: hash([]byte("v1"))},
-		{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1")), Stale: []string{"old.sum"}},
+		{Generator: "go", Path: "go.work", SHA256: Hash([]byte("v1"))},
+		{Generator: "go", Path: "edited.txt", SHA256: Hash([]byte("v1")), Stale: []string{"old.sum"}},
 	}
 
 	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("go.work", "v2"))}, nil, false)
@@ -299,7 +299,7 @@ func TestOwnedWithPlannedBytes(t *testing.T) {
 	if a.Changes[1].Action != Unchanged {
 		t.Errorf("go.work: %v, want unchanged", a.Changes[1].Action)
 	}
-	if a.Owned[1].SHA256 != hash([]byte("v2")) {
+	if a.Owned[1].SHA256 != Hash([]byte("v2")) {
 		t.Errorf("go.work hash = %s, want the hash of v2", a.Owned[1].SHA256)
 	}
 	if got := a.Owned[0].Stale; len(got) != 1 || got[0] != "old.sum" {
