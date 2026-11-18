@@ -201,3 +201,29 @@ func TestStepsUndo(t *testing.T) {
 		t.Errorf("new/ = %v, want the made dirs removed", err)
 	}
 }
+
+func TestWriteStepCleansUpAFailure(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "theirs.txt", "not ours")
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("theirs.txt", "v2"))}, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Between Prepare and the write, the file becomes a directory with content: the rename fails
+	// after the backup was made.
+	if err := os.Remove(filepath.Join(root, "theirs.txt")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "theirs.txt/keep", "k")
+
+	if err := saga.Run(context.Background(), a.Steps()); err == nil {
+		t.Fatal("Steps ran, want the write to fail")
+	}
+	if got := readFile(t, root, "theirs.txt"+backupSuffix); got != "<missing>" {
+		t.Errorf("backup = %q, want it removed with the failed step", got)
+	}
+	if got := readFile(t, root, "theirs.txt/keep"); got != "k" {
+		t.Errorf("theirs.txt/keep = %q, want it untouched", got)
+	}
+}
