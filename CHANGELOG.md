@@ -27,6 +27,9 @@ All notable changes to this project are in this file. The format follows
 - `tdm remove [-d] <space> <repo>...` takes repos out of a space. It asks first when a worktree
   has changes or unpushed commits. An `always.repos` repo gets its symlink back; `-d` deletes the
   space branch when it is merged.
+- `tdm delete [-d|-D] <space>` removes the worktrees, symlinks, `always.files` copies, the space
+  directory (when nothing else is in it) and the state. It asks first about unpushed work; `-d`
+  deletes merged branches and `-D` all space branches.
 - `tdm path <space>` prints the space directory (for `tcd`), and completes space names.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
   does not have. The space that holds the current directory comes first.
