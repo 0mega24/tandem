@@ -1,0 +1,43 @@
+# meson: the symlink in api/subprojects makes Meson use the local lib worktree, with no download.
+[!exec:meson] skip 'needs meson'
+[!exec:ninja] skip 'needs ninja'
+[!exec:git] skip 'needs git'
+mkrepo api lib
+exec sed -i 's|@ORIGINS@|'$WORK'/origins|' lib.wrap
+exec tdm new feat api lib
+# Meson needs the path to be git-ignored in api; the exclude file is shared by its worktrees.
+exec sh -c 'echo subprojects/lib >> "$HOME/repos/api/.git/info/exclude"'
+cp lib.build $HOME/workspaces/feat/lib/meson.build
+cp lib.c $HOME/workspaces/feat/lib/lib.c
+cp api.build $HOME/workspaces/feat/api/meson.build
+cp main.c $HOME/workspaces/feat/api/main.c
+mkdir $HOME/workspaces/feat/api/subprojects
+cp lib.wrap $HOME/workspaces/feat/api/subprojects/lib.wrap
+exec tdm generate feat
+stdout 'meson +✓ api/subprojects/lib'
+
+cd $HOME/workspaces/feat/api
+exec meson setup build --wrap-mode=nodownload
+exec meson compile -C build
+exec build/api
+stdout '^local lib$'
+
+-- lib.build --
+project('lib', 'c')
+lib_dep = declare_dependency(link_with: static_library('lib', 'lib.c'))
+-- lib.c --
+const char *lib_name(void) { return "local lib"; }
+-- lib.wrap --
+[wrap-git]
+url = @ORIGINS@/lib.git
+revision = main
+
+[provide]
+lib = lib_dep
+-- api.build --
+project('api', 'c')
+executable('api', 'main.c', dependencies: dependency('lib'))
+-- main.c --
+#include <stdio.h>
+const char *lib_name(void);
+int main(void) { puts(lib_name()); return 0; }
