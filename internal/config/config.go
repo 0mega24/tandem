@@ -26,6 +26,7 @@ type Config struct {
 	Spaces    Spaces    `koanf:"spaces"`
 	Git       Git       `koanf:"git"`
 	Always    Always    `koanf:"always"`
+	Generate  Generate  `koanf:"generate"`
 }
 
 // Discovery says where tdm finds the main clones of the repos.
@@ -60,6 +61,22 @@ type Always struct {
 
 	// Run is an executable that tdm runs after create, add, remove and delete.
 	Run string `koanf:"run"`
+}
+
+// Generate selects the generators and holds their settings. The generator IDs are checked by the
+// caller, which knows the registry (gen.Select).
+type Generate struct {
+	// Enabled lists the generator IDs. Not set: the defaults. Empty or ["none"]: none.
+	Enabled []string `koanf:"enabled"`
+
+	// Tables holds the [generate.<id>] tables by ID. Each generator decodes its own table.
+	Tables map[string]any `koanf:",remain"`
+}
+
+// Table returns the [generate.<id>] table, or nil when there is none.
+func (g Generate) Table(id string) map[string]any {
+	t, _ := g.Tables[id].(map[string]any) // validate checked the type; a missing table is nil
+	return t
 }
 
 // Defaults returns the configuration that applies when no file sets a key. Paths keep their ~;
@@ -99,6 +116,11 @@ func (c Config) validate() error {
 	// A relative path with a "/" would depend on the directory that the hook runs in.
 	if r := c.Always.Run; r != "" && !filepath.IsAbs(r) && strings.ContainsRune(r, filepath.Separator) {
 		errs = append(errs, fmt.Errorf("always.run: %q must be an absolute path, a path that starts with ~/, or a name on PATH", r))
+	}
+	for id, t := range c.Generate.Tables {
+		if _, ok := t.(map[string]any); !ok {
+			errs = append(errs, fmt.Errorf("generate.%s must be a table of settings", id))
+		}
 	}
 	for _, s := range c.Always.Secrets {
 		if s == "" || filepath.IsAbs(s) || strings.HasPrefix(s, "~") || hasDotDot(s) {
