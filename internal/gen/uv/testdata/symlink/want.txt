@@ -1,0 +1,2 @@
+stale: uv.lock
+stale: .venv

@@ -1,0 +1,5 @@
+[project]
+name = "shared"
+[tool.uv.workspace]
+members = ["packages/*"]
+exclude = ["packages/excluded"]

@@ -1,0 +1,3 @@
+warning: shared has its own uv workspace; its members are included in the space workspace
+stale: uv.lock
+stale: .venv
