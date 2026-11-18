@@ -1,0 +1,40 @@
+# cmake: the -C cache file of the space points FetchContent at the local lib worktree, so api builds
+# against it with no download.
+[!exec:cmake] skip 'needs cmake'
+[!exec:ninja] skip 'needs ninja'
+[!exec:git] skip 'needs git'
+mkrepo api lib
+exec sed -i 's|@ORIGINS@|'$WORK'/origins|' api.cmake
+exec tdm new feat api lib
+cp lib.cmake $HOME/workspaces/feat/lib/CMakeLists.txt
+cp lib.c $HOME/workspaces/feat/lib/lib.c
+cp api.cmake $HOME/workspaces/feat/api/CMakeLists.txt
+cp main.c $HOME/workspaces/feat/api/main.c
+exec tdm generate feat
+stdout 'cmake +✓ .tandem/cmake/overrides.cmake'
+
+cd $HOME/workspaces/feat
+exec cmake -S api -B build/api -G Ninja -C .tandem/cmake/overrides.cmake -DFETCHCONTENT_FULLY_DISCONNECTED=ON
+exec cmake --build build/api
+exec build/api/api
+stdout '^local lib$'
+
+-- lib.cmake --
+cmake_minimum_required(VERSION 3.20)
+project(lib C)
+add_library(lib STATIC lib.c)
+target_include_directories(lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+-- lib.c --
+const char *lib_name(void) { return "local lib"; }
+-- api.cmake --
+cmake_minimum_required(VERSION 3.20)
+project(api C)
+include(FetchContent)
+FetchContent_Declare(lib GIT_REPOSITORY @ORIGINS@/lib.git GIT_TAG main)
+FetchContent_MakeAvailable(lib)
+add_executable(api main.c)
+target_link_libraries(api PRIVATE lib)
+-- main.c --
+#include <stdio.h>
+const char *lib_name(void);
+int main(void) { puts(lib_name()); return 0; }
