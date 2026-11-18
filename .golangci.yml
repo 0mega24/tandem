@@ -17,6 +17,12 @@ linters:
     - unused
     - depguard
   settings:
+    revive:
+      enable-default-rules: true
+      rules:
+        # A name like Fetch or Status says enough; a forced doc comment only repeats it.
+        - name: exported
+          disabled: true
     depguard:
       rules:
         # Locked structure, rule 3: a generator is pure and knows only the gen API.
