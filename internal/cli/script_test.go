@@ -22,6 +22,11 @@ func TestScript(t *testing.T) {
 	testscript.Run(t, testscript.Params{
 		Dir: "testdata/script",
 		Setup: func(e *testscript.Env) error {
+			examples, err := filepath.Abs("../../examples/plugins")
+			if err != nil {
+				return err
+			}
+			e.Setenv("PLUGIN_EXAMPLES", examples)
 			home := filepath.Join(e.WorkDir, "home")
 			e.Setenv("HOME", home)
 			e.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))

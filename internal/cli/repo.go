@@ -8,8 +8,6 @@ import (
 
 	ucli "github.com/urfave/cli/v3"
 
-	"github.com/0mega24/tandem/internal/config"
-	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/git"
 	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/state"
@@ -21,18 +19,9 @@ var errReported = errors.New("")
 
 // newManager loads the config and builds the space operations for one command.
 func newManager(cmd *ucli.Command) (*space.Manager, error) {
-	env, err := config.EnvFromOS()
+	loaded, env, err := loadGenerators(cmd)
 	if err != nil {
 		return nil, err
-	}
-
-	loaded, err := config.Load(env, cmd.String("config"))
-	if err != nil {
-		return nil, err
-	}
-
-	if err := gen.CheckConfig(loaded.Config.Generate.Enabled, loaded.Config.Generate.Tables); err != nil {
-		return nil, fmt.Errorf("config: %w", err)
 	}
 
 	store := state.NewStore(state.DefaultDir(env.Home, env.XDGDataHome))

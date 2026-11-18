@@ -10,13 +10,23 @@ import (
 
 	ucli "github.com/urfave/cli/v3"
 
+	"github.com/0mega24/tandem/internal/gen"
 	_ "github.com/0mega24/tandem/internal/gen/all" // the built-in generators register themselves
+	"github.com/0mega24/tandem/internal/gen/external"
 	"github.com/0mega24/tandem/internal/version"
 )
 
 // Run runs tdm with the full argument list (args[0] is the program name) and returns the exit code.
 // stdin is read only for a confirmation.
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// The registry is shared by embedded invocations; discovered plugins belong to this run.
+	defer func() {
+		for _, g := range gen.All() {
+			if _, ok := g.(external.Plugin); ok {
+				gen.Unregister(g.Meta().ID)
+			}
+		}
+	}()
 	root := newRoot(stdin, stdout, stderr)
 	if err := root.Run(ctx, args); err != nil {
 		if !errors.Is(err, errReported) {
@@ -54,6 +64,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 			execCommand(),
 			generateCommand(),
 			uiCommand(),
+			pluginCommand(),
 			pathCommand(),
 			statusCommand(),
 			repoCommand(),

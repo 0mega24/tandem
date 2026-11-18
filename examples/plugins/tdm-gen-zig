@@ -1,0 +1,21 @@
+#!/bin/sh
+# POSIX shell launcher. Python's JSON codec keeps paths and content correctly escaped.
+set -eu
+case "${1-}" in
+meta)
+    printf '%s\n' '{"protocol":1,"id":"zig","languages":["Zig"],"manifests":["build.zig.zon"],"default_on":false,"config_schema":{"type":"object","properties":{}}}'
+    ;;
+plan)
+    exec python3 -c '
+import json, os, sys
+request = json.load(sys.stdin)
+root = request["space"]["root"]
+paths = [os.path.relpath(m["worktree"], os.path.join(root, ".tandem", "zig"))
+         for m in request["members"]
+         if os.path.isfile(os.path.join(m["worktree"], "build.zig.zon"))]
+files = [{"path": ".tandem/zig/forks.args", "content": "".join("--fork=" + p + "\n" for p in paths)}] if paths else []
+json.dump({"files": files, "stale": [], "links": [], "warnings": []}, sys.stdout)
+'
+    ;;
+*) echo 'usage: tdm-gen-zig meta|plan' >&2; exit 1 ;;
+esac

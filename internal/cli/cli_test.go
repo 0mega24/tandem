@@ -3,8 +3,12 @@ package cli
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/0mega24/tandem/internal/gen"
 )
 
 func run(t *testing.T, args ...string) (code int, stdout, stderr string) {
@@ -33,5 +37,38 @@ func TestCompletion(t *testing.T) {
 func TestUnknownCommandFails(t *testing.T) {
 	if code, _, _ := run(t, "no-such-command"); code == 0 {
 		t.Errorf("tdm no-such-command = 0, want non-zero")
+	}
+}
+
+func TestPluginRegistryLifetime(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("XDG_CONFIG_DIRS", home)
+	t.Setenv("TDM_CONFIG", "")
+	dir := filepath.Join(home, "tandem", "plugins")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	plugin := filepath.Join(dir, "tdm-gen-demo")
+	if err := os.WriteFile(plugin, []byte("#!/bin/sh\necho '{\"protocol\":1,\"id\":\"demo\",\"languages\":[],\"manifests\":[],\"default_on\":false,\"config_schema\":{}}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		code, out, errOut := run(t, "generate", "--list")
+		if code != 0 || !strings.Contains(out, plugin) {
+			t.Fatalf("list = %d, %q, %q", code, out, errOut)
+		}
+		if _, ok := gen.ByID("demo"); ok {
+			t.Fatal("plugin remains registered after CLI run")
+		}
+	}
+	if err := os.Remove(plugin); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := run(t, "generate", "--list")
+	if code != 0 || strings.Contains(out, "demo") {
+		t.Fatalf("list after removal = %d, %q, %q", code, out, errOut)
 	}
 }

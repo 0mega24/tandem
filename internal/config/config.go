@@ -66,6 +66,9 @@ type Always struct {
 // Generate selects the generators and holds their settings. The generator IDs are checked by the
 // caller, which knows the registry (gen.Select).
 type Generate struct {
+	// PluginDirs lists directories to search before the user plugin directory and PATH.
+	PluginDirs []string `koanf:"plugin_dirs"`
+
 	// Enabled lists the generator IDs. Not set: the defaults. Empty or ["none"]: none.
 	Enabled []string `koanf:"enabled"`
 
@@ -121,6 +124,11 @@ func (c Config) validate() error {
 	if r := c.Always.Run; r != "" && !filepath.IsAbs(r) && strings.ContainsRune(r, filepath.Separator) {
 		errs = append(errs, fmt.Errorf("always.run: %q must be an absolute path, a path that starts with ~/, or a name on PATH", r))
 	}
+	for _, dir := range c.Generate.PluginDirs {
+		if !filepath.IsAbs(dir) {
+			errs = append(errs, fmt.Errorf("generate.plugin_dirs: %q must be an absolute path or start with ~/", dir))
+		}
+	}
 	if c.Generate.DetectDepth < 0 {
 		errs = append(errs, fmt.Errorf("generate.detect_depth = %d, must be 0 or more", c.Generate.DetectDepth))
 	}
@@ -147,6 +155,9 @@ func (c *Config) expand(home string) {
 	c.Discovery.RootDir = expandHome(c.Discovery.RootDir, home)
 	c.Spaces.RootDir = expandHome(c.Spaces.RootDir, home)
 	c.Always.Run = expandHome(c.Always.Run, home)
+	for i, dir := range c.Generate.PluginDirs {
+		c.Generate.PluginDirs[i] = expandHome(dir, home)
+	}
 	for i, f := range c.Always.Files {
 		c.Always.Files[i] = expandHome(f, home)
 	}

@@ -10,6 +10,7 @@ import (
 	ucli "github.com/urfave/cli/v3"
 
 	"github.com/0mega24/tandem/internal/gen"
+	"github.com/0mega24/tandem/internal/gen/external"
 	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/ui"
 )
@@ -138,15 +139,22 @@ func generatedRows(t *ui.Table, res space.GenerateResult) {
 }
 
 func listGenerators(cmd *ucli.Command) error {
+	if _, _, err := loadGenerators(cmd); err != nil {
+		return err
+	}
 	t := ui.NewTable(cmd.Root().Writer)
-	t.Row("ID", "DEFAULT", "LANGUAGES", "MANIFESTS")
+	t.Row("ID", "DEFAULT", "LANGUAGES", "MANIFESTS", "SOURCE")
 	for _, g := range gen.All() {
 		meta := g.Meta()
 		on := "off"
 		if meta.DefaultOn {
 			on = "on"
 		}
-		t.Row(meta.ID, on, strings.Join(meta.Languages, ", "), strings.Join(meta.Manifests, ", "))
+		source := "built-in"
+		if p, ok := g.(external.Plugin); ok {
+			source = p.Path
+		}
+		t.Row(meta.ID, on, strings.Join(meta.Languages, ", "), strings.Join(meta.Manifests, ", "), source)
 	}
 	return t.Flush()
 }

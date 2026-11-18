@@ -60,7 +60,7 @@ exec tdm status feat
 stderr 'warning: go: generated file go.work is gone, so it left the state of space feat'
 
 exec tdm generate --list
-stdout '^go +on +Go +go.mod$'
+stdout '^go +on +Go +go.mod +built-in$'
 
 ! exec tdm generate --list feat
 stderr '--list takes no space'

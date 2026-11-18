@@ -162,6 +162,13 @@
           "properties": {},
           "type": "object"
         },
+        "plugin_dirs": {
+          "description": "PluginDirs lists directories to search before the user plugin directory and PATH.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "rust": {
           "additionalProperties": false,
           "description": "Options of the rust generator (Rust).",

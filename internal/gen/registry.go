@@ -109,3 +109,11 @@ func CheckConfig(enabled []string, tables map[string]any) error {
 	}
 	return nil
 }
+
+// Unregister removes a temporary generator after an embedded CLI invocation finishes.
+// Built-in registrations last for the process lifetime and must not be removed.
+func Unregister(id string) {
+	mu.Lock()
+	defer mu.Unlock()
+	delete(registry, id)
+}

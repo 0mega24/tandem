@@ -1,0 +1,59 @@
+# Discover the real Zig example from the XDG user directory.
+mkdir $XDG_DATA_HOME/tandem/plugins
+cp $PLUGIN_EXAMPLES/tdm-gen-zig $XDG_DATA_HOME/tandem/plugins/tdm-gen-zig
+exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-zig
+exec tdm generate --list
+stdout 'SOURCE'
+stdout '^go +on +Go +go.mod +built-in$'
+stdout '^zig +off +Zig +build.zig.zon +.*/tdm-gen-zig$'
+
+exec tdm plugin check zig
+stdout 'zig: meta passed'
+stdout 'zig: plan passed'
+
+mkrepo app
+exec tdm new feat app --generate zig
+cp manifest $HOME/workspaces/feat/app/build.zig.zon
+exec tdm generate feat
+stdout 'zig +✓ .tandem/zig/forks.args'
+cmp $HOME/workspaces/feat/.tandem/zig/forks.args forks.args
+
+# Config IDs are checked after plugins have registered.
+exec tdm --config plugins.toml generate --list
+stdout '^zig +off +Zig +build.zig.zon +.*/tdm-gen-zig$'
+
+# A failed plugin plan rolls back the worktree creation.
+cp failed $XDG_DATA_HOME/tandem/plugins/tdm-gen-fail
+exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-fail
+! exec tdm new broken app --generate fail
+stderr 'fail: plan failed'
+stderr 'supported versions: 1'
+! exists $HOME/workspaces/broken
+
+# A built-in ID must return a config error, without a panic.
+cp collision $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
+exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
+! exec tdm generate --list
+stderr 'config: plugin ID "go" conflicts with a built-in generator'
+! stderr 'panic'
+
+-- manifest --
+.{}
+-- forks.args --
+--fork=../../app
+-- collision --
+#!/bin/sh
+printf '%s\n' '{"protocol":1,"id":"go","languages":[],"manifests":[],"default_on":false,"config_schema":{}}'
+-- plugins.toml --
+[generate]
+enabled = ["zig"]
+[generate.zig]
+custom_setting = true
+-- failed --
+#!/bin/sh
+if [ "$1" = meta ]; then
+    printf '%s\n' '{"protocol":1,"id":"fail","languages":[],"manifests":[],"default_on":false,"config_schema":{}}'
+else
+    echo 'plan failed' >&2
+    exit 1
+fi

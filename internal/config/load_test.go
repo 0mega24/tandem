@@ -220,3 +220,19 @@ func TestLoadGenerate(t *testing.T) {
 		t.Errorf("err = %v, want a table error", err)
 	}
 }
+
+func TestPluginDirs(t *testing.T) {
+	env, root := testEnv(t)
+	file := write(t, root, "plugins.toml", "[generate]\nplugin_dirs = [\"~/plugins\", \"/opt/plugins\"]\n")
+	got, err := Load(env, file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{filepath.Join(env.Home, "plugins"), "/opt/plugins"}; !slices.Equal(got.Config.Generate.PluginDirs, want) {
+		t.Fatalf("plugin_dirs = %v, want %v", got.Config.Generate.PluginDirs, want)
+	}
+	write(t, root, "plugins.toml", "[generate]\nplugin_dirs = [\"relative\"]\n")
+	if _, err := Load(env, file); err == nil || !strings.Contains(err.Error(), "generate.plugin_dirs") {
+		t.Fatalf("Load error = %v, want plugin_dirs error", err)
+	}
+}
