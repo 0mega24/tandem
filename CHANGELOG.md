@@ -43,7 +43,7 @@ All notable changes to this project are in this file. The format follows
   generator is `go` (`go.work`, with the highest `go` version of the members). tdm writes only files
   that it wrote and nobody changed; others are skipped, and `--force` replaces them and keeps
   `<file>.tandem-bak`. A file that no generator plans any more is deleted, with its derived files
-  (`go.work.sum`). `--dry-run` writes nothing; `--list` lists the generators. The `[generate]`
+  (`go.work.sum`). `--dry-run` writes nothing and shows a diff of each file that would change; `--list` lists the generators. The `[generate]`
   config table (`enabled`, `detect_depth`, `[generate.<id>]`) is checked against them.
 - `tdm new` and `tdm add` run the generators of the space after the worktrees; a failure undoes
   the command. `tdm new --generate=<ids>|--no-generate` chooses the set, and the space keeps it.

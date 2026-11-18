@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	ucli "github.com/urfave/cli/v3"
@@ -21,7 +22,8 @@ func generateCommand() *ucli.Command {
 		Description: "Each generator of the space (chosen at tdm new) looks for its manifests in the worktrees and\n" +
 			"plans its files, such as go.work. tdm writes a file only when it wrote the file before and\n" +
 			"nobody changed it since, or when the file is new. Other files are skipped with a reason;\n" +
-			"--force replaces them and keeps the old file in <file>.tandem-bak.",
+			"--force replaces them and keeps the old file in <file>.tandem-bak. --dry-run shows the rows\n" +
+			"and a diff of each file that would change.",
 		Flags: []ucli.Flag{
 			&ucli.BoolFlag{Name: "dry-run", Aliases: []string{"n"}, Usage: "show what would change, and write nothing"},
 			&ucli.BoolFlag{Name: "force", Aliases: []string{"f"}, Usage: "replace files that tdm did not write or that a person changed"},
@@ -63,11 +65,23 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 	if err := t.Flush(); err != nil {
 		return err
 	}
-	if cmd.Bool("dry-run") {
-		_, err := fmt.Fprintln(cmd.Root().Writer, "dry run: nothing was written")
-		return err
+	if !cmd.Bool("dry-run") {
+		return nil
 	}
-	return nil
+	for _, c := range res.Changes {
+		var d string
+		switch c.Action {
+		case gen.Write:
+			d = ui.Diff(c.Path, c.Old, c.New)
+		case gen.Delete:
+			d = ui.Diff(c.Path, c.Old, nil)
+		}
+		if _, err := io.WriteString(cmd.Root().Writer, d); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprintln(cmd.Root().Writer, "dry run: nothing was written")
+	return err
 }
 
 // printWarnings writes the warnings of the generators to stderr.
