@@ -3,7 +3,7 @@
 Tandem (`tdm`) puts one feature branch across many repos as git worktrees in one space directory,
 and writes the workspace files that connect their build systems (go.work, Cargo [patch], pnpm,
 Gradle, Maven, .NET, CMake, Meson, uv; plugins for more). It also has a lazygit-style TUI.
-Status: early development (`new`, `add`, `path`, `status`, `repo`, `config`, `version`).
+Status: early development (`new`, `add`, `remove`, `path`, `status`, `repo`, `config`, `version`).
 
 ## Build and test
 Dev environment: the Nix flake (`nix develop`, or direnv). The make verbs enter it when needed.
