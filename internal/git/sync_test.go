@@ -29,8 +29,8 @@ func TestFastForwardCheckedOut(t *testing.T) {
 	if err := s.Fetch(ctx, r.Path); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.FastForward(ctx, r.Path, "main"); err != nil {
-		t.Fatal(err)
+	if moved, err := s.FastForward(ctx, r.Path, "main"); err != nil || !moved {
+		t.Fatalf("FastForward() = %v, %v; want moved", moved, err)
 	}
 	if got, want := testhelper.Git(t, r.Path, "rev-parse", "HEAD"), testhelper.Git(t, r.Path, "rev-parse", "origin/main"); got != want {
 		t.Errorf("HEAD = %s, want origin/main %s", got, want)
@@ -38,8 +38,8 @@ func TestFastForwardCheckedOut(t *testing.T) {
 	if st, _ := s.Status(ctx, r.Path); !st.Clean() {
 		t.Errorf("working tree not clean after the fast-forward: %v", st.Changed)
 	}
-	if err := s.FastForward(ctx, r.Path, "main"); err != nil {
-		t.Errorf("FastForward when up to date = %v, want nil", err)
+	if moved, err := s.FastForward(ctx, r.Path, "main"); err != nil || moved {
+		t.Errorf("FastForward when up to date = %v, %v; want not moved, no error", moved, err)
 	}
 }
 
@@ -55,8 +55,8 @@ func TestFastForwardNotCheckedOut(t *testing.T) {
 	if err := s.Fetch(ctx, r.Path); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.FastForward(ctx, r.Path, "main"); err != nil {
-		t.Fatal(err)
+	if moved, err := s.FastForward(ctx, r.Path, "main"); err != nil || !moved {
+		t.Fatalf("FastForward() = %v, %v; want moved", moved, err)
 	}
 	if got, want := testhelper.Git(t, r.Path, "rev-parse", "main"), testhelper.Git(t, r.Path, "rev-parse", "origin/main"); got != want {
 		t.Errorf("main = %s, want origin/main %s", got, want)
@@ -78,7 +78,7 @@ func TestFastForwardDiverged(t *testing.T) {
 	if err := s.Fetch(ctx, r.Path); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.FastForward(ctx, r.Path, "main"); !errors.Is(err, ErrNotFastForward) {
+	if _, err := s.FastForward(ctx, r.Path, "main"); !errors.Is(err, ErrNotFastForward) {
 		t.Errorf("FastForward(diverged) = %v, want ErrNotFastForward", err)
 	}
 }
