@@ -21,6 +21,7 @@ type Env struct {
 	Home          string
 	XDGConfigHome string // empty means ~/.config
 	XDGConfigDirs string // colon list; empty means /etc/xdg
+	XDGDataHome   string // empty means ~/.local/share
 	TDMConfig     string // the TDM_CONFIG variable
 }
 
@@ -34,6 +35,7 @@ func EnvFromOS() (Env, error) {
 		Home:          home,
 		XDGConfigHome: os.Getenv("XDG_CONFIG_HOME"),
 		XDGConfigDirs: os.Getenv("XDG_CONFIG_DIRS"),
+		XDGDataHome:   os.Getenv("XDG_DATA_HOME"),
 		TDMConfig:     os.Getenv("TDM_CONFIG"),
 	}, nil
 }
