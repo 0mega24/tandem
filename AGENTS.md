@@ -12,9 +12,10 @@ Dev environment: the Nix flake (`nix develop`, or direnv). The make verbs enter 
 |---|---|
 | `make build` | `bin/tdm` with version ldflags |
 | `make test` | unit, golden and testscript tests (gotestsum); `RUN=regex` filters |
-| `make lint` | golangci-lint, with depguard structure rules |
-| `make fmt` / `make fmt-check` | gofumpt and nixfmt |
-| `make quick` | generate-check, tidy-check, fmt-check (in series: they compare the tree) |
+| `make lint` | golangci-lint (with depguard structure rules), statix, deadnix, actionlint, zizmor |
+| `make fmt` / `make fmt-check` | gofumpt and gci (through golangci-lint), nixfmt |
+| `make fix` | every automatic fix: lint fixes, format, Nix fixes, spelling, tidy modules |
+| `make quick` | generate-check, tidy-check, fmt-check, typos (in series: they compare the tree) |
 | `make check` | merge gate: quick, then vet, lint, test, build in parallel |
 | `make check-full` | check, race, govulncheck, toolchain integration tests |
 | `make audit` | govulncheck |
@@ -43,6 +44,7 @@ The locked tree with one line for each directory is in docs/DESIGN.md. In short:
 - The tree is locked: change docs/DESIGN.md, then the allowlist in internal/layout_test.go.
 - Generators are pure: no os/exec, no cli/state/git/saga/space/tui imports (depguard). Plan does
   no I/O. Only `gen/apply.go` writes generated files.
+- `//nolint` needs the linter name and a reason (nolintlint); an unused one fails the lint.
 - Never edit `zz_generated_*`, `docs/generators.md`, `schema/config.schema.json`: run `make generate`.
 - No wtg code is copied. Behavior comes from the wtg docs and the specs.
 - Names: command, plugin prefix and env vars use `tdm` (`TDM_*`, `tdm-gen-<id>`); all else `tandem`.
