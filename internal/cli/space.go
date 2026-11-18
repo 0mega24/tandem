@@ -55,6 +55,11 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
+	return printNew(cmd, res)
+}
+
+// printNew prints what new or add made: the worktrees, links and copies.
+func printNew(cmd *ucli.Command, res space.NewResult) error {
 	t := ui.NewTable(cmd.Root().Writer)
 	t.Row(res.Space.Name, res.Space.Path)
 	for _, r := range res.Repos {
@@ -67,6 +72,9 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 		if r.From != "" {
 			how = "new branch from " + r.From
 		}
+		if r.WasLink {
+			how += ", was a symlink"
+		}
 		secrets := ""
 		if len(r.Secrets) > 0 {
 			secrets = "+ " + strings.Join(r.Secrets, ", ")
@@ -77,6 +85,40 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 		t.Row("  "+f, "✓ copied")
 	}
 	return t.Flush()
+}
+
+func addCommand() *ucli.Command {
+	return &ucli.Command{
+		Name:      "add",
+		Usage:     "Add repos to a space: a worktree on the space branch in each",
+		ArgsUsage: "<space> <repo>...",
+		Description: "The branch rules and the always.secrets are the same as for tdm new. A repo that is an\n" +
+			"always.repos symlink in the space gets a worktree in place of the symlink.\n\n" +
+			repoArgsHelp + "\n\n" +
+			"All checks run before the first change. When a step fails, the steps before it are undone.",
+		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
+			if cmd.Args().Len() == 0 {
+				completeSpaces(cmd)
+			}
+		},
+		Action: func(ctx context.Context, cmd *ucli.Command) error {
+			args := cmd.Args().Slice()
+			if len(args) < 2 {
+				return errors.New("give a space name and at least one repo: tdm add <space> <repo>")
+			}
+
+			m, err := newManager(cmd)
+			if err != nil {
+				return err
+			}
+
+			res, err := m.AddRepos(ctx, args[0], args[1:])
+			if err != nil {
+				return err
+			}
+			return printNew(cmd, res)
+		},
+	}
 }
 
 func pathCommand() *ucli.Command {

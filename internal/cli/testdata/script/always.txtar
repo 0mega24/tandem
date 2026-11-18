@@ -17,6 +17,14 @@ exists $HOME/workspaces/feat/infra/README.md
 exec tdm status feat
 stdout '^  infra +→ main clone$'
 
+# add puts a worktree in place of the symlink.
+exec tdm add feat infra
+stdout '^  infra +✓ worktree +\[feat\] +new branch from main, was a symlink$'
+exec git -C $HOME/workspaces/feat/infra branch --show-current
+stdout '^feat$'
+! exec tdm add feat infra
+stderr 'infra is in space feat'
+
 -- config.toml --
 [always]
 repos = ["infra", "web"]

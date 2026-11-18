@@ -45,6 +45,7 @@ func newRoot(stdout, stderr io.Writer) *ucli.Command {
 		},
 		Commands: []*ucli.Command{
 			newCommand(),
+			addCommand(),
 			pathCommand(),
 			statusCommand(),
 			repoCommand(),

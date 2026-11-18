@@ -29,11 +29,12 @@ type NewResult struct {
 	Files []string  // the always.files copies in the space root
 }
 
-// NewRepo is one repo that NewSpace put in the space.
+// NewRepo is one repo that NewSpace or AddRepos put in the space.
 type NewRepo struct {
 	Entry   state.RepoEntry
 	From    string   // the branch that a new branch started from; "" when the branch existed
 	Secrets []string // the always.secrets copied into the worktree
+	WasLink bool     // the worktree took the place of an always.repos symlink
 }
 
 // planned is one worktree that pre-flight checked.
