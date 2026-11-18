@@ -1,0 +1,41 @@
+# dotnet: the solution of the space holds both projects; a ProjectReference (a solution does not
+# swap packages) lets the build use the local lib. The format is sln: the SDK of the dev shell (8)
+# cannot read slnx (needs 9.0.200).
+[!exec:dotnet] skip 'needs dotnet'
+mkrepo api lib
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+exec tdm new feat api lib
+cp Lib.csproj $HOME/workspaces/feat/lib/Lib.csproj
+cp Lib.cs $HOME/workspaces/feat/lib/Lib.cs
+cp Api.csproj $HOME/workspaces/feat/api/Api.csproj
+cp Program.cs $HOME/workspaces/feat/api/Program.cs
+exec tdm generate feat
+stdout 'dotnet +✓ feat.sln'
+
+cd $HOME/workspaces/feat
+exec dotnet build feat.sln --nologo -v q
+exec dotnet run --no-build --project api/Api.csproj
+stdout '^local lib$'
+
+-- config.toml --
+[generate.dotnet]
+format = "sln"
+-- Lib.csproj --
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+</Project>
+-- Lib.cs --
+namespace Lib;
+
+public static class Name { public static string Get() => "local lib"; }
+-- Api.csproj --
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../lib/Lib.csproj" /></ItemGroup>
+</Project>
+-- Program.cs --
+System.Console.WriteLine(Lib.Name.Get());
