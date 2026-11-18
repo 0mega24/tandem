@@ -196,3 +196,53 @@ func TestCreateRefusesAnExistingSpace(t *testing.T) {
 		t.Errorf("state dir has %d entries (%v), want only a.yaml", len(entries), err)
 	}
 }
+
+func TestFileFormatGenerated(t *testing.T) {
+	s := NewStore(t.TempDir())
+	sp := sample("g")
+	sp.Repos = sp.Repos[:1]
+	sp.Generators = []string{"go", "rust"}
+	sp.Generated = []GeneratedFile{{Generator: "go", Path: "go.work", SHA256: "ab12", Stale: []string{"go.work.sum"}}}
+	if err := s.Save(sp); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := os.ReadFile(filepath.Join(s.Dir(), "g.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `name: g
+path: /ws/g
+branch: me/g
+created_at: 2026-11-18T10:00:00Z
+repos:
+    - name: myorg/api
+      repo_path: /repos/myorg/api
+      worktree_path: /ws/g/myorg/api
+generators:
+    - go
+    - rust
+generated:
+    - generator: go
+      path: go.work
+      sha256: ab12
+      stale:
+        - go.work.sum
+`
+	if string(b) != want {
+		t.Errorf("state file =\n%s\nwant\n%s", b, want)
+	}
+}
+
+func TestLoadWtgGoWorkspace(t *testing.T) {
+	s := NewStore(t.TempDir())
+	write := "name: w\npath: /ws/w\nbranch: w\ncreated_at: 2026-03-27T10:00:00Z\nrepos: []\ngo_workspace: true\n"
+	if err := os.WriteFile(filepath.Join(s.Dir(), "w.yaml"), []byte(write), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	sp, err := s.Load("w")
+	if err != nil || !sp.GoWorkspace {
+		t.Errorf("Load = %+v, %v; want GoWorkspace from a wtg state file", sp, err)
+	}
+}
