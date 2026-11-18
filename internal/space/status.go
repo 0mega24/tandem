@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/git"
 	"github.com/0mega24/tandem/internal/state"
 )
@@ -28,8 +29,16 @@ func (m *Manager) SpaceNames() ([]string, error) {
 
 // SpaceStatus is the status of one space and its repos.
 type SpaceStatus struct {
-	Space state.Space
-	Repos []MemberStatus
+	Space     state.Space
+	Repos     []MemberStatus
+	Generated []GeneratedStatus // in state order
+}
+
+// GeneratedStatus is a generated file of a space and what is on disk now.
+type GeneratedStatus struct {
+	File  state.GeneratedFile
+	State gen.FileState
+	Err   error
 }
 
 // MemberStatus is the status of one repo in a space.
@@ -61,6 +70,10 @@ func (m *Manager) Status(ctx context.Context, names []string, dir string) ([]Spa
 	out := make([]SpaceStatus, len(spaces))
 	for i, sp := range spaces {
 		out[i] = SpaceStatus{Space: sp, Repos: make([]MemberStatus, len(sp.Repos))}
+		for j, o := range owned(sp.Generated) {
+			st, err := gen.Check(sp.Path, o)
+			out[i].Generated = append(out[i].Generated, GeneratedStatus{File: sp.Generated[j], State: st, Err: err})
+		}
 	}
 
 	// One flat list of repos, so a space with many repos and one with few use the same workers.

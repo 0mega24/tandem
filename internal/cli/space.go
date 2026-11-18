@@ -193,6 +193,19 @@ func completeSpaces(cmd *ucli.Command) {
 	}
 }
 
+// generatedMark says what is on disk at a generated path, with the marks of generate.
+func generatedMark(g space.GeneratedStatus) string {
+	switch {
+	case g.Err != nil:
+		return "✗ " + g.Err.Error()
+	case g.State == gen.Changed:
+		return "! changed by a person"
+	case g.State == gen.Gone:
+		return "- gone"
+	}
+	return "✓ generated"
+}
+
 func statusCommand() *ucli.Command {
 	return &ucli.Command{
 		Name:      "status",
@@ -201,7 +214,7 @@ func statusCommand() *ucli.Command {
 		Description: "With no space, all spaces. The space that holds the current directory comes first.\n\n" +
 			"Exit status 1 when a repo cannot be read.",
 		Flags: []ucli.Flag{
-			&ucli.BoolFlag{Name: "long", Aliases: []string{"l"}, Usage: "also list the changed files"},
+			&ucli.BoolFlag{Name: "long", Aliases: []string{"l"}, Usage: "also list the changed files and the generated files"},
 		},
 		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
 			completeSpaces(cmd)
@@ -249,6 +262,11 @@ func spaceStatus(ctx context.Context, cmd *ucli.Command) error {
 						t.Row("      " + f)
 					}
 				}
+			}
+		}
+		if cmd.Bool("long") {
+			for _, g := range s.Generated {
+				t.Row("  "+g.File.Path, generatedMark(g), "("+g.File.Generator+")")
 			}
 		}
 	}

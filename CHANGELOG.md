@@ -80,6 +80,8 @@ All notable changes to this project are in this file. The format follows
   command needs it, so `status`, `path` and `exec` stay fast with many plugins.
 - The `go` generator also finds go.mod files below a member root, down to
   `generate.detect_depth`, with one go.work use line for each module.
+- `tdm status -l` lists the generated files of each space: ✓ generated, ! changed by a person,
+  or - gone.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

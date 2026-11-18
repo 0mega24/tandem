@@ -39,6 +39,16 @@ stdout '✓ go.work +\(api\) +changed by a person; the old file is in go.work.ta
 cmp $HOME/workspaces/feat/go.work one.work
 cmp $HOME/workspaces/feat/go.work.tandem-bak edited.work
 
+# status -l lists the generated files and marks one that a person changed.
+exec tdm status feat
+! stdout 'go.work'
+exec tdm status -l feat
+stdout '^  go.work +✓ generated +\(go\)$'
+cp edited.work $HOME/workspaces/feat/go.work
+exec tdm status -l feat
+stdout '^  go.work +! changed by a person +\(go\)$'
+cp one.work $HOME/workspaces/feat/go.work
+
 # With no Go member left, tdm deletes its go.work.
 rm $HOME/workspaces/feat/api/go.mod
 exec tdm generate feat
