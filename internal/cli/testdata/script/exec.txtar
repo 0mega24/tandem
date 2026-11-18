@@ -1,0 +1,21 @@
+# exec runs the command in each worktree, goes on after a failure, and exits 1.
+mkrepo api web
+exec tdm new feat api web
+cp x.txt $HOME/workspaces/feat/web/x.txt
+
+! exec tdm exec feat -- sh -c 'git status --short; test ! -e x.txt'
+cmp stdout want.txt
+stderr 'failed in 1 of 2 repos: web \(exit status 1\)'
+
+exec tdm exec feat -- git branch --show-current
+stdout '^== web ==\nfeat$'
+
+! exec tdm exec feat
+stderr 'give a space and a command'
+
+-- x.txt --
+x
+-- want.txt --
+== api ==
+== web ==
+?? x.txt
