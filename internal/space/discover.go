@@ -46,8 +46,12 @@ func discover(dir, rel string, depth int, repos *[]Repo) error {
 		p := filepath.Join(dir, e.Name())
 		name := path.Join(rel, e.Name())
 
-		if _, err := os.Lstat(filepath.Join(p, ".git")); err == nil {
-			*repos = append(*repos, Repo{Name: name, Path: p})
+		// A .git file marks a linked worktree, for example one of a space under root_dir.
+		// It is a checkout of a clone that is listed already, so it is skipped with its tree.
+		if fi, err := os.Lstat(filepath.Join(p, ".git")); err == nil {
+			if fi.IsDir() {
+				*repos = append(*repos, Repo{Name: name, Path: p})
+			}
 			continue
 		}
 

@@ -35,11 +35,11 @@ func TestDiscover(t *testing.T) {
 		"myorg/web/.git",
 		"deep/a/b/.git", // depth 3: not listed with max depth 2
 		".hidden/x/.git",
-		"notarepo/src",
+		"linked/src",
 	)
 
-	// A worktree has a .git file, not a directory.
-	if err := os.WriteFile(filepath.Join(root, "notarepo/.git"), []byte("gitdir: /x\n"), 0o644); err != nil {
+	// A linked worktree has a .git file, not a directory: not listed.
+	if err := os.WriteFile(filepath.Join(root, "linked/.git"), []byte("gitdir: /x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +48,7 @@ func TestDiscover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []string{"api", "myorg/api", "myorg/web", "notarepo"}
+	want := []string{"api", "myorg/api", "myorg/web"}
 	if !reflect.DeepEqual(names(got), want) {
 		t.Errorf("Discover() = %v, want %v", names(got), want)
 	}
