@@ -1,0 +1,49 @@
+# cabal: the cabal.project of the space lets api build against the local lib, which is on no index.
+[!exec:cabal] skip 'needs cabal'
+[!exec:ghc] skip 'needs ghc'
+mkrepo api lib
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+exec tdm new feat api lib
+cp lib.cabal $HOME/workspaces/feat/lib/lib.cabal
+cp Lib.hs $HOME/workspaces/feat/lib/Lib.hs
+cp api.cabal $HOME/workspaces/feat/api/api.cabal
+cp Main.hs $HOME/workspaces/feat/api/Main.hs
+exec tdm generate feat
+stdout 'cabal +✓ cabal.project'
+
+cd $HOME/workspaces/feat
+exec cabal run --offline api
+stdout '^local lib$'
+
+-- config.toml --
+[generate]
+enabled = ["cabal"]
+-- lib.cabal --
+cabal-version: 2.4
+name: lib
+version: 0.1.0
+
+library
+  exposed-modules: Lib
+  build-depends: base
+  default-language: Haskell2010
+-- Lib.hs --
+module Lib (name) where
+
+name :: String
+name = "local lib"
+-- api.cabal --
+cabal-version: 2.4
+name: api
+version: 0.1.0
+
+executable api
+  main-is: Main.hs
+  build-depends: base, lib
+  default-language: Haskell2010
+-- Main.hs --
+import Lib (name)
+
+main :: IO ()
+main = putStrLn name
