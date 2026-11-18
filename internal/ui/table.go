@@ -2,9 +2,11 @@
 package ui
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"text/tabwriter"
+	"unicode"
 )
 
 // Table writes aligned columns. It keeps the first write error, and Flush returns it, so a
@@ -29,7 +31,29 @@ func (t *Table) Row(cells ...string) {
 		cells = cells[:len(cells)-1]
 	}
 
+	for i, c := range cells {
+		cells[i] = escape(c)
+	}
+
 	_, t.err = io.WriteString(t.w, strings.Join(cells, "\t")+"\n")
+}
+
+// escape writes control characters as \xNN. Cells hold text from repos and git (branch names,
+// error messages), and a tab, newline or escape sequence in one would break the table or the terminal.
+func escape(s string) string {
+	if !strings.ContainsFunc(s, unicode.IsControl) {
+		return s
+	}
+
+	var b strings.Builder
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			fmt.Fprintf(&b, "\\x%02x", r)
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // Flush writes the aligned table and returns the first error.

@@ -32,3 +32,17 @@ func TestTableReportsWriteError(t *testing.T) {
 		t.Error("Flush() = nil, want the write error")
 	}
 }
+
+func TestTableEscapesControlChars(t *testing.T) {
+	var b bytes.Buffer
+	tb := NewTable(&b)
+	tb.Row("a\tb", "x\ny", "\x1b[31mred")
+	if err := tb.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `a\x09b  x\x0ay  \x1b[31mred` + "\n"
+	if b.String() != want {
+		t.Errorf("table = %q, want %q", b.String(), want)
+	}
+}
