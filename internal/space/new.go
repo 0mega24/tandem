@@ -199,7 +199,13 @@ func (m *Manager) worktreeStep(sp state.Space, p planned) saga.Step {
 	return saga.Step{
 		Name: "worktree " + e.Name,
 		Do: func(ctx context.Context) error {
-			return m.git.AddWorktree(ctx, e.RepoPath, e.WorktreePath, sp.Branch, p.from)
+			err := m.git.AddWorktree(ctx, e.RepoPath, e.WorktreePath, sp.Branch, p.from)
+			if err != nil {
+				// Ctrl-C or a crash of git can stop it after it made the branch or the
+				// directory, and the saga undoes only finished steps.
+				m.dropPartialWorktree(context.WithoutCancel(ctx), sp, p)
+			}
+			return err
 		},
 		Undo: func(ctx context.Context) error {
 			// The worktree is new, so force loses no work; the same holds for a new branch.
@@ -215,6 +221,20 @@ func (m *Manager) worktreeStep(sp state.Space, p planned) saga.Step {
 			return nil
 		},
 	}
+}
+
+// dropPartialWorktree removes what a failed AddWorktree may have left. Pre-flight saw no path
+// and, when from is set, no branch, so all that is there now is from this step. Each part may
+// be missing, so the errors are not useful and the step reports the error of AddWorktree.
+func (m *Manager) dropPartialWorktree(ctx context.Context, sp state.Space, p planned) {
+	e := p.entry
+	_ = m.git.RemoveWorktree(ctx, e.RepoPath, e.WorktreePath, true)
+	_ = os.RemoveAll(e.WorktreePath)
+	_ = m.git.PruneWorktrees(ctx, e.RepoPath)
+	if p.from != "" {
+		_ = m.git.DeleteBranch(ctx, e.RepoPath, sp.Branch, true)
+	}
+	removeEmptyParents(filepath.Dir(e.WorktreePath), sp.Path)
 }
 
 // removeEmptyParents removes dir and its empty parents up to stop (not included): the org

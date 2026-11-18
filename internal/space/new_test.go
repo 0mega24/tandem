@@ -162,3 +162,34 @@ func TestNewSpaceKeepsExistingBranchOnRollback(t *testing.T) {
 		t.Error("rollback deleted a branch that existed before")
 	}
 }
+
+// stopAfterAdd is git that adds the worktree and then fails, as when Ctrl-C stops git late.
+type stopAfterAdd struct{ git.System }
+
+func (s stopAfterAdd) AddWorktree(ctx context.Context, repo, path, branch, from string) error {
+	if err := s.System.AddWorktree(ctx, repo, path, branch, from); err != nil {
+		return err
+	}
+	return context.Canceled
+}
+
+func TestNewSpaceCleansUpAFailedStep(t *testing.T) {
+	f := newFixture(t, "myorg/api")
+	m := New(f.m.cfg, stopAfterAdd{}, f.m.store)
+
+	_, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api"}})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+
+	api := f.repos["myorg/api"].Path
+	if out := testhelper.Git(t, api, "branch", "--list", "feat"); out != "" {
+		t.Errorf("the failed step kept the new branch: %q", out)
+	}
+	if trees, _ := (git.System{}).Worktrees(context.Background(), api); len(trees) != 1 {
+		t.Errorf("api has %d worktrees, want 1", len(trees))
+	}
+	if _, err := os.Stat(filepath.Join(f.dir, "spaces", "feat")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the space dir is still there: %v", err)
+	}
+}
