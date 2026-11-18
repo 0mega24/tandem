@@ -19,11 +19,12 @@ func TestNewSpace(t *testing.T) {
 	web := f.repos["myorg/web"].Path
 	testhelper.Git(t, web, "branch", "feat")
 
-	sp, repos, err := f.m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}})
+	res, err := f.m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	sp, repos := res.Space, res.Repos
 	root := filepath.Join(f.dir, "spaces", "feat")
 	if sp.Path != root || sp.Branch != "feat" || len(repos) != 2 {
 		t.Fatalf("space = %+v, %d repos", sp, len(repos))
@@ -52,22 +53,22 @@ func TestNewSpaceBranchPrefixAndOptions(t *testing.T) {
 	f := newFixture(t, "api")
 	f.m.cfg.Git.BranchPrefix = "me/"
 
-	sp, _, err := f.m.NewSpace(context.Background(), NewOptions{Name: "x", Repos: []string{"api"}})
-	if err != nil || sp.Branch != "me/x" {
-		t.Fatalf("branch = %q, %v; want me/x", sp.Branch, err)
+	res, err := f.m.NewSpace(context.Background(), NewOptions{Name: "x", Repos: []string{"api"}})
+	if err != nil || res.Space.Branch != "me/x" {
+		t.Fatalf("branch = %q, %v; want me/x", res.Space.Branch, err)
 	}
 
 	dir := filepath.Join(f.dir, "elsewhere")
-	sp, _, err = f.m.NewSpace(context.Background(), NewOptions{Name: "y", Repos: []string{"api"}, Branch: "other", Path: dir})
-	if err != nil || sp.Branch != "other" || sp.Path != dir {
-		t.Fatalf("space = %+v, %v; want branch other in %s", sp, err, dir)
+	res, err = f.m.NewSpace(context.Background(), NewOptions{Name: "y", Repos: []string{"api"}, Branch: "other", Path: dir})
+	if err != nil || res.Space.Branch != "other" || res.Space.Path != dir {
+		t.Fatalf("space = %+v, %v; want branch other in %s", res.Space, err, dir)
 	}
 }
 
 func TestNewSpacePreflight(t *testing.T) {
 	f := newFixture(t, "api", "web")
 	ctx := context.Background()
-	if _, _, err := f.m.NewSpace(ctx, NewOptions{Name: "taken", Repos: []string{"api"}}); err != nil {
+	if _, err := f.m.NewSpace(ctx, NewOptions{Name: "taken", Repos: []string{"api"}}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +95,7 @@ func TestNewSpacePreflight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := f.m.NewSpace(ctx, tt.opts)
+			_, err := f.m.NewSpace(ctx, tt.opts)
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("err = %v, want %q", err, tt.want)
 			}
@@ -134,7 +135,7 @@ func TestNewSpaceRollback(t *testing.T) {
 
 	// The parents of the space directory are missing too; the rollback removes them.
 	dir := filepath.Join(f.dir, "a", "b", "feat")
-	_, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}, Path: dir})
+	_, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}, Path: dir})
 	if !saga.IsRolledBack(err) {
 		t.Fatalf("err = %v, want a full rollback", err)
 	}
@@ -160,7 +161,7 @@ func TestNewSpaceKeepsExistingBranchOnRollback(t *testing.T) {
 	testhelper.Git(t, api, "branch", "feat")
 	m := New(f.m.cfg, failAdd{repo: f.repos["web"].Path}, f.m.store)
 
-	if _, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}}); err == nil {
+	if _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api", "web"}}); err == nil {
 		t.Fatal("NewSpace() = nil, want an error")
 	}
 	if out := testhelper.Git(t, api, "branch", "--list", "feat"); out == "" {
@@ -182,7 +183,7 @@ func TestNewSpaceCleansUpAFailedStep(t *testing.T) {
 	f := newFixture(t, "myorg/api")
 	m := New(f.m.cfg, stopAfterAdd{}, f.m.store)
 
-	_, _, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api"}})
+	_, err := m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api"}})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
 	}

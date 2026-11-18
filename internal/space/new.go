@@ -22,29 +22,56 @@ type NewOptions struct {
 	Path   string   // default: spaces.root_dir/Name
 }
 
+// NewResult is what NewSpace made.
+type NewResult struct {
+	Space state.Space
+	Repos []NewRepo // the worktrees, then the always.repos symlinks
+	Files []string  // the always.files copies in the space root
+}
+
 // NewRepo is one repo that NewSpace put in the space.
 type NewRepo struct {
-	Entry state.RepoEntry
-	From  string // the branch that a new branch started from; "" when the branch existed
+	Entry   state.RepoEntry
+	From    string   // the branch that a new branch started from; "" when the branch existed
+	Secrets []string // the always.secrets copied into the worktree
 }
 
 // planned is one worktree that pre-flight checked.
 type planned struct {
-	entry state.RepoEntry
-	from  string // start point of a new branch, as a full ref; "" when the branch exists
+	entry   state.RepoEntry
+	from    string   // start point of a new branch, as a full ref; "" when the branch exists
+	secrets []string // the always.secrets that the main clone has
 }
 
-// NewSpace makes a space: one worktree on one branch in each repo, and the state file. All checks
-// run before the first change; when a later step fails, the finished steps are undone.
-func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (state.Space, []NewRepo, error) {
-	sp, plan, err := m.preflight(ctx, opts)
+// newPlan is everything that pre-flight checked, for the saga to make.
+type newPlan struct {
+	space     state.Space
+	worktrees []planned
+	links     []state.RepoEntry
+}
+
+// NewSpace makes a space: one worktree on one branch in each repo, the always.* links and
+// copies, and the state file. All checks run before the first change; when a later step fails,
+// the finished steps are undone.
+func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, error) {
+	plan, err := m.preflight(ctx, opts)
 	if err != nil {
-		return state.Space{}, nil, err
+		return NewResult{}, err
 	}
+	sp := plan.space
 
 	steps := []saga.Step{rootStep(sp.Path)}
-	for _, p := range plan {
+	for _, p := range plan.worktrees {
 		steps = append(steps, m.worktreeStep(sp, p))
+		if len(p.secrets) > 0 {
+			steps = append(steps, secretsStep(p))
+		}
+	}
+	for _, e := range plan.links {
+		steps = append(steps, linkStep(sp.Path, e))
+	}
+	for _, f := range m.cfg.Always.Files {
+		steps = append(steps, fileStep(sp.Path, f))
 	}
 	steps = append(steps, saga.Step{
 		Name: "save state",
@@ -53,37 +80,80 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (state.Space, [
 	})
 
 	if err := saga.Run(ctx, steps); err != nil {
-		return state.Space{}, nil, err
+		return NewResult{}, err
 	}
 
-	out := make([]NewRepo, len(plan))
-	for i, p := range plan {
-		out[i] = NewRepo{Entry: p.entry, From: strings.TrimPrefix(p.from, "refs/heads/")}
+	res := NewResult{Space: sp}
+	for _, p := range plan.worktrees {
+		res.Repos = append(res.Repos, NewRepo{
+			Entry:   p.entry,
+			From:    strings.TrimPrefix(p.from, "refs/heads/"),
+			Secrets: p.secrets,
+		})
 	}
-	return sp, out, nil
+	for _, e := range plan.links {
+		res.Repos = append(res.Repos, NewRepo{Entry: e})
+	}
+	for _, f := range m.cfg.Always.Files {
+		res.Files = append(res.Files, filepath.Base(f))
+	}
+	return res, nil
 }
 
-func (m *Manager) preflight(ctx context.Context, opts NewOptions) (state.Space, []planned, error) {
+func (m *Manager) preflight(ctx context.Context, opts NewOptions) (newPlan, error) {
+	sp, worktrees, all, err := m.preflightWorktrees(ctx, opts)
+	if err != nil {
+		return newPlan{}, err
+	}
+
+	named := make([]Repo, len(worktrees))
+	for i, p := range worktrees {
+		named[i] = Repo{Name: p.entry.Name, Path: p.entry.RepoPath}
+	}
+	links, err := m.alwaysLinks(all, named, sp.Path)
+	if err != nil {
+		return newPlan{}, err
+	}
+	sp.Repos = append(sp.Repos, links...)
+
+	if err := checkFiles(m.cfg.Always.Files, sp.Repos); err != nil {
+		return newPlan{}, err
+	}
+
+	var errs []error
+	for i := range worktrees {
+		p := &worktrees[i]
+		if p.secrets, err = secretsOf(p.entry.RepoPath, m.cfg.Always.Secrets); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", p.entry.Name, err))
+		}
+	}
+
+	return newPlan{space: sp, worktrees: worktrees, links: links}, errors.Join(errs...)
+}
+
+// preflightWorktrees checks the name, the space directory and the branch in each repo. It also
+// returns all repos under the root, for the always.repos names.
+func (m *Manager) preflightWorktrees(ctx context.Context, opts NewOptions) (state.Space, []planned, []Repo, error) {
 	if err := state.ValidateName(opts.Name); err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 	if len(opts.Repos) == 0 {
-		return state.Space{}, nil, errors.New("give at least one repo")
+		return state.Space{}, nil, nil, errors.New("give at least one repo")
 	}
 
 	if _, err := m.store.Load(opts.Name); err == nil {
-		return state.Space{}, nil, fmt.Errorf("space %q exists", opts.Name)
+		return state.Space{}, nil, nil, fmt.Errorf("space %q exists", opts.Name)
 	} else if !errors.Is(err, state.ErrNotFound) {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 
 	all, err := m.Repos()
 	if err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 	repos, err := ResolveAll(all, opts.Repos)
 	if err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 
 	sp := state.Space{
@@ -99,20 +169,20 @@ func (m *Manager) preflight(ctx context.Context, opts NewOptions) (state.Space, 
 		sp.Path = filepath.Join(m.cfg.Spaces.RootDir, opts.Name)
 	}
 	if sp.Path, err = filepath.Abs(sp.Path); err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 
 	// The worktrees go inside the root, so an empty root also means that no worktree path exists.
 	if err := checkEmptyDir(sp.Path); err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 	if err := m.checkNotNested(sp.Path, all); err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 
 	// Without this check a bad name fails only in the first worktree step, after a change.
 	if err := m.git.CheckBranchName(ctx, repos[0].Path, sp.Branch); err != nil {
-		return state.Space{}, nil, err
+		return state.Space{}, nil, nil, err
 	}
 
 	plan := make([]planned, len(repos))
@@ -131,7 +201,7 @@ func (m *Manager) preflight(ctx context.Context, opts NewOptions) (state.Space, 
 		sp.Repos = append(sp.Repos, entry)
 	}
 
-	return sp, plan, errors.Join(errs...)
+	return sp, plan, all, errors.Join(errs...)
 }
 
 // branchStart applies the branch rules for one repo. It returns the start point for a new branch,

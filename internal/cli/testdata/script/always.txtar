@@ -1,0 +1,34 @@
+# always.* settings: a symlink for each always.repos repo, a copy of each always.files file in
+# the space root, and the always.secrets that a main clone has, copied into its worktree.
+mkrepo api web infra
+cp env.txt $HOME/repos/api/.env
+mkdir $HOME/.config/tandem $HOME/notes
+cp config.toml $HOME/.config/tandem/config.toml
+cp notes.md $HOME/notes/AGENTS.md
+
+exec tdm new feat api web
+cmpenv stdout want-new.txt
+cmp $HOME/workspaces/feat/api/.env env.txt
+! exists $HOME/workspaces/feat/web/.env
+cmp $HOME/workspaces/feat/AGENTS.md notes.md
+exec tdm path feat
+exists $HOME/workspaces/feat/infra/README.md
+
+exec tdm status feat
+stdout '^  infra +→ main clone$'
+
+-- config.toml --
+[always]
+repos = ["infra", "web"]
+files = ["~/notes/AGENTS.md"]
+secrets = [".env"]
+-- env.txt --
+KEY=1
+-- notes.md --
+# notes
+-- want-new.txt --
+feat         $HOME/workspaces/feat
+  api        ✓ worktree  [feat]  new branch from main  + .env
+  web        ✓ worktree  [feat]  new branch from main
+  infra      ✓ symlink   → main clone (always.repos)
+  AGENTS.md  ✓ copied
