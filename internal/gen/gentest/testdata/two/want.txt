@@ -1,0 +1,2 @@
+warning: asked to warn
+stale: all.sum
