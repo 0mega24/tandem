@@ -16,7 +16,16 @@ linters:
     - ineffassign
     - unused
     - depguard
+    - nolintlint
+    - misspell
+    - unconvert
+    - usestdlibvars
+    - gocritic
   settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
     revive:
       enable-default-rules: true
       rules:
@@ -55,6 +64,7 @@ linters:
             - pkg: github.com/pkg/errors
               desc: use errors and fmt.Errorf with %w
   exclusions:
+    generated: lax
     rules:
       # Tests build fixture repos and run git and tdm with variable arguments on purpose.
       - path: _test\.go
@@ -62,3 +72,16 @@ linters:
       # Test-only helper package: same reason as the _test.go files.
       - path: internal/git/testhelper/
         linters: [gosec]
+
+formatters:
+  enable:
+    - gofumpt
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
+  exclusions:
+    generated: lax
