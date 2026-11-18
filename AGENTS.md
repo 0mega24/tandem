@@ -46,6 +46,6 @@ The locked tree with one line for each directory is in docs/DESIGN.md. In short:
 - Never edit `zz_generated_*`, `docs/generators.md`, `schema/config.schema.json`: run `make generate`.
 - No wtg code is copied. Behavior comes from the wtg docs and the specs.
 - Names: command, plugin prefix and env vars use `tdm` (`TDM_*`, `tdm-gen-<id>`); all else `tandem`.
-- Decision record (docs/decisions/NNNN-slug.md) for: a new dependency outside the plan's list, a
+- Decision record (docs/decisions/NNNN-slug.md) for: a new dependency, a
   change to the state or config format, the plugin protocol, or the locked tree.
 - Update CHANGELOG.md `## [Unreleased]` with each user-visible change.
