@@ -23,6 +23,7 @@ type Owned struct {
 	Path      string   // relative to the space root, with "/"
 	SHA256    string   // hex hash of the bytes that tdm wrote; "" for a link
 	Target    string   // for a link: where it points; "" for a file
+	Key       string   // for a shared JSON file: the key that tdm owns (see jsonkey.go)
 	Stale     []string // derived files deleted with this one
 }
 
@@ -126,7 +127,11 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			}
 			planned[f.Path] = true
 
-			c, o, err := decide(root, id, f, byPath, force)
+			decideFile := decide
+			if f.Key != "" {
+				decideFile = decideKey
+			}
+			c, o, err := decideFile(root, id, f, byPath, force)
 			if err != nil {
 				return Applied{}, err
 			}
@@ -195,7 +200,11 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			continue
 		}
 
-		c, keep, err := decideDelete(root, o, force)
+		decideGone := decideDelete
+		if o.Key != "" {
+			decideGone = decideKeyDelete
+		}
+		c, keep, err := decideGone(root, o, force)
 		if err != nil {
 			return Applied{}, err
 		}

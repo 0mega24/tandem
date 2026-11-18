@@ -107,6 +107,7 @@
               "rust",
               "ts",
               "uv",
+              "vscode",
               "none"
             ],
             "type": "string"
@@ -194,6 +195,12 @@
         "uv": {
           "additionalProperties": false,
           "description": "Options of the uv generator (Python).",
+          "properties": {},
+          "type": "object"
+        },
+        "vscode": {
+          "additionalProperties": false,
+          "description": "Options of the vscode generator (All).",
           "properties": {},
           "type": "object"
         }

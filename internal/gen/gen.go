@@ -21,6 +21,10 @@ type Space struct {
 	Branch  string         // the branch of all worktrees
 	Members []Member       // sorted by Name
 	Config  map[string]any // the [generate.<id>] table; decode it with DecodeConfig
+
+	// Symlinks are the always.repos symlinks of the space (main clones), sorted by Name. They are
+	// not members: a plan may name them, as the editor workspace does, but not read or change them.
+	Symlinks []Member
 }
 
 // DetectOptions are the settings that Detect may use.
@@ -39,7 +43,8 @@ type Detection struct {
 // File is one file that a Plan writes.
 type File struct {
 	Path    string // relative to the space root, with "/"
-	Content []byte
+	Content []byte // the file; with Key, the JSON object {"<Key>": value}
+	Key     string // for a JSON file that tdm shares with a person: the one key that tdm owns
 }
 
 // Link is a symlink that a Plan makes. Only meson needs one: subprojects/<dir> in a consumer

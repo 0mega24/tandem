@@ -70,6 +70,8 @@ All notable changes to this project are in this file. The format follows
   Gradle member.
 - `cabal` generator: a root `cabal.project` with the packages of the Haskell members.
 - `meson` generator: links `subprojects/<dir>` in each consumer to the other members, only where git ignores the path.
+- `vscode` generator (off by default): `<space>.code-workspace` with a folder for each member and
+  always.repos symlink. tdm owns only the `folders` key; the other keys stay.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

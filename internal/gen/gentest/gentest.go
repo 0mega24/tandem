@@ -4,7 +4,7 @@
 //
 //	in/<member>/...        one directory per member worktree, named by its short name ("--" for "/")
 //	in/<name>.symlink/     a plain directory that stands for an always.repos symlink: it is not
-//	                       a member, so the generator never sees it
+//	                       a member; the generator sees it in Space.Symlinks
 //	origins.json           optional: {"<member>": "<origin URL>"}
 //	config.json            optional: the [generate.<id>] table
 //	want/...               the files that Plan writes, relative to the space root
@@ -74,7 +74,12 @@ func runCase(t *testing.T, g gen.Generator, dir string) {
 	}
 	var memberDirs []string // the worktree paths relative to the root, for gen.CheckPath
 	for _, e := range entries {
-		if !e.IsDir() || strings.HasSuffix(e.Name(), ".symlink") {
+		if !e.IsDir() {
+			continue
+		}
+		if n, ok := strings.CutSuffix(e.Name(), ".symlink"); ok {
+			p := filepath.Join(in, e.Name())
+			space.Symlinks = append(space.Symlinks, gen.Member{Name: n, WorktreePath: p, RepoPath: p, OriginURL: origins[n]})
 			continue
 		}
 		memberDirs = append(memberDirs, e.Name())
