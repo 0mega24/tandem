@@ -22,6 +22,8 @@ All notable changes to this project are in this file. The format follows
 - `tdm new` applies `always.repos` (symlinks to the main clones), `always.files` (copies in the
   space root) and `always.secrets` (copies from each main clone into its worktree, mode kept).
   `always.files` must be absolute paths with distinct base names.
+- `tdm add <space> <repo>...` adds a worktree on the space branch in each repo, with the same
+  branch rules and secrets as `new`. An `always.repos` symlink in the space becomes a worktree.
 - `tdm path <space>` prints the space directory (for `tcd`), and completes space names.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
   does not have. The space that holds the current directory comes first.
