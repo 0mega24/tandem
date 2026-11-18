@@ -278,7 +278,7 @@ func CheckPath(root, p string, members []string) error {
 			return err
 		}
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			return fmt.Errorf("path %q goes through the symlink %s", p, cur)
+			return fmt.Errorf("path %q goes through the symlink %s; tdm does not write through symlinks, so move it away", p, cur)
 		}
 	}
 	return nil

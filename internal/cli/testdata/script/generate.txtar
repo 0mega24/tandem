@@ -14,12 +14,18 @@ cmp $HOME/workspaces/feat/go.work two.work
 exec tdm generate feat
 stdout '^  go += go.work +unchanged$'
 
-# A dry run changes nothing.
+# A dry run changes nothing, also in the state.
 rm $HOME/workspaces/feat/lib/go.mod
 exec tdm generate --dry-run feat
 stdout '^  go +✓ go.work +\(api\)$'
 stdout '^dry run: nothing was written$'
 cmp $HOME/workspaces/feat/go.work two.work
+cp $HOME/.local/share/tandem/spaces/feat.yaml before.yaml
+mv $HOME/workspaces/feat/go.work saved.work
+exec tdm generate --dry-run --force feat
+stderr 'generated file go.work is gone'
+cmp $HOME/.local/share/tandem/spaces/feat.yaml before.yaml
+mv saved.work $HOME/workspaces/feat/go.work
 
 # A file that a person changed is skipped; --force replaces it and keeps a copy.
 cp edited.work $HOME/workspaces/feat/go.work
@@ -54,8 +60,8 @@ stderr 'warning: go: generated file go.work is gone, so it left the state of spa
 exec tdm generate --list
 stdout '^go +on +Go +go.mod$'
 
-! exec tdm generate --dry-run --force feat
-stderr 'do not go together'
+! exec tdm generate --list feat
+stderr '--list takes no space'
 ! exec tdm generate
 stderr 'usage: tdm generate <space>'
 

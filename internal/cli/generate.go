@@ -36,13 +36,13 @@ func generateCommand() *ucli.Command {
 
 func generate(ctx context.Context, cmd *ucli.Command) error {
 	if cmd.Bool("list") {
+		if cmd.Args().Len() > 0 {
+			return errors.New("--list takes no space")
+		}
 		return listGenerators(cmd)
 	}
 	if cmd.Args().Len() != 1 {
 		return errors.New("usage: tdm generate <space>")
-	}
-	if cmd.Bool("dry-run") && cmd.Bool("force") {
-		return errors.New("--dry-run and --force do not go together")
 	}
 
 	m, err := newManager(cmd)
@@ -100,7 +100,11 @@ func generatedRows(t *ui.Table, res space.GenerateResult) {
 				t.Row("  "+r.ID, "- "+c.Path, "deleted", c.Reason)
 			}
 		}
-		if rows == 0 {
+		switch {
+		case rows > 0:
+		case len(r.Members) > 0:
+			t.Row("  "+r.ID, "- nothing to write", members)
+		default:
 			t.Row("  "+r.ID, "- no members")
 		}
 	}

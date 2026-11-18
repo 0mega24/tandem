@@ -34,9 +34,17 @@ type GenerateResult struct {
 
 // Generate runs the generators of the space on its current members and writes their files.
 // The ownership check of gen.Prepare decides each file. The writes and the state save are one
-// saga, so a failure puts the old files back.
+// saga, so a failure puts the old files back. A dry run heals the state in memory only.
 func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOptions) (GenerateResult, error) {
-	sp, err := m.loadHealed(ctx, name)
+	sp, err := m.store.Load(name)
+	if err != nil {
+		return GenerateResult{}, err
+	}
+	if opts.DryRun {
+		sp, _, err = m.heal(ctx, sp)
+	} else {
+		sp, err = m.healSaved(ctx, sp)
+	}
 	if err != nil {
 		return GenerateResult{}, err
 	}
@@ -56,7 +64,7 @@ func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOption
 	}
 
 	next := sp
-	next.Generators = recordSet(ids)
+	next.Generators = recordSet(ids) // a space without a set (made before generators) keeps today's defaults
 	next.Generated = generated(a.Owned)
 	res := GenerateResult{Space: next, Runs: runs, Changes: a.Changes}
 	if opts.DryRun {
@@ -152,6 +160,8 @@ func recordSet(ids []string) []string {
 	return ids
 }
 
+// owned and generated do not carry GeneratedFile.Target: Prepare refuses links until the meson
+// generator adds them, so no entry has one yet.
 func owned(files []state.GeneratedFile) []gen.Owned {
 	out := make([]gen.Owned, len(files))
 	for i, f := range files {
