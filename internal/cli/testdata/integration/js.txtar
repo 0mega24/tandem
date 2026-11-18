@@ -1,0 +1,81 @@
+# js: pnpm, npm and bun spaces. Each api depends on a lib version that no registry has: the install
+# from the space root must link the local lib through the generated workspace file.
+[!exec:node] skip 'needs node'
+
+# pnpm
+mkrepo pnpmapi pnpmlib
+exec tdm new pnpm pnpmapi pnpmlib
+cp pnpmlib.json $HOME/workspaces/pnpm/pnpmlib/package.json
+cp pnpmlib.js $HOME/workspaces/pnpm/pnpmlib/index.js
+cp pnpmapi.json $HOME/workspaces/pnpm/pnpmapi/package.json
+cp pnpmmain.js $HOME/workspaces/pnpm/pnpmapi/index.js
+cp empty $HOME/workspaces/pnpm/pnpmapi/pnpm-lock.yaml
+cp empty $HOME/workspaces/pnpm/pnpmlib/pnpm-lock.yaml
+exec tdm generate pnpm
+stdout 'js +✓ pnpm-workspace.yaml'
+cd $HOME/workspaces/pnpm
+exec pnpm install --offline
+cd pnpmapi
+exec node index.js
+stdout '^local pnpm lib$'
+cd $WORK
+
+# npm
+mkrepo npmapi npmlib
+exec tdm new npm npmapi npmlib
+cp npmlib.json $HOME/workspaces/npm/npmlib/package.json
+cp npmlib.js $HOME/workspaces/npm/npmlib/index.js
+cp npmapi.json $HOME/workspaces/npm/npmapi/package.json
+cp npmmain.js $HOME/workspaces/npm/npmapi/index.js
+exec tdm generate npm
+stdout 'js +✓ package.json'
+cd $HOME/workspaces/npm
+exec npm install --offline --no-audit --no-fund
+cd npmapi
+exec node index.js
+stdout '^local npm lib$'
+cd $WORK
+
+# bun
+mkrepo bunapi bunlib
+exec tdm new bun bunapi bunlib
+cp bunlib.json $HOME/workspaces/bun/bunlib/package.json
+cp bunlib.js $HOME/workspaces/bun/bunlib/index.js
+cp bunapi.json $HOME/workspaces/bun/bunapi/package.json
+cp bunmain.js $HOME/workspaces/bun/bunapi/index.js
+cp empty $HOME/workspaces/bun/bunapi/bun.lock
+cp empty $HOME/workspaces/bun/bunlib/bun.lock
+exec tdm generate bun
+stdout 'js +✓ package.json'
+cd $HOME/workspaces/bun
+exec bun install
+cd bunapi
+exec node index.js
+stdout '^local bun lib$'
+cd $WORK
+
+-- empty --
+-- pnpmlib.json --
+{"name": "tdm-itest-pnpm-lib", "version": "1.0.0", "main": "index.js"}
+-- pnpmapi.json --
+{"name": "tdm-itest-pnpm-api", "version": "1.0.0", "dependencies": {"tdm-itest-pnpm-lib": "1.0.0"}}
+-- pnpmlib.js --
+module.exports = { name: () => 'local pnpm lib' };
+-- pnpmmain.js --
+console.log(require('tdm-itest-pnpm-lib').name());
+-- npmlib.json --
+{"name": "tdm-itest-npm-lib", "version": "1.0.0", "main": "index.js"}
+-- npmapi.json --
+{"name": "tdm-itest-npm-api", "version": "1.0.0", "dependencies": {"tdm-itest-npm-lib": "1.0.0"}}
+-- npmlib.js --
+module.exports = { name: () => 'local npm lib' };
+-- npmmain.js --
+console.log(require('tdm-itest-npm-lib').name());
+-- bunlib.json --
+{"name": "tdm-itest-bun-lib", "version": "1.0.0", "main": "index.js"}
+-- bunapi.json --
+{"name": "tdm-itest-bun-api", "version": "1.0.0", "dependencies": {"tdm-itest-bun-lib": "1.0.0"}}
+-- bunlib.js --
+module.exports = { name: () => 'local bun lib' };
+-- bunmain.js --
+console.log(require('tdm-itest-bun-lib').name());
