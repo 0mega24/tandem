@@ -86,6 +86,8 @@ All notable changes to this project are in this file. The format follows
   `generate.detect_depth`, with one go.work use line for each module.
 - `tdm status -l` lists the generated files of each space: ✓ generated, ! changed by a person,
   or - gone.
+- Releases: a `v*` tag makes a draft GitHub release with tarballs (Linux, macOS), .deb, .rpm and
+  pacman packages with shell completions, and checksums. `make snapshot` builds them locally.
 - A wtg state file with `go_workspace: true` becomes a generated `go.work` entry. A generated file
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin

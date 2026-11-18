@@ -70,7 +70,8 @@ tandem/
 ├── skills/                   # tandem/, tandem-setup/
 ├── .claude-plugin/  .codex-plugin/
 ├── .agents/plugins/      # Codex marketplace for the plugin
-├── .github/workflows/ci.yml
+├── .github/workflows/        # ci.yml, nightly.yml, flake-update.yml, release.yml
+├── .goreleaser.yaml          # release: archives, .deb, .rpm, pacman packages
 ├── flake.nix  flake.lock  .envrc
 ├── Makefile
 ├── go.mod  go.sum  go.tool.mod  go.tool.sum

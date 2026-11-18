@@ -226,9 +226,14 @@ nix-vendor-hash: ## Print the steps to get the new vendorHash after go.mod chang
 
 ##@ Release
 .PHONY: snapshot
-snapshot: ## Build release archives locally (no publish)
+snapshot: ## Build archives, .deb, .rpm and pacman packages locally in dist/ (no publish)
 	$(call need,goreleaser)
 	$(DEV) goreleaser release --snapshot --clean
+
+.PHONY: release
+release: ## Publish a draft GitHub release for the current v* tag (the release workflow runs it)
+	$(call need,goreleaser)
+	$(DEV) goreleaser release --clean
 
 ##@ Aggregate
 .PHONY: quick

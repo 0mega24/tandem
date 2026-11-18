@@ -1,0 +1,68 @@
+# Release build: `make snapshot` locally, `make release` from the release workflow on a v* tag.
+version: 2
+
+project_name: tandem
+
+before:
+  hooks:
+    - mkdir -p completions
+    - sh -c 'go run ./cmd/tdm completion bash > completions/tdm.bash'
+    - sh -c 'go run ./cmd/tdm completion zsh > completions/_tdm'
+    - sh -c 'go run ./cmd/tdm completion fish > completions/tdm.fish'
+
+builds:
+  - id: tdm
+    main: ./cmd/tdm
+    binary: tdm
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    # The same values as the Makefile's LDFLAGS.
+    ldflags:
+      - -s -w
+      - -X github.com/0mega24/tandem/internal/version.Version={{ .Version }}
+      - -X github.com/0mega24/tandem/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/0mega24/tandem/internal/version.Date={{ .Date }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, README.md, CHANGELOG.md, completions/*]
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - id: packages
+    package_name: tandem
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: 0mega24
+    homepage: https://github.com/0mega24/tandem
+    maintainer: 0mega24 <0mega24@users.noreply.github.com>
+    description: One feature branch across many repos, as git worktrees, with language workspace files.
+    license: MIT
+    formats: [deb, rpm, archlinux]
+    dependencies: [git]
+    contents:
+      - src: completions/tdm.bash
+        dst: /usr/share/bash-completion/completions/tdm
+      - src: completions/_tdm
+        dst: /usr/share/zsh/site-functions/_tdm
+      - src: completions/tdm.fish
+        dst: /usr/share/fish/vendor_completions.d/tdm.fish
+      - src: LICENSE
+        dst: /usr/share/licenses/tandem/LICENSE
+
+changelog:
+  use: github
+  groups:
+    - title: Features
+      regexp: '^feat'
+    - title: Fixes
+      regexp: '^fix'
+    - title: Other
+      regexp: '.*'
+
+release:
+  draft: true # a person checks the notes and the files, then publishes

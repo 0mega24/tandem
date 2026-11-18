@@ -1,0 +1,30 @@
+# Release on a v* tag: `make check`, then goreleaser makes a DRAFT GitHub release with the
+# archives, .deb, .rpm and pacman packages and checksums. A person reads it and publishes it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # never stop a release half way
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # create the draft release and upload its files
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # goreleaser reads the tags for the changelog
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
+      - run: nix develop -c make check
+      - run: nix develop -c make release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

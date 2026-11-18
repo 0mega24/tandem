@@ -13,7 +13,7 @@ import (
 // section first, then this list, in the same PR.
 var topLevel = []string{
 	".agents", ".claude-plugin", ".codex-plugin", ".editorconfig", ".envrc", ".github", ".gitignore",
-	".golangci.yml", "AGENTS.md", "CHANGELOG.md", "CLAUDE.md", "LICENSE", "Makefile", "README.md",
+	".golangci.yml", ".goreleaser.yaml", "AGENTS.md", "CHANGELOG.md", "CLAUDE.md", "LICENSE", "Makefile", "README.md",
 	"cmd", "docs", "examples", "flake.lock", "flake.nix", "go.mod", "go.sum", "go.tool.mod",
 	"go.tool.sum", "internal", "nix", "schema", "skills", "tools",
 }
