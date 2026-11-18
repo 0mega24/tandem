@@ -37,6 +37,10 @@ func (s System) OriginURL(ctx context.Context, repo string) (string, error) {
 }
 
 // DefaultBranch is origin/HEAD, or the checked-out branch when origin/HEAD is not set.
+//
+// The fallback covers a repo that was made with `git init` and pushed later: it has no
+// origin/HEAD, and its main clone is almost always on its default branch. If it is on a
+// feature branch, that branch is treated as the default; on a detached HEAD this fails.
 func (s System) DefaultBranch(ctx context.Context, repo string) (string, error) {
 	ref, err := s.line(ctx, repo, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
 	if err == nil {
