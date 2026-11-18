@@ -23,7 +23,7 @@ func TestRemoveRepos(t *testing.T) {
 	f := newFixture(t, "api", "myorg/web")
 	newSpaceFor(t, f, "api", "web")
 
-	got, err := f.m.RemoveRepos(context.Background(), "feat", []string{"web"}, RemoveOptions{DeleteBranch: true})
+	got, _, err := f.m.RemoveRepos(context.Background(), "feat", []string{"web"}, RemoveOptions{DeleteBranch: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +52,12 @@ func TestRemoveAsksFirst(t *testing.T) {
 	ctx := context.Background()
 
 	// No Confirm, or a no: nothing is removed.
-	if _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{}); !errors.Is(err, ErrDeclined) {
+	if _, _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{}); !errors.Is(err, ErrDeclined) {
 		t.Fatalf("err = %v, want ErrDeclined", err)
 	}
 	var asked []Risk
 	no := func(r []Risk) bool { asked = r; return false }
-	if _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{Confirm: no}); !errors.Is(err, ErrDeclined) {
+	if _, _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{Confirm: no}); !errors.Is(err, ErrDeclined) {
 		t.Fatalf("err = %v, want ErrDeclined", err)
 	}
 	if len(asked) != 1 || asked[0].Changed != 1 || asked[0].Unpushed != 1 {
@@ -68,7 +68,7 @@ func TestRemoveAsksFirst(t *testing.T) {
 	}
 
 	// A yes removes it; -d keeps the branch, which is not merged.
-	got, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{
+	got, _, err := f.m.RemoveRepos(ctx, "feat", []string{"api"}, RemoveOptions{
 		DeleteBranch: true,
 		Confirm:      func([]Risk) bool { return true },
 	})
@@ -89,7 +89,7 @@ func TestRemoveAlwaysRepos(t *testing.T) {
 	ctx := context.Background()
 	newSpaceFor(t, f, "api", "infra") // infra: a worktree; tools: a symlink
 
-	got, err := f.m.RemoveRepos(ctx, "feat", []string{"infra", "tools"}, RemoveOptions{})
+	got, _, err := f.m.RemoveRepos(ctx, "feat", []string{"infra", "tools"}, RemoveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,10 +116,10 @@ func TestRemoveErrors(t *testing.T) {
 	newSpaceFor(t, f, "api")
 	ctx := context.Background()
 
-	if _, err := f.m.RemoveRepos(ctx, "feat", []string{"web"}, RemoveOptions{}); err == nil || !strings.Contains(err.Error(), `space feat: no repo "web"`) {
+	if _, _, err := f.m.RemoveRepos(ctx, "feat", []string{"web"}, RemoveOptions{}); err == nil || !strings.Contains(err.Error(), `space feat: no repo "web"`) {
 		t.Errorf("err = %v, want web not in the space", err)
 	}
-	if _, err := f.m.RemoveRepos(ctx, "nope", []string{"api"}, RemoveOptions{}); err == nil {
+	if _, _, err := f.m.RemoveRepos(ctx, "nope", []string{"api"}, RemoveOptions{}); err == nil {
 		t.Error("err = nil for an unknown space")
 	}
 }

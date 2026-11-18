@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/0mega24/tandem/internal/gen"
+	"github.com/0mega24/tandem/internal/saga"
 	"github.com/0mega24/tandem/internal/state"
 )
 
@@ -25,10 +27,14 @@ type DeleteOptions struct {
 
 // Deleted is what DeleteSpace did.
 type Deleted struct {
-	Space   state.Space
-	Repos   []Removed
-	Files   []string // the always.files copies that it removed
-	KeptDir bool     // the space directory had other files, so it stays
+	Space state.Space
+	Repos []Removed
+	Files []string // the always.files copies that it removed
+
+	// Generated is the delete or skip of each generated file: a file that a person changed stays.
+	Generated []gen.Change
+
+	KeptDir bool // the space directory had other files, so it stays
 }
 
 // DeleteSpace removes all worktrees and symlinks of a space, the always.files copies, the space
@@ -62,6 +68,7 @@ func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptio
 		}
 		res.Repos = append(res.Repos, r)
 	}
+	res.Generated = m.deleteGenerated(ctx, sp)
 
 	// The copies are found by the base names in the config now. A copy that the user replaced
 	// with a directory is not a copy, so it stays.
@@ -84,4 +91,27 @@ func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptio
 
 	m.runHook(ctx, sp, EventDelete, sp.Repos, sp.Repos)
 	return res, nil
+}
+
+// deleteGenerated deletes the generated files that tdm owns and that nobody changed, with their
+// stale files. A failure is a warning, as the generator spec says for cleanup: the saga puts the
+// files back, and the space directory stays.
+func (m *Manager) deleteGenerated(ctx context.Context, sp state.Space) []gen.Change {
+	if len(sp.Generated) == 0 {
+		return nil
+	}
+	plans := map[string]gen.Plan{} // an empty plan for each owner: Prepare deletes its files
+	for _, f := range sp.Generated {
+		plans[f.Generator] = gen.Plan{}
+	}
+
+	a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(sp), false)
+	if err == nil {
+		err = saga.Run(ctx, a.Steps())
+	}
+	if err != nil {
+		m.warn("space %s: generated files are kept: %v", sp.Name, err)
+		return nil
+	}
+	return a.Changes
 }

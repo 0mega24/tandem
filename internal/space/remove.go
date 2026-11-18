@@ -42,8 +42,32 @@ type Removed struct {
 // repo that is a symlink is dropped from the space.
 //
 // It is not a saga: a removed worktree cannot be put back as it was. It stops at the first
-// failure and saves the state with the repos that it removed.
-func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, opts RemoveOptions) ([]Removed, error) {
+// failure and saves the state with the repos that it removed. Then the generators write their
+// files again for the members that are left, like tdm generate.
+func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, opts RemoveOptions) ([]Removed, GenerateResult, error) {
+	out, err := m.removeRepos(ctx, name, names, opts)
+	if err != nil || len(out) == 0 {
+		return out, GenerateResult{}, err
+	}
+
+	generated, err := m.Generate(ctx, name, GenerateOptions{})
+	if err != nil {
+		return out, generated, fmt.Errorf("the repos are removed, but the workspace files are not up to date; run tdm generate %s: %w", name, err)
+	}
+
+	after, err := m.store.Load(name)
+	if err != nil {
+		return out, generated, err
+	}
+	targets := make([]state.RepoEntry, len(out))
+	for i, r := range out {
+		targets[i] = r.Entry
+	}
+	m.runHook(ctx, after, EventRemove, after.Repos, targets)
+	return out, generated, nil
+}
+
+func (m *Manager) removeRepos(ctx context.Context, name string, names []string, opts RemoveOptions) ([]Removed, error) {
 	if len(names) == 0 {
 		return nil, errors.New("give at least one repo")
 	}
@@ -84,16 +108,7 @@ func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, 
 		}
 		out = append(out, r)
 	}
-	if err := m.saveRemoved(sp, out); err != nil {
-		return out, err
-	}
-
-	after, err := m.store.Load(name)
-	if err != nil {
-		return out, err
-	}
-	m.runHook(ctx, after, EventRemove, after.Repos, targets)
-	return out, nil
+	return out, m.saveRemoved(sp, out)
 }
 
 // memberIndexes resolves names against the repos of the space, not the repos on disk: a repo
