@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/saga"
 	"github.com/0mega24/tandem/internal/state"
 )
@@ -32,6 +33,10 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 	repos, err := ResolveAll(all, names)
 	if err != nil {
 		return NewResult{}, err
+	}
+	ids, err := gen.Select(sp.Generators)
+	if err != nil {
+		return NewResult{}, fmt.Errorf("space %s: %w", sp.Name, err)
 	}
 
 	next := sp
@@ -83,6 +88,8 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 		return NewResult{}, err
 	}
 
+	var generated GenerateResult
+	steps = append(steps, m.generateStep(&next, ids, &generated))
 	steps = append(steps, saga.Step{
 		Name: "save state",
 		Do:   func(context.Context) error { return m.store.Save(next) },
@@ -98,7 +105,7 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 	}
 	m.runHook(ctx, next, EventAdd, next.Repos, changed)
 
-	return NewResult{Space: next, Repos: added}, nil
+	return NewResult{Space: next, Repos: added, Generated: generated}, nil
 }
 
 // checkLink makes sure that the path of a symlink entry is still the symlink, so that the

@@ -2,6 +2,7 @@ package space
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -83,8 +84,51 @@ func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOption
 	return res, nil
 }
 
+// generateStep writes the files of the generators ids for *sp, as one step of the new and add
+// sagas: the worktrees that it reads exist only after the steps before it. Do puts the set and
+// the owned files in *sp, for the save step after it, and the result in *out. Files that a
+// person changed or that tdm did not write are skipped: only tdm generate --force replaces them.
+func (m *Manager) generateStep(sp *state.Space, ids []string, out *GenerateResult) saga.Step {
+	var done []saga.Step
+	return saga.Step{
+		Name: "generate files",
+		Do: func(ctx context.Context) error {
+			runs, plans, err := m.plan(ctx, *sp, ids)
+			if err != nil {
+				return err
+			}
+			a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(*sp), false)
+			if err != nil {
+				return err
+			}
+			steps := a.Steps()
+			if err := saga.Run(ctx, steps); err != nil {
+				return err // Run undid its own steps
+			}
+
+			done = steps
+			sp.Generators = recordSet(ids)
+			sp.Generated = generated(a.Owned)
+			*out = GenerateResult{Runs: runs, Changes: a.Changes}
+			return nil
+		},
+		Undo: func(ctx context.Context) error {
+			var errs []error
+			for _, s := range slices.Backward(done) {
+				if s.Undo != nil {
+					errs = append(errs, s.Undo(ctx))
+				}
+			}
+			return errors.Join(errs...)
+		},
+	}
+}
+
 // plan runs Detect and Plan of each generator in ids on the members of the space.
 func (m *Manager) plan(ctx context.Context, sp state.Space, ids []string) ([]GeneratorRun, map[string]gen.Plan, error) {
+	if len(ids) == 0 {
+		return nil, map[string]gen.Plan{}, nil // no git calls for a space without generators
+	}
 	members, err := m.members(ctx, sp)
 	if err != nil {
 		return nil, nil, err
