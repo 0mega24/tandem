@@ -77,13 +77,12 @@ apply.
 - File and stale paths must be clean paths relative to the space root, use `/`,
   contain no `..`, and stay outside member worktrees. They must not pass through
   symlinks. Files and links must have distinct destination paths.
-- A link may only be a direct `<member>/subprojects/<name>` entry whose absolute
-  target is another member worktree. The link path must pass the symlink checks.
-  This is the Meson exception to the member-write rule.
-
-The current apply layer rejects all links until Meson link application is
-available. Protocol validation checks the permitted link shape, but a plan with
-links cannot yet be applied. File-only plans, including both examples, work now.
+- A link may only be a direct `<member>/subprojects/<name>` entry whose target is
+  another member worktree. The target is relative to the directory of the link, as
+  `ln -s` takes it: `../../lib` for `app/subprojects/lib`. This is the Meson
+  exception to the member-write rule, with the same rules as the built-in `meson`
+  generator: tdm makes the link only where nothing is and only where git ignores
+  the path in that member.
 
 ## JSON Schemas
 

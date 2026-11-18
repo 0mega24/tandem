@@ -214,7 +214,9 @@ func TestPlanPaths(t *testing.T) {
 		{"stale", `{"files":[],"stale":["app/out"],"links":[],"warnings":[]}`, false},
 		{"duplicate", `{"files":[{"path":"out","content":"a"},{"path":"out","content":"b"}],"stale":[],"links":[],"warnings":[]}`, false},
 		{"bad link", fmt.Sprintf(`{"files":[],"stale":[],"links":[{"path":"app/file","target":%q}],"warnings":[]}`, filepath.Join(root, "lib")), false},
-		{"meson link", fmt.Sprintf(`{"files":[],"stale":[],"links":[{"path":"app/subprojects/lib","target":%q}],"warnings":[]}`, filepath.Join(root, "lib")), true},
+		{"absolute target", fmt.Sprintf(`{"files":[],"stale":[],"links":[{"path":"app/subprojects/lib","target":%q}],"warnings":[]}`, filepath.Join(root, "lib")), false},
+		{"own member", `{"files":[],"stale":[],"links":[{"path":"app/subprojects/app","target":"../../app"}],"warnings":[]}`, false},
+		{"meson link", `{"files":[],"stale":[],"links":[{"path":"app/subprojects/lib","target":"../../lib"}],"warnings":[]}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			isolate(t)
@@ -224,9 +226,17 @@ func TestPlanPaths(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = plugins[0].Plan(gen.Space{Root: root, Members: []gen.Member{{WorktreePath: filepath.Join(root, "app")}, {WorktreePath: filepath.Join(root, "lib")}}}, nil)
+			p, err := plugins[0].Plan(gen.Space{Root: root, Members: []gen.Member{{WorktreePath: filepath.Join(root, "app")}, {WorktreePath: filepath.Join(root, "lib")}}}, nil)
 			if (err == nil) != tc.valid {
 				t.Fatalf("Plan error = %v, valid = %t", err, tc.valid)
+			}
+			if !tc.valid {
+				return
+			}
+			// A valid plan must also pass apply, which has the same rules as for built-in plans.
+			ignored := func(string) (bool, error) { return true, nil }
+			if _, err := gen.Prepare(root, nil, map[string]gen.Plan{"demo": p}, []string{"app", "lib"}, false, ignored); err != nil {
+				t.Fatalf("Prepare: %v", err)
 			}
 		})
 	}

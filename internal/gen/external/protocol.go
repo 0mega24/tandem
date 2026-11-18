@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -97,50 +96,38 @@ func (a planAnswer) plan(root string, members []string) (gen.Plan, error) {
 		if l.Path == nil || l.Target == nil {
 			return gen.Plan{}, errors.New("link: path and target are required strings")
 		}
-		if err := checkLink(root, *l.Path, *l.Target, members); err != nil {
+		link := gen.Link{Path: *l.Path, Target: *l.Target}
+		if err := checkLink(root, link, members); err != nil {
 			return gen.Plan{}, err
 		}
 		if seen[*l.Path] {
 			return gen.Plan{}, fmt.Errorf("path %q is planned twice", *l.Path)
 		}
 		seen[*l.Path] = true
-		p.Links = append(p.Links, gen.Link{Path: *l.Path, Target: *l.Target})
+		p.Links = append(p.Links, link)
 	}
 	return p, nil
 }
 
-// checkLink allows only a direct subprojects entry in one member pointing to another member.
-func checkLink(root, p, target string, members []string) error {
-	if !filepath.IsAbs(target) {
-		return errors.New("link target must be absolute")
-	}
-	target = filepath.Clean(target)
-	targetMember := ""
+// checkLink allows only the Meson shape: a direct <member>/subprojects/<name> entry whose target,
+// relative to the link as for built-in plans, is another member. gen.CheckLink then applies the
+// rules that every link must pass.
+func checkLink(root string, l gen.Link, members []string) error {
+	to := path.Join(path.Dir(l.Path), l.Target)
 	for _, member := range members {
-		if filepath.Join(root, filepath.FromSlash(member)) == target {
-			targetMember = member
+		name, ok := strings.CutPrefix(l.Path, member+"/subprojects/")
+		if !ok {
+			continue
+		}
+		if name == "" || strings.ContainsAny(name, "/\\") {
 			break
 		}
-	}
-	if targetMember == "" {
-		return errors.New("link target must be a member worktree")
-	}
-	for _, member := range members {
-		prefix := member + "/subprojects/"
-		if strings.HasPrefix(p, prefix) && member != targetMember {
-			name := strings.TrimPrefix(p, prefix)
-			if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
-				break
-			}
-			// CheckPath checks all existing path components for symlinks. It must allow this
-			// one member destination, so omit the member prohibition for the link path only.
-			if path.Clean(p) != p {
-				break
-			}
-			return gen.CheckPath(root, p, nil)
+		if to == member || !slices.Contains(members, to) {
+			return fmt.Errorf("link %q: target %q must be another member worktree", l.Path, l.Target)
 		}
+		return gen.CheckLink(root, l, members)
 	}
-	return errors.New("link path must be a member's direct subprojects entry")
+	return fmt.Errorf("link %q must be a direct subprojects entry of a member", l.Path)
 }
 
 // stringList rejects null elements, which encoding/json otherwise turns into empty strings.
