@@ -96,7 +96,8 @@ func (m *Manager) heal(ctx context.Context, sp state.Space) (state.Space, bool, 
 
 // healGenerated makes the generated list agree with the disk. A wtg state file with
 // go_workspace gets a go.work entry with the hash of the file on disk, and the default generator
-// set. A generated file that is gone leaves the list.
+// set. The flag goes also when go.work is gone: the set is all that is left to keep. A generated
+// file that is gone leaves the list.
 func (m *Manager) healGenerated(sp state.Space) (state.Space, bool) {
 	changed := false
 	if sp.GoWorkspace && len(sp.Generated) == 0 {
