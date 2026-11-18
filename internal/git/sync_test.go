@@ -82,3 +82,21 @@ func TestFastForwardDiverged(t *testing.T) {
 		t.Errorf("FastForward(diverged) = %v, want ErrNotFastForward", err)
 	}
 }
+
+func TestFastForwardLocalAhead(t *testing.T) {
+	testhelper.Isolate(t)
+	dir := t.TempDir()
+	r := testhelper.NewRepo(t, dir, "api")
+	ctx := context.Background()
+	s := System{}
+
+	testhelper.Commit(t, r.Path, "local.txt", "l\n", "local only")
+	if err := s.Fetch(ctx, r.Path); err != nil {
+		t.Fatal(err)
+	}
+
+	moved, err := s.FastForward(ctx, r.Path, "main")
+	if err != nil || moved {
+		t.Errorf("FastForward(local ahead) = %v, %v; want not moved and no error: there is nothing to pull", moved, err)
+	}
+}
