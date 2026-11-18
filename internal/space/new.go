@@ -83,6 +83,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, err
 	if err := saga.Run(ctx, steps); err != nil {
 		return NewResult{}, err
 	}
+	m.runHook(ctx, sp, EventCreate, sp.Repos, sp.Repos)
 
 	res := NewResult{Space: sp}
 	for _, p := range plan.worktrees {

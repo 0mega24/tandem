@@ -1,0 +1,25 @@
+# The always.run hook runs after new, with the TDM_* variables; its output goes to stderr.
+mkrepo api
+mkdir $HOME/.config/tandem $HOME/bin
+cp config.toml $HOME/.config/tandem/config.toml
+cp hook.sh $HOME/bin/hook
+chmod 0755 $HOME/bin/hook
+
+exec tdm new feat api
+stderr '^hook: create feat api$'
+! stdout 'hook:'
+
+# A failing hook is a warning; the command still succeeds.
+cp fail.sh $HOME/bin/hook
+exec tdm delete feat
+stderr 'warning: always.run .*hook \(delete\): exit status 2'
+! exec tdm path feat
+
+-- config.toml --
+always.run = "~/bin/hook"
+-- hook.sh --
+#!/bin/sh
+echo "hook: $TDM_SPACE_EVENT $TDM_SPACE_NAME $TDM_EVENT_REPOS"
+-- fail.sh --
+#!/bin/sh
+exit 2

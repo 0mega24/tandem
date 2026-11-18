@@ -84,7 +84,16 @@ func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, 
 		}
 		out = append(out, r)
 	}
-	return out, m.saveRemoved(sp, out)
+	if err := m.saveRemoved(sp, out); err != nil {
+		return out, err
+	}
+
+	after, err := m.store.Load(name)
+	if err != nil {
+		return out, err
+	}
+	m.runHook(ctx, after, EventRemove, after.Repos, targets)
+	return out, nil
 }
 
 // memberIndexes resolves names against the repos of the space, not the repos on disk: a repo
