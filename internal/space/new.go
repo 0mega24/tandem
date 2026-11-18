@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/saga"
 	"github.com/0mega24/tandem/internal/state"
 )
@@ -20,6 +21,9 @@ type NewOptions struct {
 	Repos  []string // names as the user gave them
 	Branch string   // default: git.branch_prefix + Name
 	Path   string   // default: spaces.root_dir/Name
+
+	// Generators is the generator set, like generate.enabled; nil means generate.enabled.
+	Generators []string
 }
 
 // NewResult is what NewSpace made.
@@ -27,6 +31,9 @@ type NewResult struct {
 	Space state.Space
 	Repos []NewRepo // the worktrees, then the always.repos symlinks
 	Files []string  // the always.files copies in the space root
+
+	// Generated is what the generators wrote; its Space is not set.
+	Generated GenerateResult
 }
 
 // NewRepo is one repo that NewSpace or AddRepos put in the space.
@@ -55,11 +62,20 @@ type newPlan struct {
 // copies, and the state file. All checks run before the first change; when a later step fails,
 // the finished steps are undone.
 func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, error) {
+	enabled := opts.Generators
+	if enabled == nil {
+		enabled = m.cfg.Generate.Enabled
+	}
+	ids, err := gen.Select(enabled)
+	if err != nil {
+		return NewResult{}, err
+	}
 	plan, err := m.preflight(ctx, opts)
 	if err != nil {
 		return NewResult{}, err
 	}
 	sp := plan.space
+	var generated GenerateResult
 
 	steps := []saga.Step{rootStep(sp.Path)}
 	for _, p := range plan.worktrees {
@@ -74,6 +90,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, err
 	for _, f := range m.cfg.Always.Files {
 		steps = append(steps, fileStep(sp.Path, f))
 	}
+	steps = append(steps, m.generateStep(&sp, ids, &generated))
 	steps = append(steps, saga.Step{
 		Name: "save state",
 		Do:   func(context.Context) error { return m.store.Create(sp) },
@@ -85,7 +102,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, err
 	}
 	m.runHook(ctx, sp, EventCreate, sp.Repos, sp.Repos)
 
-	res := NewResult{Space: sp}
+	res := NewResult{Space: sp, Generated: generated}
 	for _, p := range plan.worktrees {
 		res.Repos = append(res.Repos, NewRepo{
 			Entry:   p.entry,

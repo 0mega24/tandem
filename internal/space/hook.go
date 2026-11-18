@@ -39,12 +39,22 @@ func (m *Manager) runHook(ctx context.Context, sp state.Space, event string, rep
 		"TDM_REPOS="+joinEntries(repos, func(e state.RepoEntry) string { return e.Name }),
 		"TDM_REPO_PATHS="+joinEntries(repos, func(e state.RepoEntry) string { return e.WorktreePath }),
 		"TDM_EVENT_REPOS="+joinEntries(changed, func(e state.RepoEntry) string { return e.Name }),
+		"TDM_GENERATED_FILES="+generatedPaths(sp),
 	)
 	cmd.Stdout, cmd.Stderr = m.out, m.out
 
 	if err := cmd.Run(); err != nil {
 		m.warn("always.run %s (%s): %v", m.cfg.Always.Run, event, err)
 	}
+}
+
+// generatedPaths lists the generated files of the space, relative to its root, one per line.
+func generatedPaths(sp state.Space) string {
+	parts := make([]string, len(sp.Generated))
+	for i, f := range sp.Generated {
+		parts[i] = f.Path
+	}
+	return strings.Join(parts, "\n")
 }
 
 // joinEntries puts one value per line, the format of the TDM_* list variables.
