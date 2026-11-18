@@ -69,6 +69,10 @@ type Generate struct {
 	// Enabled lists the generator IDs. Not set: the defaults. Empty or ["none"]: none.
 	Enabled []string `koanf:"enabled"`
 
+	// DetectDepth is how many directory levels below a worktree root Detect also looks in
+	// (0 = the root only).
+	DetectDepth int `koanf:"detect_depth"`
+
 	// Tables holds the [generate.<id>] tables by ID. Each generator decodes its own table.
 	Tables map[string]any `koanf:",remain"`
 }
@@ -116,6 +120,9 @@ func (c Config) validate() error {
 	// A relative path with a "/" would depend on the directory that the hook runs in.
 	if r := c.Always.Run; r != "" && !filepath.IsAbs(r) && strings.ContainsRune(r, filepath.Separator) {
 		errs = append(errs, fmt.Errorf("always.run: %q must be an absolute path, a path that starts with ~/, or a name on PATH", r))
+	}
+	if c.Generate.DetectDepth < 0 {
+		errs = append(errs, fmt.Errorf("generate.detect_depth = %d, must be 0 or more", c.Generate.DetectDepth))
 	}
 	for id, t := range c.Generate.Tables {
 		if _, ok := t.(map[string]any); !ok {
