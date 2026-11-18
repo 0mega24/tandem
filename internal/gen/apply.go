@@ -253,6 +253,20 @@ func (a Applied) Steps() []saga.Step {
 func writeStep(root string, c Change) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(c.Path))
 	var madeDirs string // the highest directory that this step made
+	madeBackup := false
+
+	// dropOwn removes what this step made besides the file: the backup and the new directories.
+	dropOwn := func() error {
+		if madeBackup {
+			if err := os.Remove(p + backupSuffix); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+		}
+		if madeDirs != "" {
+			removeEmptyDirs(filepath.Dir(p), filepath.Dir(madeDirs))
+		}
+		return nil
+	}
 
 	return saga.Step{
 		Name: "write " + c.Path,
@@ -262,30 +276,50 @@ func writeStep(root string, c Change) saga.Step {
 				return err
 			}
 			if c.backup {
-				if err := os.WriteFile(p+backupSuffix, c.Old, 0o644); err != nil { //nolint:gosec // like the file it copies
-					return err
+				if err := writeAtomic(p+backupSuffix, c.Old); err != nil {
+					return errors.Join(err, dropOwn())
 				}
+				madeBackup = true
 			}
-			return os.WriteFile(p, c.New, 0o644) //nolint:gosec // like the space root
-		},
-		Undo: func(context.Context) error {
-			if c.backup {
-				if err := os.Remove(p + backupSuffix); err != nil && !errors.Is(err, fs.ErrNotExist) {
-					return err
-				}
-			}
-			if c.Old != nil {
-				return os.WriteFile(p, c.Old, 0o644) //nolint:gosec // the bytes that were there
-			}
-			if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return err
-			}
-			if madeDirs != "" {
-				removeEmptyDirs(filepath.Dir(p), filepath.Dir(madeDirs))
+			if err := writeAtomic(p, c.New); err != nil {
+				return errors.Join(err, dropOwn()) // the saga undoes only finished steps
 			}
 			return nil
 		},
+		Undo: func(context.Context) error {
+			if c.Old != nil {
+				if err := writeAtomic(p, c.Old); err != nil {
+					return err
+				}
+			} else if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+			return dropOwn()
+		},
 	}
+}
+
+// writeAtomic writes b to p through a temp file in the same directory and a rename, so a
+// failure part way leaves the old file whole.
+func writeAtomic(p string, b []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(p), "."+filepath.Base(p)+".*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) //nolint:errcheck // gone after the rename; this only cleans up a failure
+
+	if _, err := tmp.Write(b); err != nil {
+		_ = tmp.Close() // the write error is the one to report
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	// CreateTemp makes 0600; workspace files are read by tools that may run as other users.
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil { //nolint:gosec // G302: see above
+		return err
+	}
+	return os.Rename(tmp.Name(), p)
 }
 
 func deleteStep(root, rel string, old []byte) saga.Step {
@@ -303,7 +337,7 @@ func deleteStep(root, rel string, old []byte) saga.Step {
 			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // as before the delete
 				return err
 			}
-			return os.WriteFile(p, old, 0o644) //nolint:gosec // the bytes that were there
+			return writeAtomic(p, old)
 		},
 	}
 }
@@ -332,7 +366,7 @@ func staleStep(root, rel string) saga.Step {
 			if old == nil {
 				return nil
 			}
-			return os.WriteFile(p, old, 0o644) //nolint:gosec // the bytes that were there
+			return writeAtomic(p, old)
 		},
 	}
 }
