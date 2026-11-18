@@ -18,7 +18,8 @@ type Repo struct {
 }
 
 // Discover finds the git repos under root, at most maxDepth levels down. It does not look inside
-// a repo, so submodules and nested clones are not listed. Hidden directories are skipped.
+// a repo, so submodules and nested clones are not listed. Hidden directories are skipped, and
+// symlinks are not followed, so a link to a clone is not listed.
 func Discover(root string, maxDepth int) ([]Repo, error) {
 	var repos []Repo
 	if err := discover(root, "", maxDepth, &repos); err != nil {

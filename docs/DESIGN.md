@@ -103,6 +103,7 @@ Rules:
 | `subPackages = [ "cmd/tdm" ]` | `excludedPackages = [ "tools" ]` | With subPackages, checkPhase ran only the cmd/tdm tests (open item settled on the first build). |
 | `generate-check`, `tidy-check` compare with HEAD | compare the tree before and after | `make check` also works on a dirty tree before a commit. |
 | `make check` runs its parts in series | `quick` in series, then vet, lint, test, build with `-j4` | Project standard: the merge gate runs in parallel. |
+| A later file in `$XDG_CONFIG_DIRS` overrides an earlier one | The first directory in `$XDG_CONFIG_DIRS` wins | The XDG Base Directory spec puts the most important directory first. |
 | Config layering by hand | koanf (file, env, confmap providers) | Owner: config parity with wtg. |
 | wtg `config` prints the one config file | `tdm config` prints each layer that it read, lowest priority first | With layers, one file does not show what applies. |
 | wtg config defaults not documented | `discovery.root_dir = "~/repos"`, `discovery.max_depth = 2`, `spaces.root_dir = "~/workspaces"`; an unknown key is an error | Values from the wtg examples; strict keys find typos. |

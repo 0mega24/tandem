@@ -34,23 +34,32 @@ func newManager(cmd *ucli.Command) (*space.Manager, error) {
 	return space.New(loaded.Config, git.System{}, store), nil
 }
 
+// repoArgsHelp is shared because all repo commands resolve names the same way.
+const repoArgsHelp = "With no repo, all main clones under discovery.root_dir (symlinks are not followed).\n" +
+	"A repo is its path under the root (myorg/api), or its last part (api) when that is unique."
+
 func repoCommand() *ucli.Command {
 	return &ucli.Command{
 		Name:  "repo",
 		Usage: "Work on the main clones under discovery.root_dir",
 		Commands: []*ucli.Command{
 			{
-				Name:      "status",
-				Usage:     "Show branch, changes and ahead/behind of each main clone",
-				ArgsUsage: "[repo...]",
+				Name:        "status",
+				Usage:       "Show branch, changes and ahead/behind of each main clone",
+				Description: repoArgsHelp + "\n\nExit status 1 when a repo cannot be read.",
+				ArgsUsage:   "[repo...]",
 				Flags: []ucli.Flag{
 					&ucli.BoolFlag{Name: "long", Aliases: []string{"l"}, Usage: "also show the origin URL and the path"},
 				},
 				Action: repoStatus,
 			},
 			{
-				Name:      "sync",
-				Usage:     "Fetch and fast-forward the default branch of each main clone (worktrees are not touched)",
+				Name:  "sync",
+				Usage: "Fetch and fast-forward the default branch of each main clone (worktrees are not touched)",
+				Description: repoArgsHelp + "\n\n" +
+					"A clone with local changes is skipped, and so is a default branch that is checked out\n" +
+					"in a worktree. A skip is not an error: exit status 1 only when a repo fails, for example\n" +
+					"when its branch and origin have diverged.",
 				ArgsUsage: "[repo...]",
 				Action:    repoSync,
 			},
