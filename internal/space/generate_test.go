@@ -9,6 +9,7 @@ import (
 
 	"github.com/0mega24/tandem/internal/gen"
 	_ "github.com/0mega24/tandem/internal/gen/golang" // the go generator, the default set in these tests
+	"github.com/0mega24/tandem/internal/git/testhelper"
 )
 
 func writeTestFile(t *testing.T, p, content string) {
@@ -71,5 +72,22 @@ func TestGenerateRollback(t *testing.T) {
 	}
 	if b, err := os.ReadFile(filepath.Join(root, "go.work.sum")); err != nil || string(b) != "sum" {
 		t.Errorf("go.work.sum = %q, %v; want it back", b, err)
+	}
+}
+
+func TestIgnoredChecksTheMember(t *testing.T) {
+	f := newFixture(t, "app")
+	testhelper.Commit(t, f.repos["app"].Path, ".gitignore", "subprojects/*\n!subprojects/*.wrap\n", "ignore")
+	newSpaceFor(t, f, "app")
+	sp, err := f.m.Space("feat")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ignored := f.m.ignored(context.Background(), sp)
+	for rel, want := range map[string]bool{"app/subprojects/libfoo": true, "app/subprojects/libfoo.wrap": false, "go.work": false} {
+		if got, err := ignored(rel); err != nil || got != want {
+			t.Errorf("ignored(%s) = %v, %v; want %v", rel, got, err, want)
+		}
 	}
 }

@@ -105,7 +105,7 @@ func (m *Manager) deleteGenerated(ctx context.Context, sp state.Space) []gen.Cha
 		plans[f.Generator] = gen.Plan{}
 	}
 
-	a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(sp), false)
+	a, err := gen.Prepare(sp.Path, owned(sp.Generated), plans, memberDirs(sp), false, nil) // nil: delete makes no links
 	if err == nil {
 		err = saga.Run(ctx, a.Steps())
 	}

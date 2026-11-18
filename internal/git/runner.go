@@ -24,6 +24,7 @@ type Runner interface {
 	RepairWorktree(ctx context.Context, repo, path string) error
 
 	Status(ctx context.Context, dir string) (Status, error)
+	CheckIgnore(ctx context.Context, dir, path string) (bool, error)
 	Unpushed(ctx context.Context, repo, branch string) (int, error)
 
 	Fetch(ctx context.Context, repo string) error
@@ -60,6 +61,18 @@ func (s System) DefaultBranch(ctx context.Context, repo string) (string, error) 
 // BranchExists checks local branches only.
 func (s System) BranchExists(ctx context.Context, repo, branch string) (bool, error) {
 	_, err := s.run(ctx, repo, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch)
+	if err == nil {
+		return true, nil
+	}
+	if exitCode(err) == 1 {
+		return false, nil
+	}
+	return false, err
+}
+
+// CheckIgnore reports whether git ignores path (relative to dir) in the worktree dir.
+func (s System) CheckIgnore(ctx context.Context, dir, path string) (bool, error) {
+	_, err := s.run(ctx, dir, "check-ignore", "--quiet", "--", path)
 	if err == nil {
 		return true, nil
 	}

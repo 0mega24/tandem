@@ -21,7 +21,8 @@ import (
 type Owned struct {
 	Generator string   // generator ID
 	Path      string   // relative to the space root, with "/"
-	SHA256    string   // hex hash of the bytes that tdm wrote
+	SHA256    string   // hex hash of the bytes that tdm wrote; "" for a link
+	Target    string   // for a link: where it points; "" for a file
 	Stale     []string // derived files deleted with this one
 }
 
@@ -57,6 +58,7 @@ type Change struct {
 	Reason    string // for Skip: why; for a forced Write or Delete: where the old file went
 	Old       []byte // the bytes on disk; nil when there is no file
 	New       []byte // the planned bytes; nil for Delete
+	Target    string // for a link: its target, in place of Old and New; "" for a file
 	backup    bool   // a forced change keeps the old file in Path + backupSuffix
 }
 
@@ -90,7 +92,10 @@ const backupSuffix = ".tandem-bak"
 //
 // Force keeps a copy of the old file in <path>.tandem-bak, also for a forced delete. When that
 // copy exists already, the file is skipped: an older copy is never overwritten.
-func Prepare(root string, owned []Owned, plans map[string]Plan, members []string, force bool) (Applied, error) {
+//
+// Links follow the rules in link.go. ignored reports whether git ignores a link path (relative to
+// root) in its member; with nil, no link is made.
+func Prepare(root string, owned []Owned, plans map[string]Plan, members []string, force bool, ignored func(string) (bool, error)) (Applied, error) {
 	root = filepath.Clean(root)
 	a := Applied{root: root, warnings: new([]string)}
 	byPath := map[string]Owned{}
@@ -106,9 +111,6 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 
 	planned := map[string]bool{}
 	for _, id := range ids {
-		if len(plans[id].Links) > 0 {
-			return Applied{}, fmt.Errorf("generator %s: links are not supported yet", id) // they come with meson
-		}
 		for _, s := range plans[id].Stale {
 			if err := CheckPath(root, s, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: stale %w", id, err)
@@ -138,11 +140,36 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 				a.stale = append(a.stale, plans[id].Stale...)
 			}
 		}
+
+		for _, l := range plans[id].Links {
+			if err := CheckLink(root, l, members); err != nil {
+				return Applied{}, fmt.Errorf("generator %s: %w", id, err)
+			}
+			if planned[l.Path] {
+				return Applied{}, fmt.Errorf("generator %s: %s is planned twice", id, l.Path)
+			}
+			planned[l.Path] = true
+
+			c, o, err := decideLink(root, id, l, ignored)
+			if err != nil {
+				return Applied{}, err
+			}
+			a.Changes = append(a.Changes, c)
+			if o != nil {
+				a.Owned = append(a.Owned, *o)
+			}
+		}
 	}
 
 	// The state came from disk and the members may have changed since, so the owned paths go
 	// through the same check before a delete can touch them.
 	for _, o := range owned {
+		if o.Target != "" {
+			if err := CheckLink(root, Link{Path: o.Path, Target: o.Target}, members); err != nil {
+				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
+			}
+			continue
+		}
 		for _, p := range append([]string{o.Path}, o.Stale...) {
 			if err := CheckPath(root, p, members); err != nil {
 				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
@@ -156,6 +183,10 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 		}
 		if _, ran := plans[o.Generator]; !ran {
 			a.Owned = append(a.Owned, o) // a generator that did not run keeps its files
+			continue
+		}
+		if o.Target != "" {
+			a.Changes = append(a.Changes, decideLinkDelete(root, o))
 			continue
 		}
 
@@ -308,10 +339,14 @@ func (a Applied) Steps() []saga.Step {
 
 	var steps []saga.Step
 	for _, c := range a.Changes {
-		switch c.Action {
-		case Write:
+		switch {
+		case c.Action == Write && c.Target != "":
+			steps = append(steps, linkStep(a.root, c))
+		case c.Action == Write:
 			steps = append(steps, writeStep(a.root, c))
-		case Delete:
+		case c.Action == Delete && c.Target != "":
+			steps = append(steps, unlinkStep(a.root, c, warn))
+		case c.Action == Delete:
 			steps = append(steps, deleteStep(a.root, c, warn))
 		}
 	}

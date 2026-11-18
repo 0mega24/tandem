@@ -222,6 +222,20 @@ func (m *Manager) saveRemoved(sp state.Space, removed []Removed) error {
 		}
 	}
 
-	sp.Repos = repos
+	// The links that a generator made inside a removed worktree went with it (generators spec,
+	// Meson rule 7), so they leave the state now, not with a heal warning later.
+	var files []state.GeneratedFile
+	for _, f := range sp.Generated {
+		p := filepath.Join(sp.Path, filepath.FromSlash(f.Path))
+		gone := f.Target != "" && slices.ContainsFunc(removed, func(r Removed) bool {
+			in, err := filepath.Rel(r.Entry.WorktreePath, p)
+			return err == nil && filepath.IsLocal(in)
+		})
+		if !gone {
+			files = append(files, f)
+		}
+	}
+
+	sp.Repos, sp.Generated = repos, files
 	return m.store.Save(sp)
 }
