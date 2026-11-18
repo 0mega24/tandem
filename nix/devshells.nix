@@ -11,9 +11,14 @@ let
     gnumake
     git
     nixfmt
+    statix
+    deadnix
     nil
     taplo
     jq
+    typos
+    actionlint
+    zizmor
   ];
   hook = ''
     # Use the Go from Nix; never download another toolchain.
