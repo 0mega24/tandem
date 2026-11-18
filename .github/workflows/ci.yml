@@ -6,17 +6,59 @@ on:
   push:
     branches: [main]
   pull_request:
+    # ready_for_review starts CI when a draft is marked ready; labeled starts it for "integration".
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   workflow_dispatch:
 
 permissions: {}
 
+# A new push to the same PR or branch cancels the run that is still going.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # Generated files, tidy modules, format, vet, lint (depguard), tests, testscripts, build.
+  # Decides which jobs a change needs. Drafts get no CI at all.
+  changes:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          base=""
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            push) base="$PUSH_BEFORE" ;;
+          esac
+          # Docs-only means every changed file is Markdown, LICENSE or under docs/, except the
+          # generated docs/generators.md. Anything else, or no usable base, runs everything.
+          code=true
+          if [[ -n "$base" && "$base" != 0000000000000000000000000000000000000000 ]] \
+            && git cat-file -e "$base^{commit}" 2>/dev/null; then
+            other="$(git diff --name-only "$base" HEAD \
+              | grep -vE '^(docs/|LICENSE$|([^/]+/)*[^/]+\.md$)' || true)"
+            generated="$(git diff --name-only "$base" HEAD | grep -E '^docs/generators\.md$' || true)"
+            if [[ -z "$other" && -z "$generated" ]]; then code=false; fi
+          fi
+          echo "code=$code" | tee -a "$GITHUB_OUTPUT"
+
+  # Code: generated files, tidy modules, format, typos, vet, lint, tests, testscripts, build.
+  # Docs only: format, typos and the other no-compile checks.
   check:
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -28,17 +70,23 @@ jobs:
       - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - if: needs.changes.outputs.code == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
           key: go-${{ runner.os }}-${{ hashFiles('go.sum', 'go.tool.sum') }}
           restore-keys: go-${{ runner.os }}-
-      - run: nix develop -c make check
+      - if: needs.changes.outputs.code == 'true'
+        run: nix develop -c make check
+      - if: needs.changes.outputs.code != 'true'
+        run: nix develop -c make quick
 
   # Data races and known vulnerabilities.
   race:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -59,12 +107,15 @@ jobs:
           restore-keys: go-race-${{ runner.os }}-
       - run: nix develop -c make test-race vuln
 
-  # The package builds and its tests pass on Linux and macOS; Nix files are formatted.
+  # The package builds and its tests pass; Nix files are formatted. PRs build on Linux only;
+  # main and the nightly run also build on macOS, which is the slowest runner.
   nix:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -80,7 +131,8 @@ jobs:
 
   # Toolchain tests on request: add the "integration" label to a PR. Nightly runs them always.
   integration:
-    if: contains(github.event.pull_request.labels.*.name, 'integration')
+    needs: changes
+    if: needs.changes.outputs.code == 'true' && contains(github.event.pull_request.labels.*.name, 'integration')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -94,10 +146,11 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - run: nix develop .#integration -c make test-integration
 
-  # One stable check name for branch protection. A skipped job (integration without the label) passes.
+  # One stable check name for branch protection. Skipped jobs pass; a draft gets no ci-passed,
+  # so it never looks green.
   ci-passed:
-    if: always()
-    needs: [check, race, nix, integration]
+    if: always() && github.event.pull_request.draft != true
+    needs: [changes, check, race, nix, integration]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
