@@ -7,6 +7,7 @@ All notable changes to this project are in this file. The format follows
 ## [Unreleased]
 
 ### Added
+- Agent skills `tandem` and `tandem-setup`, with Claude Code and Codex plugin manifests.
 - Project skeleton: `tdm version`, shell completion, Makefile, Nix flake (package, overlay, dev
   shells, NixOS and home-manager modules), golangci-lint with depguard structure rules, layout test.
 - Layered config: `/etc/xdg/tandem`, `$XDG_CONFIG_HOME/tandem`, then `TDM_CONFIG` or `--config`.

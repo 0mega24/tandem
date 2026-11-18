@@ -280,6 +280,21 @@ checks and rollback. A planned `tdm import wtg` command will import existing wtg
 See the [plugin protocol](docs/spec/project.md#external-generator-plugins) and
 [migration plan](docs/spec/project.md#migration-from-wtg).
 
+## Agent skills
+
+This repo has two skills for coding agents: `tandem` (use `tdm` in a task) and `tandem-setup`
+(set up `tdm` for a person). Install them as a plugin:
+
+```sh
+claude plugin marketplace add 0mega24/tandem
+claude plugin install tandem@tandem
+```
+
+Codex reads `.codex-plugin/plugin.json`. Copy the folders in `skills/` to `~/.agents/skills/` to
+use them there.
+
+The skills are in [skills/](skills/). The manifests are in `.claude-plugin/` and `.codex-plugin/`.
+
 ## Development
 
 Use `nix develop` or direnv (`.envrc` uses the flake). The Makefile also enters the dev shell.
