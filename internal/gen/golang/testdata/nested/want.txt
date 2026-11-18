@@ -1,0 +1,2 @@
+warning: api has its own go.work; in the space, the go.work in the space root is used
+stale: go.work.sum
