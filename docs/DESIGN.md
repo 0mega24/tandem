@@ -105,6 +105,7 @@ Rules:
 | `make check` runs its parts in series | `quick` in series, then vet, lint, test, build with `-j4` | Project standard: the merge gate runs in parallel. |
 | A later file in `$XDG_CONFIG_DIRS` overrides an earlier one | The first directory in `$XDG_CONFIG_DIRS` wins | The XDG Base Directory spec puts the most important directory first. |
 | `always.files` paths and `always.repos` names not specified | A file is an absolute path or starts with `~/`, base names are unique; an unknown `always.repos` name is an error | A relative path would depend on the current directory; two files with one base name would overwrite each other; a typo must not quietly drop a repo. |
+| `always.run = "<path>"` | Also a bare name on `PATH`; a relative path with `/` is an error. The hook runs in the space root (where tdm runs after a delete), with its output on stderr | A relative path would depend on the directory; stdout stays clean for scripts that read tdm output. |
 | Config layering by hand | koanf (file, env, confmap providers) | Owner: config parity with wtg. |
 | wtg `config` prints the one config file | `tdm config` prints each layer that it read, lowest priority first | With layers, one file does not show what applies. |
 | wtg config defaults not documented | `discovery.root_dir = "~/repos"`, `discovery.max_depth = 2`, `spaces.root_dir = "~/workspaces"`; an unknown key is an error | Values from the wtg examples; strict keys find typos. |

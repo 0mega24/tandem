@@ -10,8 +10,8 @@ connect their build systems.
 > [!NOTE]
 > Tandem is in early development. Today, `tdm` can make a space (`new`, with the `always.*`
 > links and copies), add and remove repos, delete it, print its path and status, show and sync
-> the main clones, run a command in each worktree, and print its config. The `always.run` hook,
-> workspace generators, the TUI, and plugins are planned.
+> the main clones, run a command in each worktree, run the `always.run` hook, and print its
+> config. Workspace generators, the TUI, and plugins are planned.
 
 ## Why
 
@@ -216,7 +216,13 @@ run = ""
 - `secrets`: paths relative to each repo, e.g. `.env`, copied from the main clone into its
   worktree with the same mode. A repo that does not have one is skipped.
 
-The `always.run` hook is planned. Generator config is planned and is not accepted yet.
+- `run`: an executable (absolute, `~/`, or a name on `PATH`) that runs in the space root after
+  `new`, `add`, `remove` and `delete`. It gets `TDM_SPACE_NAME`, `TDM_SPACE_ROOT`,
+  `TDM_SPACE_BRANCH`, `TDM_SPACE_EVENT` (`create`, `add`, `remove`, `delete`), and the lists
+  `TDM_REPOS`, `TDM_REPO_PATHS` and `TDM_EVENT_REPOS` (one entry per line). Its output goes to
+  stderr. A failure is a warning: the command still succeeds.
+
+Generator config is planned and is not accepted yet.
 See the [config types and defaults](internal/config/config.go).
 
 ## Planned
