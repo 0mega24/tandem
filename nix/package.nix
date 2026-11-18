@@ -3,6 +3,7 @@
   stdenv,
   buildGoLatestModule,
   git,
+  python3,
   installShellFiles,
   makeWrapper,
   version,
@@ -23,6 +24,7 @@ buildGoLatestModule (finalAttrs: {
       ../go.sum
       ../cmd
       ../internal
+      ../examples # the plugin tests run the example plugins
       (lib.fileset.maybeMissing ../schema)
     ];
   };
@@ -47,13 +49,18 @@ buildGoLatestModule (finalAttrs: {
     makeWrapper
   ];
 
-  # Unit, golden and testscript tests need git, not language toolchains.
-  nativeCheckInputs = [ git ];
+  # Unit, golden and testscript tests need git, not language toolchains; python3 runs the
+  # example plugins.
+  nativeCheckInputs = [
+    git
+    python3
+  ];
   preCheck = ''
     export HOME="$TMPDIR"
     git config --global user.name nix-build
     git config --global user.email nix-build@example.invalid
     git config --global init.defaultBranch main
+    patchShebangs examples/plugins # the sandbox has no /usr/bin/env
   '';
   checkFlags = [ "-skip=Integration" ];
 

@@ -116,7 +116,7 @@ func TestPlanLimits(t *testing.T) {
 func TestPlanWireAndStderr(t *testing.T) {
 	isolate(t)
 	dir := t.TempDir()
-	script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else cat >&2; printf '\\nfirst\\nlast' >&2; echo '{\"files\":[{\"path\":\"hello\",\"content\":\"hello\\n\"}],\"stale\":[],\"links\":[],\"warnings\":[]}'; fi")
+	script(t, dir, "demo", "if [ \"$1\" = meta ]; then echo '"+validMeta+"'; else cat >&2; printf '\\nfirst\\nlast' >&2; printf '%s\\n' '{\"files\":[{\"path\":\"hello\",\"content\":\"hello\\n\"}],\"stale\":[],\"links\":[],\"warnings\":[]}'; fi") // printf, as the echo of dash expands \n
 	plugins, err := discover([]string{dir}, "")
 	if err != nil {
 		t.Fatal(err)
