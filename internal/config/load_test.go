@@ -196,7 +196,7 @@ func TestDefaultXDGDirs(t *testing.T) {
 
 func TestLoadGenerate(t *testing.T) {
 	env, root := testEnv(t)
-	write(t, root, "home/.config/tandem/config.toml", "[generate]\nenabled = [\"go\"]\n\n[generate.rust]\nmode = \"patch\"\n")
+	write(t, root, "home/.config/tandem/config.toml", "[generate]\nenabled = [\"go\"]\ndetect_depth = 2\n\n[generate.rust]\nmode = \"patch\"\n")
 
 	got, err := Load(env, "")
 	if err != nil {
@@ -207,6 +207,9 @@ func TestLoadGenerate(t *testing.T) {
 	}
 	if rust := got.Config.Generate.Table("rust"); rust["mode"] != "patch" {
 		t.Errorf("generate.rust = %v, want mode patch", rust)
+	}
+	if got.Config.Generate.DetectDepth != 2 {
+		t.Errorf("detect_depth = %d, want 2", got.Config.Generate.DetectDepth)
 	}
 	if got.Config.Generate.Table("go") != nil {
 		t.Error("generate.go table, want none")
