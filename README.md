@@ -169,6 +169,9 @@ feat         ~/workspaces/feat
 $ cd "$(tdm path feat)"    # or: tcd feat
 ```
 
+If you delete a worktree with `rm`, the next command prunes it in git and takes it out of the
+space, with a warning. Its commits stay on the branch.
+
 A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
 branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and the
 directory. When a step fails, `tdm new` undoes the steps before it.
