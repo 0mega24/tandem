@@ -1,0 +1,2 @@
+stale: bun.lock
+stale: node_modules

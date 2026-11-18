@@ -1,0 +1,7 @@
+{
+  "name": "tandem-feat",
+  "private": true,
+  "workspaces": [
+    "./shared/packages/*"
+  ]
+}

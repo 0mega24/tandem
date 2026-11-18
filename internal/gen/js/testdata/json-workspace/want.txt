@@ -1,0 +1,2 @@
+stale: package-lock.json
+stale: node_modules

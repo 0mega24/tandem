@@ -1,0 +1,1 @@
+warning: members use different package managers: npm, pnpm; set generate.js.manager to select one
