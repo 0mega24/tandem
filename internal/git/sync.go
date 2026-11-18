@@ -34,7 +34,14 @@ func (s System) FastForward(ctx context.Context, repo, branch string) (bool, err
 
 	_, err = s.run(ctx, repo, "merge-base", "--is-ancestor", local, remote)
 	if exitCode(err) == 1 {
-		return false, fmt.Errorf("%s in %s: %w", branch, repo, ErrNotFastForward)
+		// Local commits on top of origin are not a divergence: there is nothing to pull.
+		_, err = s.run(ctx, repo, "merge-base", "--is-ancestor", remote, local)
+		if err == nil {
+			return false, nil
+		}
+		if exitCode(err) == 1 {
+			return false, fmt.Errorf("%s in %s: %w", branch, repo, ErrNotFastForward)
+		}
 	}
 	if err != nil {
 		return false, err
