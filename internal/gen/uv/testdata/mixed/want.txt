@@ -1,0 +1,3 @@
+warning: frontend has no Python project; omitted from the uv workspace (mixed build systems)
+stale: uv.lock
+stale: .venv
