@@ -112,6 +112,9 @@ func TestForce(t *testing.T) {
 	if got := readFile(t, root, "theirs.txt"+backupSuffix); got != "not ours" {
 		t.Errorf("backup = %q, want the old file", got)
 	}
+	if got := readFile(t, root, "edited.txt"+backupSuffix); got != "a person's edit" {
+		t.Errorf("backup of the changed owned file = %q, want the edit", got)
+	}
 	if len(a.Owned) != 2 {
 		t.Errorf("owned = %+v, want both files", a.Owned)
 	}
@@ -260,5 +263,75 @@ func TestWriteStepCleansUpAFailure(t *testing.T) {
 	}
 	if got := readFile(t, root, "theirs.txt/keep"); got != "k" {
 		t.Errorf("theirs.txt/keep = %q, want it untouched", got)
+	}
+}
+
+func TestForceDeleteKeepsACopy(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "edited.txt", "a person's edit")
+	owned := []Owned{{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1"))}}
+
+	a, err := Prepare(root, owned, map[string]Plan{"go": {}}, nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(t, a)
+	if readFile(t, root, "edited.txt") != "<missing>" || readFile(t, root, "edited.txt"+backupSuffix) != "a person's edit" {
+		t.Error("a forced delete of a changed file did not keep a copy")
+	}
+}
+
+func TestOwnedWithPlannedBytes(t *testing.T) {
+	// A person made the file equal to the new plan: nothing to write, and the state gets the new
+	// hash. A skipped file keeps the stale list that it was written with.
+	root := t.TempDir()
+	writeFile(t, root, "go.work", "v2")
+	writeFile(t, root, "edited.txt", "a person's edit")
+	owned := []Owned{
+		{Generator: "go", Path: "go.work", SHA256: hash([]byte("v1"))},
+		{Generator: "go", Path: "edited.txt", SHA256: hash([]byte("v1")), Stale: []string{"old.sum"}},
+	}
+
+	a, err := Prepare(root, owned, map[string]Plan{"go": plan(file("edited.txt", "v2"), file("go.work", "v2"))}, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Changes[1].Action != Unchanged {
+		t.Errorf("go.work: %v, want unchanged", a.Changes[1].Action)
+	}
+	if a.Owned[1].SHA256 != hash([]byte("v2")) {
+		t.Errorf("go.work hash = %s, want the hash of v2", a.Owned[1].SHA256)
+	}
+	if got := a.Owned[0].Stale; len(got) != 1 || got[0] != "old.sum" {
+		t.Errorf("edited.txt stale = %v, want [old.sum]", got)
+	}
+}
+
+func TestStaleStepsOnce(t *testing.T) {
+	root := t.TempDir()
+	a, err := Prepare(root, nil, map[string]Plan{"go": plan(file("a", "a"), file("b", "b"))}, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, st := range a.Steps() {
+		if strings.HasPrefix(st.Name, "delete stale ") {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("%d stale steps for go.work.sum, want 1", n)
+	}
+}
+
+func TestRemoveEmptyDirsKeepsSymlinks(t *testing.T) {
+	root := t.TempDir()
+	target := t.TempDir()
+	if err := os.Symlink(target, filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	removeEmptyDirs(filepath.Join(root, "link"), root)
+	if _, err := os.Lstat(filepath.Join(root, "link")); err != nil {
+		t.Errorf("link = %v, want the symlink kept", err)
 	}
 }

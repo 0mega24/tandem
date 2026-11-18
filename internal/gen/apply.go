@@ -54,10 +54,10 @@ type Change struct {
 	Generator string // generator ID
 	Path      string // relative to the space root, with "/"
 	Action    Action // what Apply does
-	Reason    string // for Skip: why; for a forced Write: where the old file went
+	Reason    string // for Skip: why; for a forced Write or Delete: where the old file went
 	Old       []byte // the bytes on disk; nil when there is no file
 	New       []byte // the planned bytes; nil for Delete
-	backup    bool   // a forced write keeps the old file in Path + backupSuffix
+	backup    bool   // a forced change keeps the old file in Path + backupSuffix
 }
 
 // Applied is the result of Prepare: the decisions, and the state that results from them.
@@ -74,17 +74,23 @@ const backupSuffix = ".tandem-bak"
 // Prepare compares the plans of the generators that ran with the disk and the owned files. It
 // only reads. plans has an entry for each generator that ran, also when its plan is empty: the
 // owned files of a generator that ran and planned nothing are deleted. Owned files of other
-// generators stay as they are. members are the short names of the member worktrees, which no
-// plan may write into.
+// generators stay as they are. members are the worktree paths of the members relative to root,
+// with "/" (such as "api" or "org/api"); no plan may write into them.
 //
 // The ownership check, for each planned file:
 //
 //   - No file on disk: write it.
 //   - Owned, and the disk has the hash that tdm wrote: write it again (or nothing when the bytes
 //     are the same).
+//   - Owned, the hash differs, but the disk has the planned bytes: nothing to write; the new
+//     hash goes in the state.
 //   - Owned, but the hash differs: a person changed it. Skip, unless force.
-//   - Not owned: someone else's file. Skip, unless force; force keeps a copy in <path>.tandem-bak.
+//   - Not owned: someone else's file. Skip, unless force.
+//
+// Force keeps a copy of the old file in <path>.tandem-bak, also for a forced delete. When that
+// copy exists already, the file is skipped: an older copy is never overwritten.
 func Prepare(root string, owned []Owned, plans map[string]Plan, members []string, force bool) (Applied, error) {
+	root = filepath.Clean(root)
 	a := Applied{root: root}
 	byPath := map[string]Owned{}
 	for _, o := range owned {
@@ -103,12 +109,12 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			return Applied{}, fmt.Errorf("generator %s: links are not supported yet", id) // they come with meson
 		}
 		for _, s := range plans[id].Stale {
-			if err := checkPath(root, s, members); err != nil {
+			if err := CheckPath(root, s, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: stale %w", id, err)
 			}
 		}
 		for _, f := range plans[id].Files {
-			if err := checkPath(root, f.Path, members); err != nil {
+			if err := CheckPath(root, f.Path, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: %w", id, err)
 			}
 			if planned[f.Path] {
@@ -122,7 +128,9 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 			}
 			a.Changes = append(a.Changes, c)
 			if o != nil {
-				o.Stale = plans[id].Stale
+				if c.Action != Skip {
+					o.Stale = plans[id].Stale // a skipped file keeps the stale list it was written with
+				}
 				a.Owned = append(a.Owned, *o)
 			}
 			if c.Action == Write {
@@ -135,7 +143,7 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 	// through the same check before a delete can touch them.
 	for _, o := range owned {
 		for _, p := range append([]string{o.Path}, o.Stale...) {
-			if err := checkPath(root, p, members); err != nil {
+			if err := CheckPath(root, p, members); err != nil {
 				return Applied{}, fmt.Errorf("owned by %s: %w", o.Generator, err)
 			}
 		}
@@ -184,26 +192,29 @@ func decide(root, id string, f File, byPath map[string]Owned, force bool) (Chang
 	c.Old = old
 
 	prev, isOwned := byPath[f.Path]
-	switch {
-	case isOwned && prev.SHA256 == hash(old):
+	if isOwned && (prev.SHA256 == hash(old) || bytes.Equal(old, f.Content)) {
 		c.Action = Write
 		if bytes.Equal(old, f.Content) {
 			c.Action = Unchanged
 		}
-	case force && isOwned:
-		c.Action, c.Reason = Write, "changed by a person; replaced (--force)"
-	case force && exists(filepath.Join(root, filepath.FromSlash(f.Path))+backupSuffix):
-		c.Action, c.Reason = Skip, "not written by tdm, and "+f.Path+backupSuffix+" exists; move it away to replace the file"
-		return c, nil, nil
-	case force:
-		c.Action, c.Reason, c.backup = Write, "not written by tdm; the old file is in "+f.Path+backupSuffix, true
-	case isOwned:
-		c.Action, c.Reason = Skip, "changed by a person; --force replaces it"
-		return c, &prev, nil // still tdm's file: a later --force or a person's revert can take it back
-	default:
-		c.Action, c.Reason = Skip, "not written by tdm; --force replaces it and keeps a copy"
-		return c, nil, nil
+		return c, own, nil
 	}
+
+	var keep *Owned // a changed file stays tdm's: a later --force or a person's revert takes it back
+	who := "not written by tdm"
+	if isOwned {
+		keep, who = &prev, "changed by a person"
+	}
+	bak := f.Path + backupSuffix
+	switch {
+	case !force:
+		c.Action, c.Reason = Skip, who+"; --force replaces it and keeps a copy"
+		return c, keep, nil
+	case exists(filepath.Join(root, filepath.FromSlash(bak))):
+		c.Action, c.Reason = Skip, who+", and "+bak+" exists; move it away to replace the file"
+		return c, keep, nil
+	}
+	c.Action, c.Reason, c.backup = Write, who+"; the old file is in "+bak, true
 	return c, own, nil
 }
 
@@ -214,7 +225,7 @@ func decideDelete(root string, o Owned, force bool) (Change, bool, error) {
 
 	old, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(o.Path))) //nolint:gosec // G304: a path from the state, checked at load
 	if errors.Is(err, fs.ErrNotExist) {
-		c.Action = Unchanged // already gone; it leaves the state
+		c.Action, c.Reason = Unchanged, "already gone" // it leaves the state
 		return c, false, nil
 	}
 	if err != nil {
@@ -222,20 +233,31 @@ func decideDelete(root string, o Owned, force bool) (Change, bool, error) {
 	}
 	c.Old = old
 
-	if hash(old) != o.SHA256 && !force {
-		c.Action, c.Reason = Skip, "changed by a person, so it is kept; --force deletes it"
+	if hash(old) == o.SHA256 {
+		c.Action = Delete
+		return c, false, nil
+	}
+
+	bak := o.Path + backupSuffix
+	switch {
+	case !force:
+		c.Action, c.Reason = Skip, "changed by a person, so it is kept; --force deletes it and keeps a copy"
+		return c, true, nil
+	case exists(filepath.Join(root, filepath.FromSlash(bak))):
+		c.Action, c.Reason = Skip, "changed by a person, and "+bak+" exists; move it away to delete the file"
 		return c, true, nil
 	}
-	c.Action = Delete
+	c.Action, c.Reason, c.backup = Delete, "changed by a person; the old file is in "+bak, true
 	return c, false, nil
 }
 
-// checkPath enforces the rules for a path that tdm writes or deletes: relative to the space root,
+// CheckPath enforces the rules for a path that tdm writes or deletes: relative to the space root,
 // clean, with "/", not inside a member worktree, and not through a symlink on disk. A symlink in
 // the root is an always.repos entry: a path through it would change the main clone.
 //
-// The member check ignores case, because macOS and Windows file systems do.
-func checkPath(root, p string, members []string) error {
+// The member check ignores case, because macOS and Windows file systems do. members are as in
+// Prepare.
+func CheckPath(root, p string, members []string) error {
 	if p == "" || path.IsAbs(p) || path.Clean(p) != p || strings.HasPrefix(p, "../") || p == ".." || strings.Contains(p, `\`) {
 		return fmt.Errorf("path %q must be clean, relative and inside the space root", p)
 	}
@@ -272,8 +294,8 @@ func hash(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Steps returns the saga steps that make the changes: writes and deletes, then the stale files.
-// Each step's undo puts back the bytes that were there.
+// Steps returns the saga steps that make the changes: writes and deletes, then the stale files,
+// each once. Each step's undo puts back the bytes that were there.
 func (a Applied) Steps() []saga.Step {
 	var steps []saga.Step
 	for _, c := range a.Changes {
@@ -281,12 +303,16 @@ func (a Applied) Steps() []saga.Step {
 		case Write:
 			steps = append(steps, writeStep(a.root, c))
 		case Delete:
-			steps = append(steps, deleteStep(a.root, c.Path, c.Old))
+			steps = append(steps, deleteStep(a.root, c))
 		}
 	}
 
+	seen := map[string]bool{}
 	for _, s := range a.stale {
-		steps = append(steps, staleStep(a.root, s))
+		if !seen[s] {
+			seen[s] = true
+			steps = append(steps, staleStep(a.root, s))
+		}
 	}
 	return steps
 }
@@ -363,12 +389,22 @@ func writeAtomic(p string, b []byte) error {
 	return os.Rename(tmp.Name(), p)
 }
 
-func deleteStep(root, rel string, old []byte) saga.Step {
-	p := filepath.Join(root, filepath.FromSlash(rel))
+func deleteStep(root string, c Change) saga.Step {
+	p := filepath.Join(root, filepath.FromSlash(c.Path))
+	madeBackup := false
 	return saga.Step{
-		Name: "delete " + rel,
+		Name: "delete " + c.Path,
 		Do: func(context.Context) error {
+			if c.backup {
+				if err := writeAtomic(p+backupSuffix, c.Old); err != nil {
+					return err
+				}
+				madeBackup = true
+			}
 			if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				if madeBackup {
+					return errors.Join(err, os.Remove(p+backupSuffix)) // the saga undoes only finished steps
+				}
 				return err
 			}
 			removeEmptyDirs(filepath.Dir(p), root)
@@ -378,7 +414,13 @@ func deleteStep(root, rel string, old []byte) saga.Step {
 			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // as before the delete
 				return err
 			}
-			return writeAtomic(p, old)
+			if err := writeAtomic(p, c.Old); err != nil {
+				return err
+			}
+			if madeBackup {
+				return os.Remove(p + backupSuffix)
+			}
+			return nil
 		},
 	}
 }
@@ -425,10 +467,11 @@ func firstMissing(dir, root string) string {
 }
 
 // removeEmptyDirs removes dir and its empty parents up to stop (not included), such as the
-// .cargo/ that a generator made. It stops at the first directory that is not empty.
+// .cargo/ that a generator made. It removes only empty directories, never a symlink, and stops at
+// the first one that it cannot remove.
 func removeEmptyDirs(dir, stop string) {
 	for d := dir; d != stop && strings.HasPrefix(d, stop+string(filepath.Separator)); d = filepath.Dir(d) {
-		if os.Remove(d) != nil {
+		if fi, err := os.Lstat(d); err != nil || !fi.IsDir() || os.Remove(d) != nil {
 			return
 		}
 	}
