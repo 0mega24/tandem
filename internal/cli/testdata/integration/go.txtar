@@ -1,0 +1,42 @@
+# go: the go.work of the space lets api build against the local lib, with no replace and no
+# published version of lib.
+[!exec:go] skip 'needs go'
+mkrepo api lib
+exec tdm new feat api lib
+cp lib.mod $HOME/workspaces/feat/lib/go.mod
+cp lib.go $HOME/workspaces/feat/lib/lib.go
+cp api.mod $HOME/workspaces/feat/api/go.mod
+cp main.go $HOME/workspaces/feat/api/main.go
+exec tdm generate feat
+stdout 'go +✓ go.work +\(api, lib\)'
+
+cd $HOME/workspaces/feat/api
+env GOFLAGS=
+env GOPROXY=off
+exec go run .
+stdout '^local lib$'
+
+-- lib.mod --
+module example.com/lib
+
+go 1.22
+-- lib.go --
+package lib
+
+func Name() string { return "local lib" }
+-- api.mod --
+module example.com/api
+
+go 1.22
+
+require example.com/lib v0.0.0
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lib"
+)
+
+func main() { fmt.Println(lib.Name()) }

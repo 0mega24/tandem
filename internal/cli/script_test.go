@@ -20,40 +20,43 @@ func TestMain(m *testing.M) {
 // variables point into it, so a script never reads the real config or state.
 func TestScript(t *testing.T) {
 	testscript.Run(t, testscript.Params{
-		Dir: "testdata/script",
-		Setup: func(e *testscript.Env) error {
-			examples, err := filepath.Abs("../../examples/plugins")
-			if err != nil {
-				return err
-			}
-			e.Setenv("PLUGIN_EXAMPLES", examples)
-			home := filepath.Join(e.WorkDir, "home")
-			e.Setenv("HOME", home)
-			e.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-			e.Setenv("XDG_CONFIG_DIRS", filepath.Join(e.WorkDir, "etc/xdg"))
-			e.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local/share"))
-			e.Setenv("TDM_CONFIG", "")
-
-			// git must not read the user's config, and commits need a fixed author.
-			gitconfig := filepath.Join(e.WorkDir, ".gitconfig")
-			if err := os.WriteFile(gitconfig, []byte("[init]\n\tdefaultBranch = main\n"), 0o600); err != nil {
-				return err
-			}
-			e.Setenv("GIT_CONFIG_GLOBAL", gitconfig)
-			e.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-			for _, k := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"} {
-				e.Setenv(k, "Test")
-			}
-			for _, k := range []string{"GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"} {
-				e.Setenv(k, "test@example.invalid")
-			}
-
-			return nil
-		},
+		Dir:   "testdata/script",
+		Setup: scriptSetup,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"mkrepo": mkrepo,
 		},
 	})
+}
+
+// scriptSetup gives a script its own HOME, XDG dirs and git config.
+func scriptSetup(e *testscript.Env) error {
+	examples, err := filepath.Abs("../../examples/plugins")
+	if err != nil {
+		return err
+	}
+	e.Setenv("PLUGIN_EXAMPLES", examples)
+	home := filepath.Join(e.WorkDir, "home")
+	e.Setenv("HOME", home)
+	e.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	e.Setenv("XDG_CONFIG_DIRS", filepath.Join(e.WorkDir, "etc/xdg"))
+	e.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local/share"))
+	e.Setenv("TDM_CONFIG", "")
+
+	// git must not read the user's config, and commits need a fixed author.
+	gitconfig := filepath.Join(e.WorkDir, ".gitconfig")
+	if err := os.WriteFile(gitconfig, []byte("[init]\n\tdefaultBranch = main\n"), 0o600); err != nil {
+		return err
+	}
+	e.Setenv("GIT_CONFIG_GLOBAL", gitconfig)
+	e.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	for _, k := range []string{"GIT_AUTHOR_NAME", "GIT_COMMITTER_NAME"} {
+		e.Setenv(k, "Test")
+	}
+	for _, k := range []string{"GIT_AUTHOR_EMAIL", "GIT_COMMITTER_EMAIL"} {
+		e.Setenv(k, "test@example.invalid")
+	}
+
+	return nil
 }
 
 // mkrepo <name>... makes $HOME/repos/<name>, a clone with one commit on main, and its bare

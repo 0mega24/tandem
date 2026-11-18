@@ -197,7 +197,7 @@ test-script: ## End-to-end testscript tests only (needs git only)
 
 .PHONY: test-integration
 test-integration: ## Toolchain tests (cargo, pnpm, gradle, ...); skips missing tools
-	$(GOTESTSUM) -- -tags integration -timeout 20m $(TEST_FLAGS) ./internal/gen/...
+	$(GOTESTSUM) -- -tags integration -run TestIntegration -timeout 30m $(TEST_FLAGS) ./internal/cli/
 
 .PHONY: golden-update
 golden-update: ## Rewrite golden files from current output
