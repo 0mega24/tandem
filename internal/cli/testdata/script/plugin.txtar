@@ -11,9 +11,10 @@ exec tdm plugin check zig
 stdout 'zig: meta passed'
 stdout 'zig: plan passed'
 
-mkrepo app
-exec tdm new feat app --generate zig
+mkrepo app lib
+exec tdm new feat app lib --generate zig
 cp manifest $HOME/workspaces/feat/app/build.zig.zon
+cp manifest $HOME/workspaces/feat/lib/build.zig.zon
 exec tdm generate feat
 stdout 'zig +✓ .tandem/zig/forks.args'
 cmp $HOME/workspaces/feat/.tandem/zig/forks.args forks.args
@@ -25,7 +26,7 @@ stdout '^zig +off +Zig +build.zig.zon +.*/tdm-gen-zig$'
 # A failed plugin plan rolls back the worktree creation.
 cp failed $XDG_DATA_HOME/tandem/plugins/tdm-gen-fail
 exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-fail
-! exec tdm new broken app --generate fail
+! exec tdm new broken app lib --generate fail
 stderr 'fail: plan failed'
 stderr 'supported versions: 1'
 ! exists $HOME/workspaces/broken
@@ -55,6 +56,7 @@ echo '{"protocol":1,"id":"marker","languages":[],"manifests":[],"default_on":fal
 .{}
 -- forks.args --
 --fork=../../app
+--fork=../../lib
 -- collision --
 #!/bin/sh
 printf '%s\n' '{"protocol":1,"id":"go","languages":[],"manifests":[],"default_on":false,"config_schema":{}}'

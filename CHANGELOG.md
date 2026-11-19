@@ -7,6 +7,9 @@ All notable changes to this project are in this file. The format follows
 ## [Unreleased]
 
 ### Changed
+- A generator writes files only when two or more members need connecting. With one member it
+  prints `nothing to connect` and deletes the files it wrote before. A `go.work` around one
+  module turned on Go workspace mode, which breaks `go tool -modfile`.
 - `tdm config init` writes every setting with its default (discovery, spaces, git, always,
   generate, plugin_dirs), and no "do not edit" line.
 - `tdm new`, `add`, `remove` and `generate` print no row for a generator that found no members.

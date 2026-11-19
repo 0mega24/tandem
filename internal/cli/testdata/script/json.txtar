@@ -37,6 +37,7 @@ exec tdm --json path feat
 stdout '"path": ".*/workspaces/feat"'
 jsonvalid
 cp module $HOME/workspaces/feat/api/go.mod
+cp webmodule $HOME/workspaces/feat/web/go.mod
 exec tdm --json generate --dry-run feat
 stdout '"dry_run": true'
 stdout '"action": "write"'
@@ -106,7 +107,7 @@ stdout '"protocol": 1'
 stdout '"plan_passed": true'
 jsonvalid
 # Generator warnings remain on stderr and are also in the result.
-exec tdm --json new warn api --generate demo
+exec tdm --json new warn api web --generate demo
 stderr '^tdm: warning: demo: sample warning$'
 stdout '"demo: sample warning"'
 jsonvalid
@@ -149,6 +150,10 @@ jsonvalid stderr
 
 -- module --
 module example.com/api
+
+go 1.23
+-- webmodule --
+module example.com/web
 
 go 1.23
 -- edited --

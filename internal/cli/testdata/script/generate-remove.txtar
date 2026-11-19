@@ -12,26 +12,22 @@ exec git -C $HOME/repos/lib push -q origin main
 exec tdm new feat api lib
 grep '\./lib' $HOME/workspaces/feat/go.work
 
-exec tdm remove feat lib
-stdout '^  go +✓ go.work +\(api\)$'
-! grep '\./lib' $HOME/workspaces/feat/go.work
-
-# With no Go member left, go.work and its go.work.sum go.
+# With one Go member left there is nothing to connect: go.work and its go.work.sum go.
 cp sum $HOME/workspaces/feat/go.work.sum
-exec tdm remove feat api
+exec tdm remove feat lib
 stdout '^  go +- go.work +deleted$'
 ! exists $HOME/workspaces/feat/go.work
 ! exists $HOME/workspaces/feat/go.work.sum
 
 # delete deletes the generated files that nobody changed, and keeps a changed one.
-exec tdm new one api
+exec tdm new one api lib
 cp sum $HOME/workspaces/one/go.work.sum
 exec tdm delete one
 stdout '^go.work +✓ removed$'
 stdout '^one +✓ deleted$'
 ! exists $HOME/workspaces/one
 
-exec tdm new two api
+exec tdm new two api lib
 cp edited.work $HOME/workspaces/two/go.work
 exec tdm delete two
 stdout '^go.work +! kept: changed by a person'
