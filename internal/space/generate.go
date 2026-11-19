@@ -38,6 +38,16 @@ type GenerateResult struct {
 // The ownership check of gen.Prepare decides each file. The writes and the state save are one
 // saga, so a failure puts the old files back. A dry run heals the state in memory only.
 func (m *Manager) Generate(ctx context.Context, name string, opts GenerateOptions) (GenerateResult, error) {
+	unlock, err := m.store.Lock(name)
+	if err != nil {
+		return GenerateResult{}, err
+	}
+	defer unlock()
+	return m.generate(ctx, name, opts)
+}
+
+// generate is Generate for a caller that holds the lock of the space.
+func (m *Manager) generate(ctx context.Context, name string, opts GenerateOptions) (GenerateResult, error) {
 	sp, err := m.store.Load(name)
 	if err != nil {
 		return GenerateResult{}, err

@@ -45,12 +45,18 @@ type Removed struct {
 // failure and saves the state with the repos that it removed. Then the generators write their
 // files again for the members that are left, like tdm generate.
 func (m *Manager) RemoveRepos(ctx context.Context, name string, names []string, opts RemoveOptions) ([]Removed, GenerateResult, error) {
+	unlock, err := m.store.Lock(name)
+	if err != nil {
+		return nil, GenerateResult{}, err
+	}
+	defer unlock()
+
 	out, err := m.removeRepos(ctx, name, names, opts)
 	if err != nil || len(out) == 0 {
 		return out, GenerateResult{}, err
 	}
 
-	generated, err := m.Generate(ctx, name, GenerateOptions{})
+	generated, err := m.generate(ctx, name, GenerateOptions{})
 	if err != nil {
 		return out, generated, fmt.Errorf("the repos are removed, but the workspace files are not up to date; run tdm generate %s: %w", name, err)
 	}
