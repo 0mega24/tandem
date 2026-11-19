@@ -61,6 +61,9 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
+	if cmd.Bool("json") {
+		return writeJSON(cmd.Root().Writer, jsonGenerate(res, cmd.Bool("dry-run")))
+	}
 	t := ui.NewTable(cmd.Root().Writer)
 	generatedRows(t, res)
 	if err := t.Flush(); err != nil {
@@ -142,8 +145,11 @@ func listGenerators(cmd *ucli.Command) error {
 	if _, _, err := loadGenerators(cmd); err != nil {
 		return err
 	}
+	out := generateListOutput{Generators: []generatorOutput{}}
 	t := ui.NewTable(cmd.Root().Writer)
-	t.Row("ID", "DEFAULT", "LANGUAGES", "MANIFESTS", "SOURCE")
+	if !cmd.Bool("json") {
+		t.Row("ID", "DEFAULT", "LANGUAGES", "MANIFESTS", "SOURCE")
+	}
 	for _, g := range gen.All() {
 		if p, ok := g.(external.Plugin); ok {
 			if err := p.Load(); err != nil {
@@ -161,7 +167,20 @@ func listGenerators(cmd *ucli.Command) error {
 		if p, ok := g.(external.Plugin); ok {
 			source = p.Path
 		}
-		t.Row(meta.ID, on, strings.Join(meta.Languages, ", "), strings.Join(meta.Manifests, ", "), source)
+		if cmd.Bool("json") {
+			out.Generators = append(out.Generators, generatorOutput{
+				ID:        meta.ID,
+				DefaultOn: meta.DefaultOn,
+				Languages: append([]string{}, meta.Languages...),
+				Manifests: append([]string{}, meta.Manifests...),
+				Source:    source,
+			})
+		} else {
+			t.Row(meta.ID, on, strings.Join(meta.Languages, ", "), strings.Join(meta.Manifests, ", "), source)
+		}
+	}
+	if cmd.Bool("json") {
+		return writeJSON(cmd.Root().Writer, out)
 	}
 	return t.Flush()
 }

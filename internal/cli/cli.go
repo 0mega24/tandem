@@ -37,7 +37,10 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}()
 	root := newRoot(stdin, stdout, stderr)
 	if err := root.Run(ctx, args); err != nil {
-		if !errors.Is(err, errReported) {
+		if root.Bool("json") {
+			// The exit code still reports failure when stderr cannot be written.
+			_ = writeJSON(stderr, errorOutput{Error: err.Error()})
+		} else if !errors.Is(err, errReported) {
 			// The exit code reports the failure; a broken stderr leaves nothing else to do.
 			_, _ = fmt.Fprintln(stderr, ui.Error(stderr), err)
 		}
@@ -47,7 +50,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 }
 
 func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
-	return &ucli.Command{
+	root := &ucli.Command{
 		Name:                  "tdm",
 		Usage:                 "one branch across many repos, as git worktrees, with language workspace files",
 		Reader:                stdin,
@@ -58,6 +61,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 		// Run returns the exit code; urfave/cli must not call os.Exit itself.
 		ExitErrHandler: func(context.Context, *ucli.Command, error) {},
 		Flags: []ucli.Flag{
+			&ucli.BoolFlag{Name: "json", Usage: "print command results as JSON"},
 			&ucli.StringFlag{
 				Name:      "config",
 				Usage:     "config `FILE` that overrides all other layers (also: TDM_CONFIG)",
@@ -82,10 +86,35 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 				Name:  "version",
 				Usage: "Print the version",
 				Action: func(_ context.Context, cmd *ucli.Command) error {
-					_, err := fmt.Fprintln(cmd.Root().Writer, version.Get())
+					info := version.Get()
+					if cmd.Bool("json") {
+						return writeJSON(cmd.Root().Writer, versionOutput{Version: info.Version, Commit: info.Commit, Date: info.Date})
+					}
+					_, err := fmt.Fprintln(cmd.Root().Writer, info)
 					return err
 				},
 			},
 		},
+	}
+	jsonUsageErrors(root)
+	return root
+}
+
+// jsonUsageErrors keeps parser help out of JSON errors. Text mode keeps urfave's usage output.
+func jsonUsageErrors(cmd *ucli.Command) {
+	cmd.OnUsageError = func(_ context.Context, current *ucli.Command, err error, _ bool) error {
+		if current.Bool("json") {
+			return err
+		}
+		if _, writeErr := fmt.Fprintf(current.Root().ErrWriter, "Incorrect Usage: %s\n\n", err); writeErr != nil {
+			return errors.Join(err, writeErr)
+		}
+		if current == current.Root() {
+			return errors.Join(err, ucli.ShowRootCommandHelp(current))
+		}
+		return errors.Join(err, ucli.ShowSubcommandHelp(current))
+	}
+	for _, child := range cmd.Commands {
+		jsonUsageErrors(child)
 	}
 }

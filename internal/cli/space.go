@@ -83,6 +83,16 @@ func newSpace(ctx context.Context, cmd *ucli.Command) error {
 
 // printNew prints what new or add made: the worktrees, links and copies.
 func printNew(cmd *ucli.Command, res space.NewResult) error {
+	if cmd.Bool("json") {
+		if err := printWarnings(cmd, res.Generated); err != nil {
+			return err
+		}
+		out := jsonNew(res)
+		if cmd.Name == "add" {
+			return writeJSON(cmd.Root().Writer, addOutput(out))
+		}
+		return writeJSON(cmd.Root().Writer, out)
+	}
 	t := ui.NewTable(cmd.Root().Writer)
 	t.Row(res.Space.Name, res.Space.Path)
 	for _, r := range res.Repos {
@@ -171,6 +181,9 @@ func pathCommand() *ucli.Command {
 				return err
 			}
 
+			if cmd.Bool("json") {
+				return writeJSON(cmd.Root().Writer, pathOutput{Path: sp.Path})
+			}
 			_, err = fmt.Fprintln(cmd.Root().Writer, sp.Path)
 			return err
 		},
@@ -237,6 +250,11 @@ func spaceStatus(ctx context.Context, cmd *ucli.Command) error {
 	list, err := m.Status(ctx, cmd.Args().Slice(), dir)
 	if err != nil {
 		return err
+	}
+
+	if cmd.Bool("json") {
+		out, resultErr := jsonStatus(list, cmd.Bool("long"))
+		return errors.Join(resultErr, writeJSON(cmd.Root().Writer, out))
 	}
 
 	t := ui.NewTable(cmd.Root().Writer)
@@ -337,6 +355,11 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 		Confirm:      func(risks []space.Risk) bool { return confirm(cmd, risks) },
 	})
 
+	if cmd.Bool("json") {
+		out := removeOutput{Space: args[0], Repos: jsonRemoved(removed, cmd.Bool("delete-branch")), Generated: jsonGenerate(generated, false)}
+		return errors.Join(err, printWarnings(cmd, generated), writeJSON(cmd.Root().Writer, out))
+	}
+
 	t := ui.NewTable(cmd.Root().Writer)
 	removedRows(t, removed, cmd.Bool("delete-branch"))
 	generatedRows(t, generated)
@@ -399,6 +422,17 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 		ForceBranch:  force,
 		Confirm:      func(risks []space.Risk) bool { return confirm(cmd, risks) },
 	})
+
+	if cmd.Bool("json") {
+		out := deleteOutput{
+			Space:     jsonSpace(res.Space),
+			Repos:     jsonRemoved(res.Repos, force || cmd.Bool("delete-branch")),
+			Files:     append([]string{}, res.Files...),
+			Generated: jsonChanges(res.Generated, false),
+			KeptDir:   res.KeptDir,
+		}
+		return errors.Join(err, writeJSON(cmd.Root().Writer, out))
+	}
 
 	t := ui.NewTable(cmd.Root().Writer)
 	removedRows(t, res.Repos, force || cmd.Bool("delete-branch"))
@@ -471,6 +505,9 @@ func execCommand() *ucli.Command {
 }
 
 func execSpace(ctx context.Context, cmd *ucli.Command) error {
+	if cmd.Bool("json") {
+		return errors.New("--json is not supported by exec")
+	}
 	args := cmd.Args().Slice()
 	if len(args) < 2 {
 		return errors.New("give a space and a command: tdm exec <space> -- <command> [args...]")

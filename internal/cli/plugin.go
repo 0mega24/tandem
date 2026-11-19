@@ -71,8 +71,10 @@ func checkPlugin(_ context.Context, cmd *ucli.Command) (err error) {
 	if err := p.Load(); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(cmd.Root().Writer, "%s: meta passed (protocol 1)\n", id); err != nil {
-		return err
+	if !cmd.Bool("json") {
+		if _, err := fmt.Fprintf(cmd.Root().Writer, "%s: meta passed (protocol 1)\n", id); err != nil {
+			return err
+		}
 	}
 	root, err := os.MkdirTemp("", "tdm-plugin-check-")
 	if err != nil {
@@ -86,6 +88,9 @@ func checkPlugin(_ context.Context, cmd *ucli.Command) (err error) {
 	_, err = p.Plan(gen.Space{Name: "plugin-check", Root: root, Branch: "plugin-check", Members: []gen.Member{{Name: "member", WorktreePath: member}}, Config: loaded.Config.Generate.Table(id)}, nil)
 	if err != nil {
 		return err
+	}
+	if cmd.Bool("json") {
+		return writeJSON(cmd.Root().Writer, pluginCheckOutput{ID: id, Protocol: 1, MetaPassed: true, PlanPassed: true})
 	}
 	_, err = fmt.Fprintf(cmd.Root().Writer, "%s: plan passed (schema and paths)\n", id)
 	return err

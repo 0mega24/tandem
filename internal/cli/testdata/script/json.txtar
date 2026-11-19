@@ -1,0 +1,174 @@
+# Every result is one complete JSON object.
+exec tdm --json version
+stdout '  "version": "'
+jsonvalid
+exec tdm version --json
+jsonvalid
+exec tdm --json config path
+stdout '"path": '
+jsonvalid
+exec tdm --json config
+stdout '"layers": \[\]'
+jsonvalid
+exec tdm --json config init
+stdout '"path": '
+jsonvalid
+exec tdm --json config
+stdout '"content": '
+jsonvalid
+exec tdm --json status
+stdout '"spaces": \[\]'
+jsonvalid
+mkrepo api web
+exec tdm --json repo status
+stdout '"branch": "main"'
+jsonvalid
+exec tdm repo sync --json
+stdout '"outcome": "up_to_date"'
+jsonvalid
+exec tdm --json new feat api
+stdout '"name": "feat"'
+stdout '"repos": \['
+jsonvalid
+exec tdm --json add feat web
+stdout '"name": "web"'
+jsonvalid
+exec tdm --json path feat
+stdout '"path": ".*/workspaces/feat"'
+jsonvalid
+cp module $HOME/workspaces/feat/api/go.mod
+exec tdm --json generate --dry-run feat
+stdout '"dry_run": true'
+stdout '"action": "write"'
+stdout '"diff": "--- go.work'
+jsonvalid
+! exists $HOME/workspaces/feat/go.work
+exec tdm --json generate feat
+stdout '"action": "write"'
+jsonvalid
+exec tdm --json generate feat
+stdout '"action": "unchanged"'
+jsonvalid
+exec git -C $HOME/workspaces/feat/web commit -q --allow-empty -m work
+exec tdm --json status feat
+stdout '"ahead": 1'
+stdout '"changed": \['
+! stdout '"generated":'
+jsonvalid
+exec tdm status --json -l feat
+stdout '"state": "intact"'
+jsonvalid
+cp edited $HOME/workspaces/feat/go.work
+exec tdm --json status -l feat
+stdout '"state": "changed"'
+jsonvalid
+exec tdm --json generate feat
+stdout '"action": "skip"'
+jsonvalid
+exec tdm --json generate --force feat
+jsonvalid
+exec tdm --json generate --list
+stdout '"default_on": true'
+jsonvalid
+# Dirty worktrees retain the existing confirmation on stdin.
+stdin yes
+exec tdm --json remove feat api
+stdout '"action": "delete"'
+jsonvalid
+stdin yes
+exec tdm --json delete feat
+stdout '"kept_dir": true'
+jsonvalid
+# No source state is also a JSON result.
+env WTG_CONFIG=
+exec tdm --json import wtg
+stdout '"rows": \[\]'
+jsonvalid
+mkdir $XDG_DATA_HOME/wtg/spaces
+cp legacy.yaml $XDG_DATA_HOME/wtg/spaces/legacy.yaml
+exec tdm --json import wtg --dry-run
+stdout '"dry_run": true'
+stdout '"name": "legacy"'
+jsonvalid
+! exists $XDG_DATA_HOME/tandem/spaces/legacy.yaml
+exec tdm --json import wtg
+stdout '"skipped": false'
+jsonvalid
+exists $XDG_DATA_HOME/tandem/spaces/legacy.yaml
+exec tdm --json import wtg
+stdout '"skipped": true'
+jsonvalid
+mkdir $XDG_DATA_HOME/tandem/plugins
+cp plugin $XDG_DATA_HOME/tandem/plugins/tdm-gen-demo
+exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-demo
+exec tdm --json plugin check demo
+stdout '"protocol": 1'
+stdout '"plan_passed": true'
+jsonvalid
+# Generator warnings remain on stderr and are also in the result.
+exec tdm --json new warn api --generate demo
+stderr '^tdm: warning: demo: sample warning$'
+stdout '"demo: sample warning"'
+jsonvalid
+exec tdm --json generate warn
+stderr '^tdm: warning: demo: sample warning$'
+stdout '"demo: sample warning"'
+jsonvalid
+# A broken worktree produces a partial result and a JSON error, with a failing exit code.
+cp broken $HOME/workspaces/warn/api/.git
+! exec tdm --json status warn
+stdout '"error": '
+jsonvalid
+jsonvalid stderr
+! exec tdm --json repo sync missing
+jsonvalid stderr
+# Failures on a discovered clone also retain the per-repo result.
+# The scratch directory is inside a checkout: do not let git find that parent.
+env GIT_CEILING_DIRECTORIES=$HOME/repos
+cp broken $HOME/repos/web/.git/HEAD
+! exec tdm --json repo status web
+stdout '"error": '
+jsonvalid
+jsonvalid stderr
+! exec tdm --json repo sync web
+stdout '"outcome": "failed"'
+jsonvalid
+jsonvalid stderr
+! exec tdm --json exec feat -- echo hi
+stderr '"error": "--json is not supported by exec"'
+! stdout .
+jsonvalid stderr
+! exec tdm --json ui
+stderr '"error": "--json is not supported by ui"'
+! stdout .
+jsonvalid stderr
+! exec tdm --json path missing
+stderr '"error": "space not found: missing"'
+! stdout .
+jsonvalid stderr
+
+-- module --
+module example.com/api
+
+go 1.23
+-- edited --
+edited
+-- yes --
+yes
+-- plugin --
+#!/bin/sh
+if [ "$1" = meta ]; then
+ echo '{"protocol":1,"id":"demo","languages":[],"manifests":[],"default_on":false,"config_schema":{}}'
+else
+ echo '{"files":[],"stale":[],"links":[],"warnings":["sample warning"]}'
+fi
+
+-- broken --
+broken git record
+
+-- legacy.yaml --
+name: legacy
+path: /work/legacy
+branch: legacy
+created_at: 2026-11-18T12:00:00Z
+repos: []

@@ -100,6 +100,7 @@ Rules:
 
 | Spec | This repo | Reason |
 |---|---|---|
+| Commands print text tables | Global `--json` selects public CLI output structs; see `docs/json.md` and decision 0006 | Scripts and agents need structured results without terminal marks. |
 | Go 1.26.1, `buildGoLatestModule` = Go 1.26 | `go 1.27`; nixpkgs `go_latest` is 1.27.3 | Owner: target the latest Go. |
 | Tree without `space/`, `tui/` | `internal/space/`, `internal/tui/` added | The TUI and the CLI share one set of operations. |
 | Open item: Rust [patch] path base | Paths relative to the space root in `<space>/.cargo/config.toml` | The rust integration script builds with them; no absolute-path fallback is needed. |

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,9 @@ func uiCommand() *ucli.Command {
 		Description: "The view draws on stderr, so stdout has only the path: cd \"$(tdm ui)\" goes to the space\n" +
 			"that you choose.",
 		Action: func(ctx context.Context, cmd *ucli.Command) error {
+			if cmd.Bool("json") {
+				return errors.New("--json is not supported by ui")
+			}
 			m, err := newManager(cmd)
 			if err != nil {
 				return err

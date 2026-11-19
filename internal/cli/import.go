@@ -28,6 +28,13 @@ func importCommand() *ucli.Command {
 					return err
 				}
 				rows, err := space.ImportWTG(env, os.Getenv("WTG_CONFIG"), cmd.Bool("dry-run"))
+				if cmd.Bool("json") {
+					out := importWTGOutput{DryRun: cmd.Bool("dry-run"), Rows: make([]importRowOutput, len(rows))}
+					for i, row := range rows {
+						out.Rows[i] = importRowOutput{Name: row.Name, Skipped: row.Skipped, Reason: row.Reason}
+					}
+					return errors.Join(err, writeJSON(cmd.Root().Writer, out))
+				}
 				t := ui.NewTable(cmd.Root().Writer)
 				for _, row := range rows {
 					status := "✓ imported"

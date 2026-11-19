@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -23,7 +24,8 @@ func TestScript(t *testing.T) {
 		Dir:   "testdata/script",
 		Setup: scriptSetup,
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-			"mkrepo": mkrepo,
+			"mkrepo":    mkrepo,
+			"jsonvalid": jsonValid,
 		},
 	})
 }
@@ -85,5 +87,23 @@ func mkrepo(ts *testscript.TestScript, neg bool, args []string) {
 		git(seed, "push", "-q", origin, "main")
 		git(origin, "symbolic-ref", "HEAD", "refs/heads/main")
 		git(seed, "clone", "-q", origin, clone)
+	}
+}
+
+// jsonValid checks the complete output, so stray text or a second object cannot pass.
+func jsonValid(ts *testscript.TestScript, neg bool, args []string) {
+	file := "stdout"
+	if len(args) == 1 && args[0] == "stderr" {
+		file = "stderr"
+	} else if len(args) != 0 {
+		ts.Fatalf("usage: jsonvalid [stderr]")
+	}
+	if neg {
+		ts.Fatalf("usage: jsonvalid [stderr]")
+	}
+	out := ts.ReadFile(file)
+	var object map[string]json.RawMessage
+	if !json.Valid([]byte(out)) || json.Unmarshal([]byte(out), &object) != nil || object == nil {
+		ts.Fatalf("%s is not one JSON object: %s", file, out)
 	}
 }

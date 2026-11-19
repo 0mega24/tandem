@@ -27,6 +27,17 @@ func configCommand() *ucli.Command {
 				return err
 			}
 			w := cmd.Root().Writer
+			if cmd.Bool("json") {
+				out := configOutput{Layers: make([]configLayerOutput, len(loaded.Files)), UserPath: config.UserPath(env, cmd.String("config"))}
+				for i, f := range loaded.Files {
+					b, err := os.ReadFile(f) //nolint:gosec // G304: Load already read this file
+					if err != nil {
+						return err
+					}
+					out.Layers[i] = configLayerOutput{Path: f, Content: string(b)}
+				}
+				return writeJSON(w, out)
+			}
 			if len(loaded.Files) == 0 {
 				_, err := fmt.Fprintf(w, "# no config file; defaults apply. User file: %s\n", config.UserPath(env, cmd.String("config")))
 				return err
@@ -73,6 +84,9 @@ func configCommand() *ucli.Command {
 					if err := f.Close(); err != nil {
 						return err
 					}
+					if cmd.Bool("json") {
+						return writeJSON(cmd.Root().Writer, configInitOutput{Path: p})
+					}
 					_, err = fmt.Fprintln(cmd.Root().Writer, p)
 					return err
 				},
@@ -84,6 +98,9 @@ func configCommand() *ucli.Command {
 					env, err := config.EnvFromOS()
 					if err != nil {
 						return err
+					}
+					if cmd.Bool("json") {
+						return writeJSON(cmd.Root().Writer, configPathOutput{Path: config.UserPath(env, cmd.String("config"))})
 					}
 					_, err = fmt.Fprintln(cmd.Root().Writer, config.UserPath(env, cmd.String("config")))
 					return err

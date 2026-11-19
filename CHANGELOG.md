@@ -19,6 +19,7 @@ All notable changes to this project are in this file. The format follows
   left, a main view and a command log on the right, and a key bar.
 
 ### Added
+- Global `--json` output for command results and errors; see `docs/json.md` for the public format.
 - Agent skills `tandem` and `tandem-setup`, with Claude Code and Codex plugin manifests.
 - `make newgen ID=zig MANIFEST=build.zig.zon` scaffolds a generator with six golden cases and updates the registry.
 - `tdm import wtg` imports spaces and shared config settings without changing worktrees; supports `--dry-run`.

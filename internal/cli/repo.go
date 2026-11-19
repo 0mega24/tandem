@@ -76,6 +76,11 @@ func repoStatus(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
+	if cmd.Bool("json") {
+		out, resultErr := jsonRepoStatus(list)
+		return errors.Join(resultErr, writeJSON(cmd.Root().Writer, out))
+	}
+
 	t := ui.NewTable(cmd.Root().Writer)
 	failed := false
 
@@ -130,6 +135,10 @@ func repoSync(ctx context.Context, cmd *ucli.Command) error {
 		return err
 	}
 
+	if cmd.Bool("json") {
+		out, resultErr := jsonRepoSync(results)
+		return errors.Join(resultErr, writeJSON(cmd.Root().Writer, out))
+	}
 	return printSync(cmd.Root().Writer, results)
 }
 
