@@ -42,15 +42,6 @@ feat         $HOME/workspaces/feat
   api        ✓ worktree  [feat]  new branch from main
   web        ✓ worktree  [feat]  existing branch
   myorg/lib  ✓ worktree  [feat]  new branch from main
-  cabal      - no members
-  cmake      - no members
-  dotnet     - no members
-  go         - no members
-  gradle     - no members
-  js         - no members
-  maven      - no members
-  meson      - no members
-  rust       - no members
 -- want-status.txt --
 feat         $HOME/workspaces/feat
   api        [feat]  ! 1 changed

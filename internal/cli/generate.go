@@ -106,7 +106,8 @@ func printWarnings(cmd *ucli.Command, res space.GenerateResult) error {
 }
 
 // generatedRows adds one row for each file, in generator order, and a row for each generator that
-// found no members and has no files.
+// found members but has no files. A generator with no members gets no row: most generators of a
+// space find nothing, and a row for each would hide the rows that matter.
 func generatedRows(t *ui.Table, res space.GenerateResult) {
 	for _, r := range res.Runs {
 		members := ""
@@ -131,12 +132,8 @@ func generatedRows(t *ui.Table, res space.GenerateResult) {
 				t.Row("  "+r.ID, "- "+c.Path, "deleted", c.Reason)
 			}
 		}
-		switch {
-		case rows > 0:
-		case len(r.Members) > 0:
+		if rows == 0 && len(r.Members) > 0 {
 			t.Row("  "+r.ID, "- nothing to write", members)
-		default:
-			t.Row("  "+r.ID, "- no members")
 		}
 	}
 }
