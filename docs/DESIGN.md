@@ -103,6 +103,7 @@ Rules:
 
 | Spec | This repo | Reason |
 |---|---|---|
+| Generators plan for one member too (golden case "one member") | A generator writes files only when two or more members need connecting; with fewer, its files are deleted. The generator golden cases still test Plan with one member | A workspace file around one module changes how its tool works: a go.work turns on Go workspace mode, so `go tool -modfile` fails. |
 | Commands print text tables | Global `--json` selects public CLI output structs; see `docs/json.md` and decision 0006 | Scripts and agents need structured results without terminal marks. |
 | Go 1.26.1, `buildGoLatestModule` = Go 1.26 | `go 1.27`; nixpkgs `go_latest` is 1.27.3 | Owner: target the latest Go. |
 | Tree without `space/`, `tui/` | `internal/space/`, `internal/tui/` added | The TUI and the CLI share one set of operations. |

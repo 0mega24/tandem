@@ -156,6 +156,14 @@ func (m *Manager) plan(ctx context.Context, sp state.Space, ids []string) ([]Gen
 			}
 		}
 
+		// One member has nothing to connect, and a workspace file around it changes how its build
+		// tool works (a go.work turns on workspace mode). An empty plan also deletes the file
+		// that tdm wrote when there were more members.
+		if len(found) < 2 {
+			runs = append(runs, run)
+			plans[id] = gen.Plan{}
+			continue
+		}
 		p, err := g.Plan(gen.Space{Name: sp.Name, Root: sp.Path, Branch: sp.Branch, Members: members, Config: table, Symlinks: symlinks(sp)}, found)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: plan: %w", id, err)

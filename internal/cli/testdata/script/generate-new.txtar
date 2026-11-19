@@ -13,10 +13,11 @@ cp config.toml $HOME/.config/tandem/config.toml
 cp hook.sh $HOME/bin/hook
 chmod 0755 $HOME/bin/hook
 
+# One Go member has nothing to connect; the second one brings go.work.
 exec tdm new feat api web
-stdout '^  go +✓ go.work +\(api\)$'
-stderr '^hook: create go.work$'
-exists $HOME/workspaces/feat/go.work
+stdout '^  go +- nothing to connect +\(api\)$'
+stderr '^hook: create $'
+! exists $HOME/workspaces/feat/go.work
 grep '^generators:\n(    - .*\n)*    - go\n' $HOME/.local/share/tandem/spaces/feat.yaml
 
 exec tdm add feat lib
@@ -26,7 +27,7 @@ grep '\./lib' $HOME/workspaces/feat/go.work
 
 # A failed generator step undoes the add: go.work cannot be read, so lib does not join.
 exec tdm remove feat lib
-rm $HOME/workspaces/feat/go.work
+! exists $HOME/workspaces/feat/go.work
 mkdir $HOME/workspaces/feat/go.work
 ! exec tdm add feat lib
 stderr 'generate files: read go.work: .*\(rolled back\)'

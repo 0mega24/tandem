@@ -20,11 +20,12 @@ func writeTestFile(t *testing.T, p, content string) {
 }
 
 func TestGenerateMigratesGoWorkspace(t *testing.T) {
-	f := newFixture(t, "api")
-	newSpaceFor(t, f, "api")
+	f := newFixture(t, "api", "lib")
+	newSpaceFor(t, f, "api", "lib")
 	root := filepath.Join(f.dir, "spaces", "feat")
 	writeTestFile(t, filepath.Join(root, "api/go.mod"), "module example.com/api\n\ngo 1.23\n")
-	writeTestFile(t, filepath.Join(root, "go.work"), "go 1.21\n\nuse ./api\n") // as wtg wrote it
+	writeTestFile(t, filepath.Join(root, "lib/go.mod"), "module example.com/lib\n\ngo 1.23\n")
+	writeTestFile(t, filepath.Join(root, "go.work"), "go 1.21\n\nuse (\n\t./api\n\t./lib\n)\n") // as wtg wrote it
 
 	// A wtg state file: go_workspace and no generated list.
 	stateFile := filepath.Join(f.dir, "state", "feat.yaml")
@@ -51,10 +52,11 @@ func TestGenerateMigratesGoWorkspace(t *testing.T) {
 }
 
 func TestGenerateRollback(t *testing.T) {
-	f := newFixture(t, "api")
-	newSpaceFor(t, f, "api")
+	f := newFixture(t, "api", "lib")
+	newSpaceFor(t, f, "api", "lib")
 	root := filepath.Join(f.dir, "spaces", "feat")
 	writeTestFile(t, filepath.Join(root, "api/go.mod"), "module example.com/api\n\ngo 1.23\n")
+	writeTestFile(t, filepath.Join(root, "lib/go.mod"), "module example.com/lib\n\ngo 1.23\n")
 	writeTestFile(t, filepath.Join(root, "go.work.sum"), "sum")
 
 	// The state save, the last step, fails: the files must be as before.

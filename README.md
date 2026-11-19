@@ -47,7 +47,8 @@ With tandem, one command does all of this, and one command removes it again:
 - `tdm new my-feature api shared client` makes a folder, called a space, with a git worktree of
   each repo, all on the branch `my-feature`. Your main clones stay in place.
 - In the same step, it writes the files that connect the builds. There are 12 built-in
-  generators. Some are off by default.
+  generators. Some are off by default. A build tool with only one repo in the space gets no
+  file, as there is nothing to connect.
 - `tdm delete my-feature` removes the worktrees and the files. It asks first if a worktree has changes
   or commits that are not pushed. Changed generated files stay in place.
 

@@ -1,11 +1,11 @@
 # vscode owns only the folders key of the .code-workspace file: a person's settings stay, and a
 # delete takes out only the key.
-mkrepo api web infra
+mkrepo api lib web infra
 mkdir $HOME/.config/tandem
 cp config.toml $HOME/.config/tandem/config.toml
 
-exec tdm new feat api
-stdout '^  vscode +✓ feat.code-workspace +\(api\)$'
+exec tdm new feat api lib
+stdout '^  vscode +✓ feat.code-workspace +\(api, lib\)$'
 cmp $HOME/workspaces/feat/feat.code-workspace one.json
 stdout '^  infra +✓ symlink'
 
@@ -36,11 +36,14 @@ enabled = ["vscode"]
 		},
 		{
 			"path": "infra"
+		},
+		{
+			"path": "lib"
 		}
 	]
 }
 -- settings.json --
-{"settings": {"editor.tabSize": 4}, "folders": [{"path": "api"}, {"path": "infra"}]}
+{"settings": {"editor.tabSize": 4}, "folders": [{"path": "api"}, {"path": "infra"}, {"path": "lib"}]}
 -- two.json --
 {
 	"folders": [
@@ -49,6 +52,9 @@ enabled = ["vscode"]
 		},
 		{
 			"path": "infra"
+		},
+		{
+			"path": "lib"
 		},
 		{
 			"path": "web"

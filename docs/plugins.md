@@ -61,7 +61,9 @@ arbitrary configuration schemas.
 `plan` receives the request below on stdin. All member worktree paths are
 absolute. `origin` is an empty string when no origin is set. `config` is the
 plugin's `[generate.<id>]` table, or an empty object. All members are sent; the
-plugin decides which manifests apply.
+plugin decides which manifests apply. Tandem runs `plan` only when the space has two or more
+members, as there is nothing to connect in a space with one. A plugin that finds its manifest
+in only one member should return no files, for the same reason.
 
 File `content` is a UTF-8 JSON string, not base64. The example Zig plugin writes
 `.tandem/zig/forks.args`, with one `--fork=<relative-worktree>` line for each

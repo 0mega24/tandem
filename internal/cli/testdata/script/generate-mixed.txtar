@@ -12,7 +12,7 @@ cp web.json $HOME/workspaces/feat/web/package.json
 exec tdm generate feat
 stdout '^  go +✓ go.work +\(client, shared\)$'
 stdout '^  rust +✓ .* +\(server, shared\)$'
-stdout '^  js +✓ .* +\(web\)$'
+stdout '^  js +- nothing to connect +\(web\)$'
 grep '\./client' $HOME/workspaces/feat/go.work
 grep '\./shared' $HOME/workspaces/feat/go.work
 ! grep 'server|web' $HOME/workspaces/feat/go.work

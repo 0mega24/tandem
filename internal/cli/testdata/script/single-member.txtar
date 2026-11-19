@@ -1,0 +1,29 @@
+# A generator writes files only when two or more members need connecting: a go.work with one
+# module changes how go works in that module (for example, go tool -modfile fails).
+mkrepo api web
+exec tdm new feat api web
+cp api.mod $HOME/workspaces/feat/api/go.mod
+exec tdm generate feat
+stdout '^  go +- nothing to connect +\(api\)$'
+! exists $HOME/workspaces/feat/go.work
+
+# With a second module, go.work connects them.
+cp web.mod $HOME/workspaces/feat/web/go.mod
+exec tdm generate feat
+stdout '^  go +✓ go.work +\(api, web\)$'
+exists $HOME/workspaces/feat/go.work
+
+# Back to one module: tdm deletes the go.work that it wrote.
+rm $HOME/workspaces/feat/web/go.mod
+exec tdm generate feat
+stdout '^  go +- go.work +deleted$'
+! exists $HOME/workspaces/feat/go.work
+
+-- api.mod --
+module example.com/api
+
+go 1.23
+-- web.mod --
+module example.com/web
+
+go 1.23
