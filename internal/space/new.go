@@ -81,7 +81,7 @@ func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, err
 	for _, p := range plan.worktrees {
 		steps = append(steps, m.worktreeStep(sp, p))
 		if len(p.secrets) > 0 {
-			steps = append(steps, secretsStep(p))
+			steps = append(steps, secretsStep(p, m.warn))
 		}
 	}
 	for _, e := range plan.links {

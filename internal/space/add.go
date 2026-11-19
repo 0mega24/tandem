@@ -75,7 +75,7 @@ func (m *Manager) AddRepos(ctx context.Context, name string, names []string) (Ne
 
 		steps = append(steps, m.worktreeStep(sp, p))
 		if len(p.secrets) > 0 {
-			steps = append(steps, secretsStep(p))
+			steps = append(steps, secretsStep(p, m.warn))
 		}
 		added = append(added, NewRepo{
 			Entry:   p.entry,
