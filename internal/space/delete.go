@@ -47,7 +47,7 @@ func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptio
 	}
 	res := Deleted{Space: sp}
 
-	risks, err := m.risks(ctx, sp, sp.Repos)
+	risks, err := m.risks(ctx, sp.Repos)
 	if err != nil {
 		return res, err
 	}

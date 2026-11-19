@@ -87,13 +87,13 @@ func (m *Manager) Status(ctx context.Context, names []string, dir string) ([]Spa
 
 	parallel(len(jobs), func(i int) {
 		j := jobs[i]
-		out[j.s].Repos[j.r] = m.memberStatus(ctx, spaces[j.s].Repos[j.r], spaces[j.s].Branch)
+		out[j.s].Repos[j.r] = m.memberStatus(ctx, spaces[j.s].Repos[j.r])
 	})
 
 	return out, nil
 }
 
-func (m *Manager) memberStatus(ctx context.Context, e state.RepoEntry, branch string) MemberStatus {
+func (m *Manager) memberStatus(ctx context.Context, e state.RepoEntry) MemberStatus {
 	ms := MemberStatus{Entry: e}
 	if e.Symlink {
 		return ms
@@ -104,11 +104,13 @@ func (m *Manager) memberStatus(ctx context.Context, e state.RepoEntry, branch st
 		return ms
 	}
 
-	// The user may have switched the worktree to another branch; count what is checked out.
-	if ms.Status.Branch != "" {
-		branch = ms.Status.Branch
+	// The user may have switched the worktree to another branch; count what is checked out. A
+	// detached HEAD is counted in the worktree: its commits are on no branch.
+	if ms.Status.Branch == "" {
+		ms.Unpushed, ms.Err = m.git.Unpushed(ctx, e.WorktreePath, "")
+		return ms
 	}
-	ms.Unpushed, ms.Err = m.git.Unpushed(ctx, e.RepoPath, branch)
+	ms.Unpushed, ms.Err = m.git.Unpushed(ctx, e.RepoPath, ms.Status.Branch)
 	return ms
 }
 

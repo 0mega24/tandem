@@ -85,7 +85,7 @@ func (m *Manager) removeRepos(ctx context.Context, name string, names []string, 
 	for i, j := range idx {
 		targets[i] = sp.Repos[j]
 	}
-	risks, err := m.risks(ctx, sp, targets)
+	risks, err := m.risks(ctx, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -132,13 +132,13 @@ func memberIndexes(sp state.Space, names []string) ([]int, error) {
 
 // risks returns the worktrees that have changes or unpushed commits. Symlinks have none: they
 // are the main clone, which a removal does not touch.
-func (m *Manager) risks(ctx context.Context, sp state.Space, entries []state.RepoEntry) ([]Risk, error) {
+func (m *Manager) risks(ctx context.Context, entries []state.RepoEntry) ([]Risk, error) {
 	var out []Risk
 	for _, e := range entries {
 		if e.Symlink {
 			continue
 		}
-		ms := m.memberStatus(ctx, e, sp.Branch)
+		ms := m.memberStatus(ctx, e)
 		if ms.Err != nil {
 			return nil, fmt.Errorf("%s: %w", e.Name, ms.Err)
 		}
