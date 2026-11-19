@@ -484,3 +484,27 @@ func TestPrepareRejectsStaleGeneratedFile(t *testing.T) {
 		t.Error("Prepare = nil error, want: stale go.work is a generated file")
 	}
 }
+
+// A forced replace keeps the mode of the old file, in the file and in its backup: a private file
+// must not become readable by others.
+func TestForceKeepsMode(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "secret.txt", "private")
+	if err := os.Chmod(filepath.Join(root, "secret.txt"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a, err := Prepare(root, nil, map[string]Plan{"go": {Files: []File{file("secret.txt", "v2")}}}, nil, true, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(t, a)
+	for _, p := range []string{"secret.txt", "secret.txt" + backupSuffix} {
+		fi, err := os.Stat(filepath.Join(root, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fi.Mode().Perm() != 0o600 {
+			t.Errorf("%s mode = %v, want 0600", p, fi.Mode().Perm())
+		}
+	}
+}

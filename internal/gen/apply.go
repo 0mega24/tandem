@@ -403,6 +403,7 @@ func writeStep(root string, c Change) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(c.Path))
 	var madeDirs string // the highest directory that this step made
 	madeBackup := false
+	mode := newFileMode // the mode of the file that this step replaces, for the file and its backup
 
 	// dropOwn removes what this step made besides the file: the backup and the new directories.
 	dropOwn := func() error {
@@ -420,24 +421,25 @@ func writeStep(root string, c Change) saga.Step {
 	return saga.Step{
 		Name: "write " + c.Path,
 		Do: func(context.Context) error {
+			mode = modeOf(p)
 			madeDirs = firstMissing(filepath.Dir(p), root)
 			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // workspace files are for all tools that read the space
 				return err
 			}
 			if c.backup {
-				if err := writeAtomic(p+backupSuffix, c.Old); err != nil {
+				if err := writeAtomic(p+backupSuffix, c.Old, mode); err != nil {
 					return errors.Join(err, dropOwn())
 				}
 				madeBackup = true
 			}
-			if err := writeAtomic(p, c.New); err != nil {
+			if err := writeAtomic(p, c.New, mode); err != nil {
 				return errors.Join(err, dropOwn()) // the saga undoes only finished steps
 			}
 			return nil
 		},
 		Undo: func(context.Context) error {
 			if c.Old != nil {
-				if err := writeAtomic(p, c.Old); err != nil {
+				if err := writeAtomic(p, c.Old, mode); err != nil {
 					return err
 				}
 			} else if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -448,9 +450,21 @@ func writeStep(root string, c Change) saga.Step {
 	}
 }
 
-// writeAtomic writes b to p through a temp file in the same directory and a rename, so a
-// failure part way leaves the old file whole.
-func writeAtomic(p string, b []byte) error {
+// newFileMode is the mode of a new workspace file: tools that run as other users read them.
+const newFileMode fs.FileMode = 0o644
+
+// modeOf returns the permissions of the file at p, or newFileMode when there is none. A file that
+// tdm replaces keeps its mode, so a private file does not become readable by others.
+func modeOf(p string) fs.FileMode {
+	if fi, err := os.Stat(p); err == nil {
+		return fi.Mode().Perm()
+	}
+	return newFileMode
+}
+
+// writeAtomic writes b to p with mode through a temp file in the same directory and a rename, so
+// a failure part way leaves the old file whole.
+func writeAtomic(p string, b []byte, mode fs.FileMode) error {
 	tmp, err := os.CreateTemp(filepath.Dir(p), "."+filepath.Base(p)+".*.tmp")
 	if err != nil {
 		return err
@@ -464,8 +478,7 @@ func writeAtomic(p string, b []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	// CreateTemp makes 0600; workspace files are read by tools that may run as other users.
-	if err := os.Chmod(tmp.Name(), 0o644); err != nil { //nolint:gosec // G302: see above
+	if err := os.Chmod(tmp.Name(), mode); err != nil { // CreateTemp makes 0600
 		return err
 	}
 	return os.Rename(tmp.Name(), p)
@@ -474,11 +487,13 @@ func writeAtomic(p string, b []byte) error {
 func deleteStep(root string, c Change, warn func(string, error)) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(c.Path))
 	madeBackup, deleted := false, false
+	mode := newFileMode
 	return saga.Step{
 		Name: "delete " + c.Path,
 		Do: func(context.Context) error {
+			mode = modeOf(p)
 			if c.backup {
-				if err := writeAtomic(p+backupSuffix, c.Old); err != nil {
+				if err := writeAtomic(p+backupSuffix, c.Old, mode); err != nil {
 					return err
 				}
 				madeBackup = true
@@ -504,7 +519,7 @@ func deleteStep(root string, c Change, warn func(string, error)) saga.Step {
 			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil { //nolint:gosec // as before the delete
 				return err
 			}
-			if err := writeAtomic(p, c.Old); err != nil {
+			if err := writeAtomic(p, c.Old, mode); err != nil {
 				return err
 			}
 			if madeBackup {
@@ -520,6 +535,7 @@ func deleteStep(root string, c Change, warn func(string, error)) saga.Step {
 func staleStep(root, rel string, warn func(string, error)) saga.Step {
 	p := filepath.Join(root, filepath.FromSlash(rel))
 	var old []byte // set only when the file was deleted
+	mode := newFileMode
 	return saga.Step{
 		Name: "delete stale " + rel,
 		Do: func(context.Context) error {
@@ -529,6 +545,7 @@ func staleStep(root, rel string, warn func(string, error)) saga.Step {
 			}
 			var b []byte
 			if err == nil {
+				mode = fi.Mode().Perm()
 				b, err = os.ReadFile(p) //nolint:gosec // G304: a path in the space root
 			}
 			if err == nil {
@@ -545,7 +562,7 @@ func staleStep(root, rel string, warn func(string, error)) saga.Step {
 			if old == nil {
 				return nil
 			}
-			return writeAtomic(p, old)
+			return writeAtomic(p, old, mode)
 		},
 	}
 }
