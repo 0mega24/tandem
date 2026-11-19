@@ -8,6 +8,8 @@ newline. Keys use snake_case. Empty lists are `[]`, never `null`. Strings contai
 plain values, without terminal marks or colors. Consumers should accept new keys.
 The format is a public API. Changes require a CHANGELOG entry.
 
+Help (`--help`, `tdm help`, or a command group with no subcommand) is always text.
+
 Errors give a nonzero exit code and one object on stderr:
 
 ```json

@@ -1,0 +1,17 @@
+# A command that did nothing prints no result object, only the error.
+! exec tdm --json delete missing
+! stdout .
+stderr '"error": "space not found: missing"'
+! exec tdm --json remove missing x
+! stdout .
+stderr '"error"'
+
+# --json after a bad flag still gives a JSON error.
+! exec tdm status --bogus --json
+! stdout .
+stderr '^\{$'
+stderr '"error": "flag provided but not defined: -bogus"'
+
+# HTML characters stay as they are.
+! exec tdm --json path '<x>'
+stderr 'invalid space name ."<x>."'

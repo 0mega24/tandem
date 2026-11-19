@@ -35,9 +35,10 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			}
 		}
 	}()
-	root := newRoot(stdin, stdout, stderr)
+	jsonMode := jsonArg(args)
+	root := newRoot(stdin, stdout, stderr, jsonMode)
 	if err := root.Run(ctx, args); err != nil {
-		if root.Bool("json") {
+		if root.Bool("json") || jsonMode {
 			// The exit code still reports failure when stderr cannot be written.
 			_ = writeJSON(stderr, errorOutput{Error: err.Error()})
 		} else if !errors.Is(err, errReported) {
@@ -49,7 +50,21 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	return 0
 }
 
-func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
+// jsonArg finds --json in args, for a parse error that stops urfave/cli before it reads the flag.
+// Arguments after "--" belong to another program.
+func jsonArg(args []string) bool {
+	for _, a := range args {
+		if a == "--" {
+			return false
+		}
+		if a == "--json" || a == "-json" {
+			return true
+		}
+	}
+	return false
+}
+
+func newRoot(stdin io.Reader, stdout, stderr io.Writer, jsonMode bool) *ucli.Command {
 	root := &ucli.Command{
 		Name:                  "tdm",
 		Usage:                 "one branch across many repos, as git worktrees, with language workspace files",
@@ -96,14 +111,14 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *ucli.Command {
 			},
 		},
 	}
-	jsonUsageErrors(root)
+	jsonUsageErrors(root, jsonMode)
 	return root
 }
 
 // jsonUsageErrors keeps parser help out of JSON errors. Text mode keeps urfave's usage output.
-func jsonUsageErrors(cmd *ucli.Command) {
+func jsonUsageErrors(cmd *ucli.Command, jsonMode bool) {
 	cmd.OnUsageError = func(_ context.Context, current *ucli.Command, err error, _ bool) error {
-		if current.Bool("json") {
+		if jsonMode || current.Bool("json") {
 			return err
 		}
 		if _, writeErr := fmt.Fprintf(current.Root().ErrWriter, "Incorrect Usage: %s\n\n", err); writeErr != nil {
@@ -115,6 +130,6 @@ func jsonUsageErrors(cmd *ucli.Command) {
 		return errors.Join(err, ucli.ShowSubcommandHelp(current))
 	}
 	for _, child := range cmd.Commands {
-		jsonUsageErrors(child)
+		jsonUsageErrors(child, jsonMode)
 	}
 }

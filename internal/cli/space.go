@@ -356,6 +356,9 @@ func removeRepos(ctx context.Context, cmd *ucli.Command) error {
 	})
 
 	if cmd.Bool("json") {
+		if err != nil && len(removed) == 0 { // nothing was done: the error alone is the result
+			return err
+		}
 		out := removeOutput{Space: args[0], Repos: jsonRemoved(removed, cmd.Bool("delete-branch")), Generated: jsonGenerate(generated, false)}
 		return errors.Join(err, printWarnings(cmd, generated), writeJSON(cmd.Root().Writer, out))
 	}
@@ -424,6 +427,9 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 	})
 
 	if cmd.Bool("json") {
+		if err != nil && res.Space.Name == "" { // nothing was done: the error alone is the result
+			return err
+		}
 		out := deleteOutput{
 			Space:     jsonSpace(res.Space),
 			Repos:     jsonRemoved(res.Repos, force || cmd.Bool("delete-branch")),

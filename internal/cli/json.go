@@ -15,6 +15,7 @@ import (
 func writeJSON(w io.Writer, v any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false) // diffs and errors hold < and >; keep them readable
 	return enc.Encode(v)
 }
 
