@@ -101,6 +101,9 @@ Rules:
 |---|---|---|
 | Go 1.26.1, `buildGoLatestModule` = Go 1.26 | `go 1.27`; nixpkgs `go_latest` is 1.27.3 | Owner: target the latest Go. |
 | Tree without `space/`, `tui/` | `internal/space/`, `internal/tui/` added | The TUI and the CLI share one set of operations. |
+| Open item: Rust [patch] path base | Paths relative to the space root in `<space>/.cargo/config.toml` | The rust integration script builds with them; no absolute-path fallback is needed. |
+| Open item: JS install location | Run the install from the space root | The js integration script installs from the root with pnpm, npm and bun. |
+| Open item: Gradle settings search | A member build with no settings file works under a root `settings.gradle.kts` (Gradle 8.14) | The gradle integration script; the warning stays for older Gradle. |
 | Open item "Should detect_depth also apply to Go?" | Yes: Go finds go.mod files down to `detect_depth`; go.work gets one use line per module | A monorepo with `client/go.mod` next to `server/Cargo.toml` was a Rust member but not a Go member. |
 | `subPackages = [ "cmd/tdm" ]` | `excludedPackages = [ "tools" ]` | With subPackages, checkPhase ran only the cmd/tdm tests (open item settled on the first build). |
 | `generate-check`, `tidy-check` compare with HEAD | compare the tree before and after | `make check` also works on a dirty tree before a commit. |

@@ -46,7 +46,7 @@ in
         jdk21
         gradle
         maven
-        dotnet-sdk
+        dotnet-sdk_10
         cmake
         meson
         ninja
