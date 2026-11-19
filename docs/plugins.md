@@ -1,5 +1,6 @@
 # External generator plugins
 
+A space is a folder with a git worktree for each selected repo, all on one branch.
 A plugin is an executable named `tdm-gen-<id>`. IDs match `[a-z][a-z0-9-]*`, except
 `none`. An ID must not match a built-in generator. Run `tdm generate --list` to see
 all generators, their defaults, and their sources.
@@ -29,7 +30,7 @@ enabled = ["go", "zig"]
 
 Copy `examples/plugins/tdm-gen-zig` or `examples/plugins/tdm-gen-bundler` into a
 plugin directory and set the executable bit. Both examples need Python 3. The Zig
-entry point is a POSIX shell script; it uses Python's standard JSON codec for
+entry point is a POSIX shell script; it uses Python's standard JSON library for
 paths with quotes, backslashes, or non-ASCII text. The Bundler example uses only
 Python's standard library.
 
@@ -46,11 +47,13 @@ allowed. Unknown fields, missing required fields, null values where the schemas
 require another type, and unknown protocol versions are errors. Errors name the
 supported versions: `1`.
 
-`meta` receives no input. Tandem calls it at most once per command, and only when the
-command needs the plugin: `generate --list`, `plugin check`, a plan, or the default
-generator set. `status`, `path` and `exec` run no plugin. A failed `meta` makes the
-plugin off by default, and a command that uses it fails with that error.
-It describes the generator; `default_on` controls selection when
+`meta` receives no input. Tandem calls it at most once per command, and only when
+the command needs the plugin: `generate --list`, `plugin check`, generation, or
+selection of the default generator set. `status`, `path` and `exec` run no plugin.
+If `meta` fails, the plugin is off by default. `generate --list` reports a warning;
+`plugin check` and generation that selects the plugin fail with that error.
+
+The `meta` answer describes the generator; `default_on` controls selection when
 `generate.enabled` is unset. `config_schema` describes settings for plugin
 consumers. The plugin must validate its own settings; Tandem does not interpret
 arbitrary configuration schemas.
@@ -75,8 +78,9 @@ apply.
   indefinitely after the process ends.
 - Stderr is streamed to the user. Each line starts with `<id>: `, including a
   final line without a newline. Stderr does not count toward the stdout limit.
-- A nonzero exit, invalid JSON, or an invalid plan fails generation. In a space
-  operation, the saga rolls back preceding steps.
+- A nonzero exit, invalid JSON, or an invalid plan fails generation. During `new`
+  or `add`, Tandem undoes the preceding steps. During `generate`, it restores any
+  generated files changed by that run.
 - A plugin may read member files. It must not write files. Tandem applies plans
   through its ownership and rollback rules. Plugins are trusted executables;
   this protocol does not provide a filesystem sandbox.
@@ -87,14 +91,15 @@ apply.
   another member worktree. The target is relative to the directory of the link, as
   `ln -s` takes it: `../../lib` for `app/subprojects/lib`. This is the Meson
   exception to the member-write rule, with the same rules as the built-in `meson`
-  generator: tdm makes the link only where nothing is and only where git ignores
-  the path in that member.
+  generator: tdm creates a link only if the path is absent and git ignores
+  it in that member. It can update an unchanged link that it created earlier.
 
 ## JSON Schemas
 
 These Draft 2020-12 schemas define the three message shapes. Additional path
 checks above are required because JSON Schema cannot inspect the filesystem.
-The meta ID must also match the executable suffix.
+The ID in the `meta` answer must also match the executable suffix. The `protocol`
+field is in the `meta` answer only; the plan request and answer have no version field.
 
 ### Meta answer
 

@@ -6,7 +6,7 @@ Related: <!-- issue, PR or spec section (docs/spec/...). Delete the line if ther
 
 ## Changes
 
-<!-- The main points for a reviewer: new packages, commands, behavior, dependencies. -->
+<!-- List the changes a reviewer needs to know: packages, commands, behavior or dependencies. -->
 
 -
 
@@ -18,7 +18,7 @@ None.
 
 ## Testing
 
-<!-- The commands that you ran and their result. Add manual steps when a test cannot show the change. -->
+<!-- List each check command and its result. Add manual checks when tests do not cover the change. -->
 
 - [ ] `make check`
 
@@ -27,5 +27,5 @@ None.
 <!-- Check what applies. Delete an item that does not apply. -->
 
 - [ ] CHANGELOG.md `[Unreleased]` has the user-visible changes
-- [ ] go.mod changed: `vendorHash` in nix/package.nix is updated (`make nix-vendor-hash`)
+- [ ] If `go.mod` changed, `vendorHash` in `nix/package.nix` is updated (`make nix-vendor-hash`)
 - [ ] Generated files come from `make generate`, not from hand edits

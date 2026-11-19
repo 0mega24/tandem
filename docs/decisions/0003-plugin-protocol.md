@@ -4,21 +4,25 @@ Status: accepted (2026-11-18)
 
 ## Context
 
-The spec (project.md, Plugins) lets a person add a generator without a Go build: an executable
-`tdm-gen-<id>`. The protocol is a public contract. A change breaks the plugins that people wrote,
-so it gets a version and a record.
+The plugin section of `docs/spec/project.md` lets a person add a generator without rebuilding
+Tandem. The generator is an executable named `tdm-gen-<id>`. The protocol is a public contract.
+A change can break existing plugins, so the protocol has a version and a decision record.
 
 ## Decision
 
 - Discovery: `[generate] plugin_dirs` in order, then `$XDG_DATA_HOME/tandem/plugins`, then `PATH`.
-  The first executable for an ID wins; an ID of a built-in generator is an error.
+  The first executable for an ID wins. An ID that matches a built-in generator causes a warning;
+  Tandem keeps the built-in generator.
 - `tdm-gen-<id> meta` and `tdm-gen-<id> plan`: one JSON object on stdout. `plan` gets the space
-  on stdin. The answer has `protocol: 1`; an unknown version is an error that names the known
-  versions. Unknown and missing fields are errors.
+  on stdin. The `meta` answer has `protocol: 1`; an unknown version is an error that lists the
+  supported versions. The plan request and answer have no version field. Unknown fields and
+  missing required fields are errors.
 - A plugin returns a plan; tdm checks the paths and links and is the only writer, as for the
   built-in generators.
 - Limits: 60 s per call and 16 MiB of stdout. Each stderr line gets the prefix `<id>: `.
-- `tdm plugin check <id>` runs `meta`, then `plan` on a temporary space.
+- A space is a folder with a worktree for each selected repo, all on one branch.
+  `tdm plugin check <id>` runs `meta`, then `plan` on a temporary space with one empty member.
+  It checks the protocol and paths, not whether the plugin builds a project.
 
 The schemas are in docs/plugins.md.
 

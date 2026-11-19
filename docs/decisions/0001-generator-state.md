@@ -4,20 +4,22 @@ Status: accepted (2026-11-18)
 
 ## Context
 
-The generators write workspace files (go.work, Cargo.toml, ...) in the space root. Later commands
-must know which files tdm wrote, to write them again, to clean them up, and to not overwrite a
-file that a person wrote or changed. A space also keeps its generator set: `tdm new --generate`
-chooses it once, and `add` and `remove` use the same set. wtg kept only `go_workspace: true`.
+A space is a folder with a git worktree for each selected repo, all on one branch.
+Generators write workspace files such as go.work and Cargo.toml, or plan links for Meson.
+Later commands must know which files tdm wrote. They need this record to update or remove
+the files and to protect files that a person wrote or changed. A space also keeps its generator
+set: `tdm new --generate` chooses it once, and `add` and `remove` use the same set. The legacy
+state format used `go_workspace: true` for Go files.
 
 ## Decision
 
 The state file gets two keys, as the generator spec says:
 
-- `generators`: the generator IDs of the space. An empty set is `[none]`, as in the config:
+- `generators`: the generator IDs of the space. An empty set is stored as `["none"]`, as in the config:
   the key is `omitempty`, and a missing key means the default set.
 - `generated`: one entry per file: `generator`, `path` (relative to the space root), `sha256` of
   the bytes that tdm wrote, and `stale` (derived files, such as go.work.sum, that go with it).
-  A symlink that a plan makes (meson's subprojects/<dir>) has `target` in place of `sha256`: the
+  A symlink that a plan makes (meson's subprojects/<dir>) has `target` and an empty `sha256`: the
   link is tdm's when it still points there.
   A JSON file that tdm shares with a person (vscode's .code-workspace) has `key`: the one
   top-level key that tdm owns. Its `sha256` is of that key's value (compact JSON), so a person may
@@ -32,8 +34,9 @@ makes the go.work entry from the file on disk, and writes the new format at the 
 
 ## Consequences
 
-- Both keys are `omitempty`: a space with no generators has the same file as before.
-- Older tdm versions with strict YAML decoding would reject the new keys. There is no release yet,
-  so no installed version is affected.
-- A hand edit of a generated file is found by its hash, not by its header, so a header that a
-  person removed does not change ownership.
+- Both keys use `omitempty`. A missing `generators` key selects the defaults. An explicit
+  `["none"]` keeps all generators off, so it must be stored even when no files are generated.
+- State readers that reject unknown YAML keys would reject the new keys. Tandem accepts
+  unknown state keys, but older readers do not know how to manage the new generated files.
+- The hash covers the whole file, including any generated header. Removing the header changes
+  the hash, so tdm skips the file. A header alone does not prove that tdm wrote the file.

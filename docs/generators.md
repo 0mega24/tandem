@@ -2,8 +2,12 @@
 
 # Generators
 
-Each generator finds its manifests in the worktrees of a space and writes the workspace
-files that connect them. `tdm generate --list` shows the same table.
+A space is a folder with a git worktree for each selected repo on one branch. Generators read
+build files and plan workspace files or links. Tandem checks and applies those plans.
+
+`tdm generate --list` lists built-in and installed plugin generators, with their sources.
+The table below lists built-in generators. Default says whether a new space selects them
+when `generate.enabled` is unset. Release is the release that introduced the generator.
 
 | ID | Languages | Manifests | Default | Release |
 |---|---|---|---|---|
@@ -22,13 +26,13 @@ files that connect them. `tdm generate --list` shows the same table.
 
 ## cabal
 
-Package cabal writes a cabal.project so Cabal builds the local packages of the space together without changing the projects in member worktrees.
+Package cabal writes cabal.project in the space root so Cabal can build the local Haskell packages together. It reads package lists from member cabal.project files and finds .cabal files for members without a project file. Member project files stay unchanged.
 
 No options.
 
 ## cmake
 
-Package cmake writes .tandem/cmake/overrides.cmake, an initial-cache script for CMake's -C option, so FetchContent and CPM consumers use the other members' local source directories.
+Package cmake writes .tandem/cmake/overrides.cmake. Load it with CMake's -C option when configuring a member build. It sets source folders for FetchContent and CPM dependencies whose git URLs match another member's origin. It reads literal dependency declarations and does not evaluate CMake variables.
 
 Options, in `[generate.cmake]`:
 
@@ -38,7 +42,7 @@ Options, in `[generate.cmake]`:
 
 ## dotnet
 
-Package dotnet writes a solution that groups each member's projects for IDEs and dotnet build. It preserves package references; a solution does not replace them with project references.
+Package dotnet writes a solution file that groups member projects for editors and dotnet build. The format is .slnx by default, or .sln with the format option. The solution keeps package references; it does not replace them with references to local projects.
 
 Options, in `[generate.dotnet]`:
 
@@ -48,19 +52,19 @@ Options, in `[generate.dotnet]`:
 
 ## go
 
-Package golang is the go generator: a go.work in the space root with a use line for each member that has a go.mod at its root, so the go command builds against the local source of the other members.
+Package golang writes go.work in the space root. Each detected go.mod gets a use line, so Go can use the local modules together. The file uses the highest Go version found in those modules. generate.detect_depth controls how far below each worktree root to look for go.mod.
 
 No options.
 
 ## gradle
 
-Package gradle writes settings.gradle.kts in the space root to connect Gradle builds through composite-build dependency substitution. Run a member wrapper from the space root, for example ./api/gradlew -p . build, to use the included builds.
+Package gradle writes settings.gradle.kts in the space root. It includes the member builds with includeBuild so Gradle can substitute local projects for published dependencies. Run a member's wrapper with the space root as the project directory, for example ./api/gradlew -p . build.
 
 No options.
 
 ## js
 
-Package js writes a root pnpm-workspace.yaml or package.json so JavaScript and TypeScript members resolve dependencies against the local workspace packages. Run the package manager install command from the space root.
+Package js writes pnpm-workspace.yaml or a private package.json in the space root. These files list the local JavaScript and TypeScript packages as workspace members. Auto mode reads each member's packageManager field, then its lock files, and falls back to npm. If members use different managers, it warns and writes no files; set generate.js.manager to choose one for the space. Run the package manager's install command from the space root.
 
 Options, in `[generate.js]`:
 
@@ -71,41 +75,41 @@ Options, in `[generate.js]`:
 
 ## maven
 
-Package maven writes an aggregator pom.xml in the space root so Maven builds member reactors together in dependency order without changing their parent POMs.
+Package maven writes a root pom.xml that lists the member Maven builds as modules. Maven builds them together in dependency order. Member parent POMs stay unchanged.
 
 No options.
 
 ## meson
 
-Package meson plans subprojects symlinks in consumer worktrees so Meson uses the local dependency worktrees instead of downloading their wrap-git sources.
+Package meson plans links under subprojects in member worktrees. A wrap-git URL must match another member's origin. The link lets Meson use that local worktree. Tandem creates it only when the destination is absent and git ignores it. Existing files and user links stay unchanged; Tandem can update links that it created and that nobody changed.
 
 No options.
 
 ## rust
 
-Package rust writes a Cargo workspace or Cargo patch configuration so builds use the local crates of the other worktrees without changing their manifests.
+Package rust connects local Cargo crates without changing member manifests. In auto mode, it writes a root Cargo.toml workspace if no member contains a workspace. Otherwise it writes patch tables in .cargo/config.toml. An existing member workspace always requires patch mode, even when workspace mode was requested.
 
 Options, in `[generate.rust]`:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `auto`, `patch`, `workspace` | `"auto"` | %!s(<nil>) |
+| `mode` | `auto`, `patch`, `workspace` | `"auto"` | Mode chooses auto, patch or workspace. Auto uses a workspace unless a member has one. A member workspace forces patch mode, even when workspace mode is requested. |
 | `registries` | array | `[]` | Extra registries to patch besides crates-io |
 
 ## ts
 
-Package ts writes a solution-style tsconfig.json that references composite member projects, so tsc --build from the space root builds their local dependencies in order.
+Package ts writes a root tsconfig.json with references to member projects whose compilerOptions.composite is true. Run tsc --build from the space root to build the referenced projects. Member configs are read as JSON. This generator is off by default.
 
 No options.
 
 ## uv
 
-Package uv writes a virtual pyproject.toml workspace so Python members use each other's local packages with one lock file and environment in the space root.
+Package uv writes a virtual uv workspace in the root pyproject.toml. It lists local Python packages and sets workspace sources for their dependencies on each other. Run uv from the space root to use one lock file and environment. This generator is off by default.
 
 No options.
 
 ## vscode
 
-Package vscode writes <space>.code-workspace: one editor window with a root folder for each member and each always.repos symlink (generators spec, "Editor workspace"). tdm owns only the "folders" key, so a person may keep "settings" and other keys in the file (gen.File.Key). Off by default: not every person uses the editor.
+Package vscode writes a <space>.code-workspace file with a folder for each member and each always.repos symlink. Tandem owns only the folders key; settings and other keys stay. It reads JSONC, including comments and trailing commas, but writes plain JSON. Comments are lost when the file is rewritten. This generator is off by default.
 
 No options.

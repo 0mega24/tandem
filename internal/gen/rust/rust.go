@@ -33,7 +33,11 @@ const (
 
 // Config holds the [generate.rust] settings.
 type Config struct {
-	Mode       Mode     `toml:"mode" jsonschema:"enum=auto,enum=patch,enum=workspace,default=auto"`
+	// Mode chooses auto, patch or workspace. Auto uses a workspace unless a member has one.
+	// A member workspace forces patch mode, even when workspace mode is requested.
+	Mode Mode `toml:"mode" jsonschema:"enum=auto,enum=patch,enum=workspace,default=auto"`
+
+	// Registries lists extra registries to patch in addition to crates-io.
 	Registries []string `toml:"registries" jsonschema:"description=Extra registries to patch besides crates-io"`
 }
 

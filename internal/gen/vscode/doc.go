@@ -1,8 +1,7 @@
-// Package vscode writes <space>.code-workspace: one editor window with a root folder for each
-// member and each always.repos symlink (generators spec, "Editor workspace").
-//
-// tdm owns only the "folders" key, so a person may keep "settings" and other keys in the file
-// (gen.File.Key). Off by default: not every person uses the editor.
+// Package vscode writes a <space>.code-workspace file with a folder for each member and
+// each always.repos symlink. Tandem owns only the folders key; settings and other keys stay.
+// It reads JSONC, including comments and trailing commas, but writes plain JSON. Comments are
+// lost when the file is rewritten. This generator is off by default.
 //
 //tandem:generator id=vscode manifest=any
 package vscode

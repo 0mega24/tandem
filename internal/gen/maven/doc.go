@@ -1,5 +1,5 @@
-// Package maven writes an aggregator pom.xml in the space root so Maven builds member
-// reactors together in dependency order without changing their parent POMs.
+// Package maven writes a root pom.xml that lists the member Maven builds as modules.
+// Maven builds them together in dependency order. Member parent POMs stay unchanged.
 //
 //tandem:generator id=maven manifest=pom.xml
 package maven

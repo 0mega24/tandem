@@ -175,6 +175,7 @@
           "properties": {
             "mode": {
               "default": "auto",
+              "description": "Mode chooses auto, patch or workspace. Auto uses a workspace unless a member has one. A member workspace forces patch mode, even when workspace mode is requested.",
               "enum": [
                 "auto",
                 "patch",

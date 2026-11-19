@@ -14,8 +14,8 @@ People also want distro packages, not only archives.
   bash, zsh and fish completions and the license, and depend on git.
 - `.github/workflows/release.yml` runs `make check`, then `make release`. The release is a draft:
   a person reads the notes and the files, then publishes it.
-- No AppImage. The binary is static (CGO_ENABLED=0), so the tarball already runs on any Linux;
-  nixpkgs has no appimagetool, and a bundler from outside nixpkgs is more to maintain.
+- Do not build an AppImage. Linux binaries use `CGO_ENABLED=0`. Tarballs provide a direct
+  install for the supported Linux architectures without a separate bundling tool.
 
 ## Consequences
 

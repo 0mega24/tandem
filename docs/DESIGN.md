@@ -11,19 +11,22 @@ The full specifications are in `docs/spec/`:
   commands, tests and phases.
 
 The core space behavior (new, add, remove, delete, status, exec, path, repo sync and status,
-config, always.*, hooks, auto-heal, saga) follows the documented behavior of wtg, with the names
-of the naming table in `docs/spec/project.md`. No wtg code is copied.
+config, always.*, hooks, worktree repair and undo steps) follows the requirements in
+`docs/spec/`. The naming table in `docs/spec/project.md` defines the names. No wtg code is copied.
 
-## Prior art
+## Projects that inspired tandem
 
-| Tool | Idea that Tandem takes |
-|---|---|
-| [wtg](https://github.com/geoffamey/wtg) | One branch across many repos as git worktrees in one space directory; a generated go.work; a saga with undo steps; state files that are hints, checked against disk and git (auto-heal); always.repos, always.files, always.secrets and the always.run hook. |
-| reporoot | One integration for each ecosystem, found by manifest; workspace files for npm, Go, uv and VS Code from one set of repos. |
-| repoweave | One interface for each ecosystem (activate, deactivate, check, generated files); a list of generated files; an ownership check (generated header) before a delete. |
+[wtg](https://github.com/geoffamey/wtg) inspired Tandem's use of one branch across many repos
+as git worktrees, with a generated go.work. Tandem is a separate implementation.
 
-Tandem adds rules for repos that are already workspaces (nested workspaces), a plugin protocol for
-other languages, and a TUI.
+Two other projects shaped the generators. reporoot has one integration for each build tool,
+found by its build file, and writes workspace files for npm, Go, uv and VS Code. repoweave keeps
+a list of the files it generated, and checks that a file is its own before it deletes it.
+
+Tandem uses a generator for each supported build tool. Each generator finds build files and
+plans workspace files. Tandem checks and applies those plans, records the files it writes,
+and checks for user edits before it changes or removes them. External generators use the
+same checks through the plugin protocol. The CLI and TUI share the space operations.
 
 ## Locked project structure
 
@@ -32,58 +35,58 @@ enforce it. Change this section first, then the allowlist in the layout test, in
 
 ```
 tandem/
-├── cmd/tdm/main.go          # entry point only: calls cli.Run
-├── internal/
-│   ├── layout_test.go        # locks this tree
-│   ├── cli/                  # commands: flags, arguments, output
-│   ├── config/               # load (koanf layers), defaults, validation
-│   ├── state/                # space state, migration, wtg import
-│   ├── git/                  # Runner interface, system git, testhelper/
-│   ├── saga/                 # Do/Undo steps
-│   ├── space/                # space operations: new, add, remove, delete, generate, status, exec
-│   ├── tui/                  # lazygit-style terminal UI (tdm ui)
-│   ├── ui/                   # terminal output
-│   ├── version/              # Version, Commit, Date (set by -ldflags), VERSION
-│   └── gen/
-│       ├── gen.go            # Generator, Member, Space, Plan
-│       ├── registry.go       # Register, All, ByID
-│       ├── apply.go          # ownership check, writes, links, saga steps
-│       ├── generate.go       # go:generate directives, in order
-│       ├── urlnorm/          # git URL normalization
-│       ├── gentest/          # golden-file test harness
-│       ├── all/              # zz_generated_imports.go
-│       ├── external/         # plugin protocol client
-│       └── <id>/             # golang, rust, js, ts, gradle, maven, dotnet,
-│           ├── <id>.go       #   cmake, meson, uv, cabal, vscode
-│           ├── <id>_test.go
-│           ├── doc.go        # //tandem:generator metadata
-│           └── testdata/<case>/{in,want}/
-├── tools/
-│   ├── genregistry/          # go generate step 1: imports file
-│   ├── gendocs/              # go generate step 2: docs, schema, template
-│   └── newgen/               # scaffolds a new generator
-├── schema/config.schema.json # generated
-├── docs/                     # DESIGN.md, spec/, generators.md (generated), plugins.md, always.md,
-│                             # decisions/
-├── examples/plugins/         # external generators in shell and Python
-├── nix/                      # package.nix, nixos-module.nix, hm-module.nix, devshells.nix
-├── skills/                   # tandem/, tandem-setup/
-├── .claude-plugin/  .codex-plugin/
-├── .agents/plugins/      # Codex marketplace for the plugin
-├── .github/workflows/        # ci.yml, nightly.yml, flake-update.yml, release.yml
-├── .goreleaser.yaml          # release: archives, .deb, .rpm, pacman packages
-├── flake.nix  flake.lock  .envrc
-├── Makefile
-├── go.mod  go.sum  go.tool.mod  go.tool.sum
-├── .golangci.yml  .editorconfig  .gitignore
-└── LICENSE  README.md  CHANGELOG.md  AGENTS.md  CLAUDE.md -> AGENTS.md
+|-- cmd/tdm/main.go          # entry point only: calls cli.Run
+|-- internal/
+|   |-- layout_test.go        # locks this tree
+|   |-- cli/                  # commands: flags, arguments, output
+|   |-- config/               # load (koanf layers), defaults, validation
+|   |-- state/                # space state, migration, wtg import
+|   |-- git/                  # Runner interface, system git, testhelper/
+|   |-- saga/                 # Do/Undo steps
+|   |-- space/                # space operations: new, add, remove, delete, generate, status, exec
+|   |-- tui/                  # lazygit-style terminal UI (tdm ui)
+|   |-- ui/                   # terminal output
+|   |-- version/              # Version, Commit, Date (set by -ldflags), VERSION
+|   `-- gen/
+|       |-- gen.go            # Generator, Member, Space, Plan
+|       |-- registry.go       # Register, All, ByID
+|       |-- apply.go          # ownership check, writes, links, saga steps
+|       |-- generate.go       # go:generate directives, in order
+|       |-- urlnorm/          # git URL normalization
+|       |-- gentest/          # golden-file test harness
+|       |-- all/              # zz_generated_imports.go
+|       |-- external/         # plugin protocol client
+|       `-- <id>/             # golang, rust, js, ts, gradle, maven, dotnet,
+|           |-- <id>.go       #   cmake, meson, uv, cabal, vscode
+|           |-- <id>_test.go
+|           |-- doc.go        # //tandem:generator metadata
+|           `-- testdata/<case>/{in,want}/
+|-- tools/
+|   |-- genregistry/          # go generate step 1: imports file
+|   |-- gendocs/              # go generate step 2: docs, schema, template
+|   `-- newgen/               # scaffolds a new generator
+|-- schema/config.schema.json # generated
+|-- docs/                     # DESIGN.md, spec/, generators.md (generated), plugins.md, always.md,
+|                             # decisions/
+|-- examples/plugins/         # external generators in shell and Python
+|-- nix/                      # package.nix, nixos-module.nix, hm-module.nix, devshells.nix
+|-- skills/                   # tandem/, tandem-setup/
+|-- .claude-plugin/  .codex-plugin/
+|-- .agents/plugins/      # Codex marketplace for the plugin
+|-- .github/workflows/        # ci.yml, nightly.yml, flake-update.yml, release.yml
+|-- .goreleaser.yaml          # release: archives, .deb, .rpm, pacman packages
+|-- flake.nix  flake.lock  .envrc
+|-- Makefile
+|-- go.mod  go.sum  go.tool.mod  go.tool.sum
+|-- .golangci.yml  .editorconfig  .gitignore
+`-- LICENSE  README.md  CHANGELOG.md  AGENTS.md  CLAUDE.md -> AGENTS.md
 ```
 
 Rules:
 
 1. Only `cmd/tdm` and `tools/*` hold package main.
-2. All Go code is under `internal/`. Tandem has no public Go API in version 1. The plugin protocol
-   is the public extension point.
+2. Application Go code is under `internal/`, apart from the entry point and tools. Tandem has
+   no public Go API in version 1. The plugin protocol is the public extension point.
 3. A generator package may import only `internal/gen`, `internal/gen/urlnorm`, the standard library
    and file-format parsers. It must not import cli, state, git, saga, space or tui, and must not
    use os/exec.
@@ -116,18 +119,19 @@ Rules:
 | `gen.DecodeConfig[Config](s.Config)` | `gen.DecodeConfig(s.Config, defaults)` | The defaults come from `Meta().Config`, so the decoder needs them. |
 | `generate.enabled`: omitted or `["none"]` | An empty list is the same as `["none"]`; `"none"` with other IDs is an error | A list that names no generator means none; "none" and an ID together have no meaning. |
 | `Detect(m Member)` | `Detect(m Member, o DetectOptions)` with `Depth` (generate.detect_depth) and the `[generate.<id>]` table | Detection needs settings too: detect_depth for all, scan_depth for cmake. |
-| Config layering by hand | koanf (file, env, confmap providers) | Owner: config parity with wtg. |
+| Config layering by hand | koanf with file contents and TOML or YAML parsers | Owner: config parity with wtg. |
 | wtg `config` prints the one config file | `tdm config` prints each layer that it read, lowest priority first | With layers, one file does not show what applies. |
 | wtg config defaults not documented | `discovery.root_dir = "~/repos"`, `discovery.max_depth = 2`, `spaces.root_dir = "~/workspaces"`; an unknown key is an error | Values from the wtg examples; strict keys find typos. |
 | `config init` in the core commands | comes with the generated template (P2) | The template is generated from the code (project spec). |
 | `[[generate.custom]]` | replaced by plugins | As the project spec says. |
 | Nightly integration job in ci.yml | `nightly.yml` runs `make check-full`; ci.yml runs integration only with the label; `ci-passed` gathers all jobs | Slow lanes stay out of PR runs; branch protection needs one check name. |
-| CI runs every job on every event | A new push cancels the old run; drafts get no CI; a docs-only change runs `make quick` only; PRs build the Nix package on Linux only (main adds macOS); the nightly run stops when main has no commit in 25 hours | Faster feedback and fewer runner minutes. All tools are pinned, so a skipped run cannot hide a change. |
+| CI runs every job on every event | A new push cancels the old run; drafts get no CI; a docs-only change runs `make quick` only; PRs build the Nix package on Linux only (main adds macOS); the nightly run stops when main has no commit in 25 hours | Faster feedback and fewer runner minutes. The checks depend on the files that changed. |
 
 ## TUI
 
-`tdm ui` opens a lazygit-style view: Spaces | Repos | Details panels and a log line. Keys: `n` new,
-`a` add, `r` remove, `d` delete (modal confirmation with the dirty and unpushed summary), `g`
+`tdm ui` opens a lazygit-style view. Status, Spaces, Repos and Generated panels are on the
+left. Details and the command log are on the right, with a key bar below. Use `1` to `4` or
+`tab` to select a panel. Keys: `n` new, `a` add, `r` remove, `d` delete (modal confirmation with the dirty and unpushed summary), `g`
 generate, `G` dry-run diff, `s` repo sync, `e` exec, `enter` prints the space path and quits (for
 `tcd`), `/` filter, `?` help, `q` quit. Long operations run in the background; the view stays
 responsive. Bare `tdm` prints help, so scripts do not open the TUI.

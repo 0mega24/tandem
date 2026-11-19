@@ -1,6 +1,7 @@
-// Package gradle writes settings.gradle.kts in the space root to connect Gradle builds through
-// composite-build dependency substitution. Run a member wrapper from the space root, for example
-// ./api/gradlew -p . build, to use the included builds.
+// Package gradle writes settings.gradle.kts in the space root. It includes the member
+// builds with includeBuild so Gradle can substitute local projects for published dependencies.
+// Run a member's wrapper with the space root as the project directory, for example
+// ./api/gradlew -p . build.
 //
 //tandem:generator id=gradle manifest=settings.gradle.kts
 package gradle

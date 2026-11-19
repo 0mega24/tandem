@@ -45,13 +45,14 @@ for pnpm. When the feature is done, you undo all of it.
 With tandem, one command does all of this, and one command removes it again:
 
 - `tdm new my-feature api shared client` makes a folder, called a space, with a git worktree of
-  each repo, all on the branch `my-feature`. Your main clones do not change.
-- In the same step, it writes the files that connect the builds, for 12 build tools.
-- `tdm delete my-feature` removes the worktrees and the files. It asks first if a repo has work
-  that is not pushed.
+  each repo, all on the branch `my-feature`. Your main clones stay in place.
+- In the same step, it writes the files that connect the builds. There are 12 built-in
+  generators. Some are off by default.
+- `tdm delete my-feature` removes the worktrees and the files. It asks first if a worktree has changes
+  or commits that are not pushed. Changed generated files stay in place.
 
-tandem only writes files that it made itself and that nobody changed since. It does not build,
-install or lock anything.
+tandem only changes files that it wrote and that nobody changed since. It does not run builds or
+install dependencies.
 
 ## Demo
 
@@ -70,8 +71,8 @@ pushed. It also shows if each generated file is still as tandem wrote it.
 
 ### Check a change before it is written
 
-When you add a module to a repo, `tdm generate --dry-run` shows how the generated files would
-change, and writes nothing. Run it without `--dry-run` to write them.
+When you add a module to a repo, `tdm generate --dry-run my-feature` shows how the generated
+files would change, and writes nothing. Run it without `--dry-run` to write them.
 
 <p align="center">
   <img alt="tdm generate --dry-run: a diff that adds ./client to go.work" src="docs/demo/dryrun.gif" width="100%">
@@ -141,15 +142,15 @@ See the [module options](nix/nixos-module.nix).
 
 ### Packages
 
-Each `v*` tag publishes a GitHub release with .deb, .rpm and pacman packages and tarballs for
-Linux and macOS (amd64 and arm64), with shell completions. Download the file from the
-[releases page](https://github.com/0mega24/tandem/releases), then:
+Each `v*` tag creates a draft GitHub release with .deb, .rpm and pacman packages and tarballs for
+Linux and macOS (amd64 and arm64), with shell completions. A maintainer checks and publishes
+the draft. Download the file from the [releases page](https://github.com/0mega24/tandem/releases), then:
 
 ```sh
+sha256sum --check --ignore-missing checksums.txt   # check the download first
 sudo apt install ./tandem_*_amd64.deb              # Debian, Ubuntu
 sudo dnf install ./tandem-*.x86_64.rpm             # Fedora, RHEL
 sudo pacman -U ./tandem-*-x86_64.pkg.tar.zst       # Arch, Artix
-sha256sum --check --ignore-missing checksums.txt   # check the download first
 ```
 
 ### Go
@@ -177,10 +178,10 @@ Put your main clones under `~/repos`, or set `discovery.root_dir`.
 tdm config init                       # write the user config
 tdm repo sync                         # fast-forward the default branches first
 tdm new my-feature api shared client  # one worktree on my-feature in each repo
-tcd my-feature                        # or: cd "$(tdm path my-feature)"
+cd "$(tdm path my-feature)"            # or: tcd my-feature, if the helper is installed
 tdm add my-feature web                # add a repo later; the generated files follow
 tdm exec my-feature -- git push -u origin my-feature
-tdm delete -d my-feature              # remove it all, and the merged branches
+tdm delete -d my-feature              # remove worktrees and merged space branches
 ```
 
 | Command | Does |
@@ -189,8 +190,8 @@ tdm delete -d my-feature              # remove it all, and the merged branches
 | `tdm add` / `tdm remove` | Change the repos of a space; the generated files follow |
 | `tdm exec <space> -- <cmd>` | Run a command in each worktree |
 | `tdm generate [-n] <space>` | Write the workspace files again; `-n` shows a diff only |
-| `tdm delete [-d\|-D] <space>` | Remove the worktrees, the files and the space; asks before it drops unpushed work |
-| `tdm status [-l]`, `tdm path` | Inspect a space; print its directory |
+| `tdm delete [-d\|-D] <space>` | Remove worktrees and unchanged generated files; ask before removing local work |
+| `tdm status [-l] [space...]`, `tdm path <space>` | Inspect a space; print its directory |
 | `tdm repo status`, `tdm repo sync` | Inspect and update the main clones |
 | `tdm ui` | The terminal UI |
 | `tdm import wtg [--dry-run]` | Copy your wtg spaces and config; changes nothing in the worktrees |
@@ -200,10 +201,13 @@ branch is checked out as it is. `--branch NAME` and `--path DIR` change the bran
 
 ## Generators
 
-Each generator finds its manifests in the worktrees and writes files in the space root.
+A space is a folder with a worktree for each selected repo. Each generator reads build files
+in those worktrees and plans workspace files. Most write in the space root; Meson makes links
+in the worktrees.
 `tdm generate --list` shows them. `--generate=go,rust` or `--no-generate` on `tdm new` picks the
-set for one space; `generate.enabled` in the config picks it for all. Every generator has an
-integration test that runs the real tool (`make test-integration` in `nix develop .#integration`).
+set for a new space; `generate.enabled` in the config picks the set for future spaces.
+Integration tests check generated workspaces with build tools and parsers
+(`make test-integration` in `nix develop .#integration`).
 
 | Language / tool | Files written | Default |
 |---|---|:---:|
@@ -226,7 +230,7 @@ Meson needs `subprojects/<dir>` to be git-ignored in the consumer.
 
 ### Plugins
 
-A build system that tandem does not know? Write an executable `tdm-gen-<id>` in any language. It
+To add a build system, write an executable `tdm-gen-<id>` in any language. It
 reads a JSON request on stdin and answers with the files to write. tandem applies the plan with
 its ownership checks and undo steps, so a plugin never writes files itself. `tdm plugin check <id>`
 tests one. See the [plugin protocol](docs/plugins.md) and the [example plugins](examples/plugins)
@@ -237,7 +241,8 @@ tests one. See the [plugin protocol](docs/plugins.md) and the [example plugins](
 
 Later layers override earlier ones: the built-in defaults, `tandem/config.toml` in each
 `$XDG_CONFIG_DIRS` directory, `$XDG_CONFIG_HOME/tandem/config.toml`, then `TDM_CONFIG` or
-`--config`. YAML works too, and unknown keys are errors. `tdm config` prints the files it read.
+`--config` (which wins over `TDM_CONFIG`). YAML works too. Unknown keys are errors.
+`tdm config` prints each file it read and its contents.
 
 ```toml
 [discovery]
@@ -263,7 +268,7 @@ run = ""                   # hook after new, add, remove and delete
 ### Agent skills
 
 Two skills teach coding agents to use tandem: `tandem` (work in a space) and `tandem-setup`
-(set up tandem for a person).
+(install and configure tandem).
 
 ```sh
 claude plugin marketplace add 0mega24/tandem && claude plugin install tandem@tandem
@@ -283,7 +288,7 @@ make snapshot            # release packages in dist/, nothing published
 ```
 
 Read [AGENTS.md](AGENTS.md) for the repo rules, [docs/DESIGN.md](docs/DESIGN.md) for the
-structure and prior art, and [docs/spec/](docs/spec/) for the requirements. User-visible changes
+structure and design, and [docs/spec/](docs/spec/) for the requirements. User-visible changes
 go in [CHANGELOG.md](CHANGELOG.md).
 
 ## Acknowledgements

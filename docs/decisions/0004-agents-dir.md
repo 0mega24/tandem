@@ -4,18 +4,18 @@ Status: accepted (2026-11-18)
 
 ## Context
 
-The repo ships agent skills as a plugin. Codex reads a repo marketplace only from
-`.agents/plugins/marketplace.json`. Claude Code reads `.claude-plugin/marketplace.json`. The
-locked tree had no place for the Codex file.
+The repo ships agent skills as a plugin. It provides `.agents/plugins/marketplace.json`
+for Codex and `.claude-plugin/marketplace.json` for Claude Code. The locked tree had no
+place for the Codex marketplace file.
 
 ## Decision
 
 - Add `.agents/` to the locked tree. It holds only `plugins/marketplace.json`, which lists the
   `tandem` plugin with the repo root as its source.
-- The Codex manifest stays in `.codex-plugin/plugin.json`, which Codex still supports.
+- Keep the Codex manifest in `.codex-plugin/plugin.json`.
 
 ## Consequences
 
-- `codex plugin marketplace add 0mega24/tandem` installs the skills.
-- Codex can move to a root `plugin.json`. Then change `.codex-plugin/` and this record.
+- The marketplace lists the plugin as available. Installing the plugin is a separate step.
+- If the manifest path changes, update `.codex-plugin/`, the locked tree and this record.
 - Nothing else goes in `.agents/`.
