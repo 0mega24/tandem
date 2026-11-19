@@ -1,73 +1,117 @@
-# Tandem
+<p align="center">
+  <img alt="tandem" src="docs/assets/banner.svg" width="320">
+</p>
 
-**One feature branch across many repos.** `tdm` puts each repo on the branch as a git worktree in
-one space directory, and writes the workspace files that connect their build systems.
+<p align="center">
+  <b>One feature branch across many repos.</b><br>
+  A git worktree for each repo in one space directory, and the workspace files that connect their builds.
+</p>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/0mega24/tandem/ci.yml?branch=main&style=flat)](https://github.com/0mega24/tandem/actions/workflows/ci.yml)
-[![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
-[![Go 1.27](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat)](go.mod)
+<p align="center">
+  <a href="https://github.com/0mega24/tandem/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/0mega24/tandem/ci.yml?branch=main&style=flat-square&label=CI&labelColor=1e2021&color=6e8aa2"></a>
+  <a href="CHANGELOG.md"><img alt="status: early development" src="https://img.shields.io/badge/status-early%20development-d97752?style=flat-square&labelColor=1e2021"></a>
+  <a href="#generators"><img alt="generators: 12" src="https://img.shields.io/badge/generators-12-6e8aa2?style=flat-square&labelColor=1e2021"></a>
+  <a href="go.mod"><img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-5e7990?style=flat-square&logo=go&logoColor=white&labelColor=1e2021"></a>
+  <a href="flake.nix"><img alt="built with Nix" src="https://img.shields.io/badge/built%20with-Nix-516d84?style=flat-square&logo=nixos&logoColor=white&labelColor=1e2021"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-a08590?style=flat-square&labelColor=1e2021"></a>
+</p>
 
-[Quick start](#quick-start) •
-[Install](#install) •
-[Generators](#generators) •
-[Terminal UI](#terminal-ui) •
-[Plugins](#plugins) •
-[Configuration](#configuration) •
-[Docs](#documentation)
+<p align="center">
+  <a href="#why-tandem">Why tandem</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#see-it-work">See it work</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#install">Install</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#quick-start">Quick start</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#generators">Generators</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#configure">Configure</a>
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="#contributing">Contributing</a>
+</p>
 
 > [!NOTE]
-> Tandem is in early development. Commands and config can still change.
+> **tandem is in early development.** The commands work and have tests against the real build
+> tools, but commands, config and state can still change before v1.
 
-```text
-$ tdm new my-feature api shared client
-my-feature  ~/workspaces/my-feature
-  api       ✓ worktree  [my-feature]  new branch from main
-  shared    ✓ worktree  [my-feature]  new branch from main
-  client    ✓ worktree  [my-feature]  new branch from main
-  go        ✓ go.work  (api, shared)
-  js        ✓ package.json  (client)
-```
-
-A scripted run of `tdm new` and `tdm ui` is in the [demo tape](docs/demo/tandem.tape) (`vhs`).
-
-## Why
+## Why tandem
 
 A change can touch an API, a shared library and a client at once. You switch branches in each
-repo, then wire the local copies into each build tool by hand. Tandem does both in one command:
+repo, then wire the local copies into each build tool by hand: a `go.work` here, a Cargo
+`[patch]` there, a pnpm workspace for the client. `tdm new` does all of it in one command, and
+`tdm delete` takes it all away again. Your main clones stay where they are.
 
-- **One space per feature.** A worktree on the same branch in each repo. Your main clones stay
-  where they are.
-- **Workspace files for [12 generators](#generators).** `go.work`, Cargo `[patch]`, pnpm, Gradle,
-  Maven, .NET, CMake, Meson, uv and more. Tandem does not build, install or lock anything.
-- **Safe.** It writes only files that it made and that nobody changed. A failed step undoes the
-  steps before it. `tdm delete` and `tdm remove` ask before they drop unpushed work.
-- **A [TUI](#terminal-ui)** in the style of lazygit, and [plugins](#plugins) for build systems it
-  does not know.
+|                                                         | `git worktree` by hand | [wtg](https://github.com/geoffamey/wtg) | **tandem** |
+|---------------------------------------------------------|:----:|:----:|:----:|
+| One branch across many repos, in one directory          | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| A failed step undoes the steps before it                | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| Generated `go.work`                                     | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| Cargo, pnpm, Gradle, Maven, .NET, CMake, Meson, uv, Cabal | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| Repos that are already workspaces                       | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| Plugins for other build systems, in any language        | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+| Terminal UI                                             | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+
+tandem writes only the files it made and that nobody changed since. It does not build, install
+or lock anything, and it does not replace the package manager of a language.
+
+## See it work
+
+The real `tdm` from `main`, recorded in a terminal ([tape](docs/demo/tandem.tape), `make demo`):
+
+<p align="center">
+  <img alt="tdm new makes a space with three repos and a go.work, then tdm ui shows the space" src="docs/demo/tandem.gif" width="100%">
+</p>
+
+### Every repo at a glance
+
+`tdm status -l` shows the branch of each worktree, the changes, the commits that origin does not
+have, and the state of each generated file.
+
+<p align="center">
+  <img alt="tdm status -l: api has one changed file, shared has one unpushed commit, go.work and package.json are generated" src="docs/demo/card-status.png" width="100%">
+</p>
+
+### See the plan before it is written
+
+A new Go module in `client`? `tdm generate --dry-run` prints the rows and a diff of each file that
+would change, and writes nothing. Without `--dry-run`, the files follow.
+
+<p align="center">
+  <img alt="tdm generate --dry-run: a diff that adds ./client to go.work" src="docs/demo/card-dryrun.png" width="100%">
+</p>
+
+### A terminal UI in the style of lazygit
+
+`tdm ui` has numbered panels for the space, the spaces, the repos and the generated files, a main
+view and a command log. It runs new, add, remove, delete, generate, sync and exec. Press `?` for
+the keys. `enter` prints the path of the space, so `cd "$(tdm ui)"` goes there.
+
+<p align="center">
+  <img alt="tdm ui: panels for status, spaces, repos and generated files, with go.work in the main view" src="docs/demo/card-tui.png" width="100%">
+</p>
 
 ## Install
 
-With Nix flakes:
+### Nix
 
 ```sh
-nix run github:0mega24/tandem -- version
-nix profile install github:0mega24/tandem
+nix run github:0mega24/tandem -- version   # try it
+nix profile install github:0mega24/tandem  # install it
 ```
 
 <details>
-<summary>Home Manager</summary>
-
-Add the input to your configuration flake:
+<summary>Home Manager module</summary>
 
 ```nix
+# flake.nix
 inputs.tandem = {
   url = "github:0mega24/tandem";
   inputs.nixpkgs.follows = "nixpkgs";
 };
-```
 
-In a Home Manager module with access to `inputs`:
-
-```nix
+# a Home Manager module with access to inputs
 imports = [ inputs.tandem.homeManagerModules.default ];
 programs.tandem = {
   enable = true;
@@ -75,15 +119,15 @@ programs.tandem = {
 };
 ```
 
-The `tcd <space>` shell helper (on by default) changes to the space directory.
+The `tcd <space>` shell function (on by default) changes to the space directory.
 See the [module options](nix/hm-module.nix).
 
 </details>
 
 <details>
-<summary>NixOS</summary>
+<summary>NixOS module</summary>
 
-Add the same `inputs.tandem` flake input shown above. In a NixOS module with access to `inputs`:
+With the same flake input:
 
 ```nix
 imports = [ inputs.tandem.nixosModules.default ];
@@ -93,58 +137,53 @@ programs.tandem = {
 };
 ```
 
-Settings go in `/etc/xdg/tandem/config.toml`. User config overrides them.
+The settings go in `/etc/xdg/tandem/config.toml`; user config overrides them.
 See the [module options](nix/nixos-module.nix).
 
 </details>
 
-<details>
-<summary>From source</summary>
+### Packages
+
+Each `v*` tag publishes a GitHub release with .deb, .rpm and pacman packages and tarballs for
+Linux and macOS (amd64 and arm64), with shell completions. Download the file from the
+[releases page](https://github.com/0mega24/tandem/releases), then:
 
 ```sh
-make build                 # enters the Nix dev shell when needed
-./bin/tdm version
+sudo apt install ./tandem_*_amd64.deb              # Debian, Ubuntu
+sudo dnf install ./tandem-*.x86_64.rpm             # Fedora, RHEL
+sudo pacman -U ./tandem-*-x86_64.pkg.tar.zst       # Arch, Artix
+sha256sum --check --ignore-missing checksums.txt   # check the download first
 ```
 
-Or use `nix build` to get `result/bin/tdm`.
+### Go
 
-</details>
+```sh
+go install github.com/0mega24/tandem/cmd/tdm@latest   # needs Go 1.27
+```
+
+### From source
+
+```sh
+git clone https://github.com/0mega24/tandem && cd tandem
+make build && ./bin/tdm version   # enters the Nix dev shell when needed
+make install                      # to ~/.local/bin (PREFIX=... to change)
+nix build                         # or: the Nix package in result/bin/tdm
+```
+
+Without Nix, `make build DEV=` uses the Go on your PATH.
 
 ## Quick start
 
-Put your main clones under `~/repos`, or set `discovery.root_dir` in your config.
+Put your main clones under `~/repos`, or set `discovery.root_dir`.
 
 ```sh
-tdm config init                      # write the user config
-tdm repo status                      # inspect all main clones
-tdm repo sync                        # fast-forward default branches first
-tdm new my-feature api shared client # one worktree on my-feature in each repo
-tcd my-feature                       # or: cd "$(tdm path my-feature)"
-tdm add my-feature web               # add a repo later; go.work follows
-tdm delete -d my-feature             # remove it all, and the merged branches
-```
-
-Work in the space. `tdm status` shows each repo (output from a real run):
-
-```text
-$ tdm status my-feature
-my-feature  ~/workspaces/my-feature
-  api       [my-feature]  ✓ clean
-  shared    [my-feature]  ✓ clean
-  client    [my-feature]  ✓ clean
-```
-
-`tdm` writes `go.work` in the space root, so `go build` in `api` uses the local `shared`:
-
-```text
-// Generated by tandem for space my-feature. Do not edit.
-
-go 1.22
-
-use (
-	./api
-	./shared
-)
+tdm config init                       # write the user config
+tdm repo sync                         # fast-forward the default branches first
+tdm new my-feature api shared client  # one worktree on my-feature in each repo
+tcd my-feature                        # or: cd "$(tdm path my-feature)"
+tdm add my-feature web                # add a repo later; the generated files follow
+tdm exec my-feature -- git push -u origin my-feature
+tdm delete -d my-feature              # remove it all, and the merged branches
 ```
 
 | Command | Does |
@@ -153,67 +192,55 @@ use (
 | `tdm add` / `tdm remove` | Change the repos of a space; the generated files follow |
 | `tdm exec <space> -- <cmd>` | Run a command in each worktree |
 | `tdm generate [-n] <space>` | Write the workspace files again; `-n` shows a diff only |
-| `tdm delete [-d\|-D] <space>` | Remove the worktrees, the files and the space |
-| `tdm status`, `tdm path` | Inspect a space; print its directory |
+| `tdm delete [-d\|-D] <space>` | Remove the worktrees, the files and the space; asks before it drops unpushed work |
+| `tdm status [-l]`, `tdm path` | Inspect a space; print its directory |
 | `tdm repo status`, `tdm repo sync` | Inspect and update the main clones |
 | `tdm ui` | The terminal UI |
+| `tdm import wtg [--dry-run]` | Copy your wtg spaces and config; changes nothing in the worktrees |
 
 A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
 branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and directory.
 
 ## Generators
 
-Each generator finds its manifests in the worktrees and writes files in the space root. Run
-`tdm generate --list` to see them. `--generate=go` or `--no-generate` on `tdm new` picks the set
-for one space; `generate.enabled` in the config picks it for all.
+Each generator finds its manifests in the worktrees and writes files in the space root.
+`tdm generate --list` shows them. `--generate=go,rust` or `--no-generate` on `tdm new` picks the
+set for one space; `generate.enabled` in the config picks it for all. Every generator has an
+integration test that runs the real tool (`make test-integration` in `nix develop .#integration`).
 
 | Language / tool | Files written | Default |
-|---|---|---|
+|---|---|:---:|
 | Go | `go.work` | on |
 | Rust | `.cargo/config.toml` `[patch]` tables, or a root `Cargo.toml` workspace | on |
-| JavaScript / TypeScript | `pnpm-workspace.yaml` or `package.json` | on |
-| Java / Kotlin / Groovy / Scala (Gradle) | `settings.gradle.kts` | on |
+| JavaScript / TypeScript | `pnpm-workspace.yaml` or `package.json` workspaces | on |
+| Java / Kotlin / Groovy / Scala (Gradle) | `settings.gradle.kts` composite build | on |
 | Java (Maven) | `pom.xml` aggregator | on |
 | C# / F# / VB (.NET) | `<space>.slnx` or `<space>.sln` | on |
 | C / C++ (CMake) | `.tandem/cmake/overrides.cmake` | on |
-| C / C++ (Meson) | `subprojects/<dir>` symlinks in consumer worktrees | on |
+| C / C++ (Meson) | `subprojects/<dir>` links in the consumer worktrees | on |
 | Haskell (Cabal) | `cabal.project` | on |
-| TypeScript references | `tsconfig.json` | off |
-| Python (uv) | `pyproject.toml` | off |
+| TypeScript project references | `tsconfig.json` | off |
+| Python (uv) | `pyproject.toml` workspace | off |
 | VS Code | `<space>.code-workspace` | off |
 
-Options for each generator are in [docs/generators.md](docs/generators.md).
+The options of each generator are in [docs/generators.md](docs/generators.md).
+A .NET solution groups projects; it does not turn package references into project references.
+Meson needs `subprojects/<dir>` to be git-ignored in the consumer.
 
-Tandem cannot build, install or lock anything, and it does not replace the package manager of
-a language. A .NET solution groups projects; it does not turn package references into project
-references. Meson needs the `subprojects/<dir>` path to be git-ignored in the consumer.
+### Plugins
 
-## Terminal UI
+A build system that tandem does not know? Write an executable `tdm-gen-<id>` in any language. It
+reads a JSON request on stdin and answers with the files to write. tandem applies the plan with
+its ownership checks and undo steps, so a plugin never writes files itself. `tdm plugin check <id>`
+tests one. See the [plugin protocol](docs/plugins.md) and the [example plugins](examples/plugins)
+(Zig in shell, Bundler in Python). To add a built-in generator,
+`make newgen ID=zig MANIFEST=build.zig.zon` writes the package and its golden tests.
 
-`tdm ui` opens a lazygit-style view with Spaces, Repos, Details and a log. Press `?` for help.
-
-| Key | Does | Key | Does |
-|---|---|---|---|
-| `n` | new space | `g` / `G` | generate / dry-run diff |
-| `a` | add repos | `s` | sync main clones |
-| `r` | remove repos | `e` | run a command |
-| `d` | delete (shows dirty and unpushed work) | `/` | filter |
-| `enter` | print the space path and quit | `q` | quit |
-
-`cd "$(tdm ui)"` goes to the space you choose. Bare `tdm` prints help, so scripts never open it.
-
-## Plugins
-
-A build system that Tandem does not know? Write an executable `tdm-gen-<id>` (any language). It
-reads a JSON request on stdin and answers with the files to write. Tandem applies the plan with
-its ownership checks and rollback, so a plugin never writes files itself. `tdm plugin check <id>`
-tests one. See the [plugin protocol](docs/plugins.md) and the [examples](examples/plugins).
-
-## Configuration
+## Configure
 
 Later layers override earlier ones: the built-in defaults, `tandem/config.toml` in each
 `$XDG_CONFIG_DIRS` directory, `$XDG_CONFIG_HOME/tandem/config.toml`, then `TDM_CONFIG` or
-`--config`. YAML works too. Unknown keys are errors. `tdm config` prints the files read.
+`--config`. YAML works too, and unknown keys are errors. `tdm config` prints the files it read.
 
 ```toml
 [discovery]
@@ -224,50 +251,43 @@ max_depth = 2
 root_dir = "~/workspaces"
 
 [always]                   # applied by tdm new
-repos = []                 # symlinked into each space, not branched
+repos = []                 # linked into each space, not branched
 files = []                 # copied into the space root
-secrets = []               # e.g. ".env", copied into each worktree
+secrets = []               # for example ".env", copied into each worktree
 run = ""                   # hook after new, add, remove and delete
 
 [generate]
-# enabled = ["go"]         # default: the generators marked "on" above; or ["none"]
+# enabled = ["go", "rust"] # default: the generators marked "on"; ["none"] for none
 ```
 
 `tdm config init` writes the file with a `#:schema` line for
 [schema/config.schema.json](schema/config.schema.json), so editors with Taplo complete the keys.
 
-## How it differs from wtg
-
-Tandem takes the idea of [wtg](https://github.com/geoffamey/wtg) and is a new implementation.
-Its generators cover many build systems, not only Go. It also has plugins and a TUI, writes only
-files that it made and nobody changed, and undoes a failed step. See the prior art in
-[docs/DESIGN.md](docs/DESIGN.md).
-
-Moving from wtg? `tdm import wtg` copies your wtg spaces and config into tandem and changes
-nothing in the worktrees. Run it with `--dry-run` first.
-
-## Agent skills
+### Agent skills
 
 Two skills teach coding agents to use tandem: `tandem` (work in a space) and `tandem-setup`
-(set up tandem for a person). Install them as a plugin:
+(set up tandem for a person).
 
 ```sh
 claude plugin marketplace add 0mega24/tandem && claude plugin install tandem@tandem
 codex plugin marketplace add 0mega24/tandem
 ```
 
-## Documentation
+## Contributing
 
-- [Generators](docs/generators.md): every generator and its options.
-- [Plugin protocol](docs/plugins.md) and [example plugins](examples/plugins).
-- [Design](docs/DESIGN.md): structure, prior art and changes from the specs.
-- [Specs](docs/spec/): the requirements.
-- [CHANGELOG.md](CHANGELOG.md).
+Use `nix develop` or direnv; the Makefile enters the dev shell when needed.
 
-To work on tandem, use `nix develop` or direnv; the Makefile enters the dev shell itself.
-`make build` builds `bin/tdm`, `make test` runs the tests, `make check` is the merge gate.
-`make newgen ID=zig MANIFEST=build.zig.zon` scaffolds a new generator.
-Read [AGENTS.md](AGENTS.md) for the repo rules.
+```sh
+make build               # bin/tdm
+make test                # unit, golden and testscript tests
+make check               # the merge gate: what CI runs
+make test-integration    # the real build tools (in nix develop .#integration)
+make snapshot            # release packages in dist/, nothing published
+```
+
+Read [AGENTS.md](AGENTS.md) for the repo rules, [docs/DESIGN.md](docs/DESIGN.md) for the
+structure and prior art, and [docs/spec/](docs/spec/) for the requirements. User-visible changes
+go in [CHANGELOG.md](CHANGELOG.md).
 
 ## Acknowledgements
 
