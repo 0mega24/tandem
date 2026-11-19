@@ -32,9 +32,11 @@ func newManager(cmd *ucli.Command) (*space.Manager, error) {
 	return m, nil
 }
 
-// repoArgsHelp is shared because all repo commands resolve names the same way.
-const repoArgsHelp = "With no repo, all main clones under discovery.root_dir (symlinks are not followed).\n" +
-	"A repo is its path under the root (myorg/api), or its last part (api) when that is unique."
+// repoNameHelp is shared because every command resolves repo names the same way.
+const repoNameHelp = "A repo is its path under discovery.root_dir (myorg/api), or its last part (api) when that is unique."
+
+// repoArgsHelp is for the repo commands, which take all main clones when no repo is given.
+const repoArgsHelp = "With no repo, all main clones under discovery.root_dir (symlinks are not followed).\n" + repoNameHelp
 
 func repoCommand() *ucli.Command {
 	return &ucli.Command{

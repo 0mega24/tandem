@@ -29,7 +29,7 @@ func newCommand() *ucli.Command {
 			"of each always.secrets file that a main clone has, in its worktree.\n\n" +
 			"Then the generators (generate.enabled, or --generate) write the workspace files, such as\n" +
 			"go.work. The space keeps this generator set for add, remove and generate.\n\n" +
-			repoArgsHelp + "\n\n" +
+			repoNameHelp + "\n\n" +
 			"All checks run before the first change. When a step fails, the steps before it are undone.",
 		Flags: []ucli.Flag{
 			&ucli.StringFlag{Name: "branch", Usage: "use branch `NAME` in place of git.branch_prefix + <space>"},
@@ -131,7 +131,7 @@ func addCommand() *ucli.Command {
 		ArgsUsage: "<space> <repo>...",
 		Description: "The branch rules and the always.secrets are the same as for tdm new. A repo that is an\n" +
 			"always.repos symlink in the space gets a worktree in place of the symlink.\n\n" +
-			repoArgsHelp + "\n\n" +
+			repoNameHelp + "\n\n" +
 			"All checks run before the first change. When a step fails, the steps before it are undone.",
 		ShellComplete: func(_ context.Context, cmd *ucli.Command) {
 			if cmd.Args().Len() == 0 {
