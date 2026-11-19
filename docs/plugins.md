@@ -88,7 +88,8 @@ apply.
   this protocol does not provide a filesystem sandbox.
 - File and stale paths must be clean paths relative to the space root, use `/`,
   contain no `..`, and stay outside member worktrees. They must not pass through
-  symlinks. Files and links must have distinct destination paths.
+  symlinks. Files and links must have distinct destination paths. A stale path must not
+  be a file that any generator plans or that tandem owns.
 - A link may only be a direct `<member>/subprojects/<name>` entry whose target is
   another member worktree. The target is relative to the directory of the link, as
   `ln -s` takes it: `../../lib` for `app/subprojects/lib`. This is the Meson

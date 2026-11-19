@@ -469,3 +469,18 @@ func TestLinkOwnership(t *testing.T) {
 		t.Errorf("owned link of a member that left: err %v, owned %+v, warnings %q", err, a.Owned, a.Warnings())
 	}
 }
+
+// A stale path is a derived file such as go.work.sum. It must not name a file that a generator
+// plans or owns: that file has its own ownership check, which a stale delete would skip.
+func TestPrepareRejectsStaleGeneratedFile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "go.work", "edited by a person")
+	owned := []Owned{{Generator: "go", Path: "go.work", SHA256: "x"}}
+	plans := map[string]Plan{
+		"go":  {Files: []File{file("go.work", "v2")}},
+		"zig": {Files: []File{file(".tandem/zig/forks.args", "x")}, Stale: []string{"go.work"}},
+	}
+	if _, err := Prepare(root, owned, plans, nil, false, nil); err == nil {
+		t.Error("Prepare = nil error, want: stale go.work is a generated file")
+	}
+}
