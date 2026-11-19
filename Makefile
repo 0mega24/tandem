@@ -48,7 +48,8 @@ LDFLAGS := -s -w \
 GO          ?= go
 BUILD_FLAGS ?= -trimpath
 export CGO_ENABLED ?= 0
-GOTOOL      := $(DEV) $(GO) tool -modfile=go.tool.mod
+# GOWORK=off: -modfile does not work in workspace mode, for example in a tandem space with a go.work.
+GOTOOL      := $(DEV) env GOWORK=off $(GO) tool -modfile=go.tool.mod
 GOTESTSUM   := $(GOTOOL) gotestsum
 GOLANGCI    ?= golangci-lint
 NIXFMT      ?= nixfmt
