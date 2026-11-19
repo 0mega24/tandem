@@ -52,6 +52,11 @@ type KeptFile struct {
 // directory when nothing else is in it, and the state. Like RemoveRepos it asks first about work
 // that is not pushed, and it stops at the first failure with the state saved for a retry.
 func (m *Manager) DeleteSpace(ctx context.Context, name string, opts DeleteOptions) (Deleted, error) {
+	unlock, err := m.store.Lock(name)
+	if err != nil {
+		return Deleted{}, err
+	}
+	defer unlock()
 	sp, err := m.loadHealed(ctx, name)
 	if err != nil {
 		return Deleted{}, err

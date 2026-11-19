@@ -62,6 +62,11 @@ type newPlan struct {
 // copies, and the state file. All checks run before the first change; when a later step fails,
 // the finished steps are undone.
 func (m *Manager) NewSpace(ctx context.Context, opts NewOptions) (NewResult, error) {
+	unlock, err := m.store.Lock(opts.Name)
+	if err != nil {
+		return NewResult{}, err
+	}
+	defer unlock()
 	enabled := opts.Generators
 	if enabled == nil {
 		enabled = m.cfg.Generate.Enabled

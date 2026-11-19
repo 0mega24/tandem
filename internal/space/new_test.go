@@ -199,3 +199,17 @@ func TestNewSpaceCleansUpAFailedStep(t *testing.T) {
 		t.Errorf("the space dir is still there: %v", err)
 	}
 }
+
+// Two tdm processes must not change one space at once: a failed one would clean up what the
+// other made.
+func TestNewSpaceRefusesALockedSpace(t *testing.T) {
+	f := newFixture(t, "api")
+	unlock, err := state.NewStore(filepath.Join(f.dir, "state")).Lock("feat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	if _, err := f.m.NewSpace(context.Background(), NewOptions{Name: "feat", Repos: []string{"api"}}); !errors.Is(err, state.ErrBusy) {
+		t.Errorf("NewSpace on a locked space = %v, want state.ErrBusy", err)
+	}
+}
