@@ -224,6 +224,16 @@ nix-vendor-hash: ## Print the steps to get the new vendorHash after go.mod chang
 	@echo "Set vendorHash = lib.fakeHash in nix/package.nix, then run:"
 	@echo "  nix build .#default 2>&1 | grep 'got:'"
 
+##@ Docs
+.PHONY: demo
+# The build uses the release version from internal/version/VERSION, so no git hash shows.
+demo: ## Record docs/demo/tandem.gif and the README card screenshots (vhs from nixpkgs)
+	$(MAKE) build VERSION="$$(cat internal/version/VERSION)"
+	PATH="$(CURDIR)/$(BIN_DIR):$$PATH" FONTCONFIG_FILE="$(CURDIR)/docs/demo/fonts.conf" \
+	  nix shell nixpkgs#vhs nixpkgs#zsh -c sh -c 'vhs docs/demo/tandem.tape && vhs docs/demo/cards.tape'
+	rm -f docs/demo/cards.gif
+	rm -rf /tmp/tandem-demo
+
 ##@ Release
 .PHONY: snapshot
 snapshot: ## Build archives, .deb, .rpm and pacman packages locally in dist/ (no publish)
