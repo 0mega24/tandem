@@ -338,9 +338,15 @@ type deleteOutput struct {
 	Space     spaceOutput     `json:"space"`
 	Repos     []removedOutput `json:"repos"`
 	Files     []string        `json:"files"`
+	KeptFiles []keptOutput    `json:"kept_files"`
 	Generated []changeOutput  `json:"generated"`
 	KeptDir   bool            `json:"kept_dir"`
 }
+type keptOutput struct {
+	Name   string `json:"name"`
+	Source string `json:"source"`
+}
+
 type importWTGOutput struct {
 	DryRun bool              `json:"dry_run"`
 	Rows   []importRowOutput `json:"rows"`
@@ -355,4 +361,12 @@ type pluginCheckOutput struct {
 	Protocol   int    `json:"protocol"`
 	MetaPassed bool   `json:"meta_passed"`
 	PlanPassed bool   `json:"plan_passed"`
+}
+
+func jsonKept(kept []space.KeptFile) []keptOutput {
+	out := make([]keptOutput, len(kept))
+	for i, k := range kept {
+		out[i] = keptOutput{Name: k.Name, Source: k.Source}
+	}
+	return out
 }

@@ -224,14 +224,16 @@ shape. If generation did not run, its space fields are empty strings.
 ## delete
 
 Keys: `space`, `repos` (the removed repo shape above), `files` (removed root
-copies), `generated` (file changes), and `kept_dir` (other files kept the space
-directory on disk). Generated changes have the fields described under generate.
+copies), `kept_files` (files with an always.files name that differ from the
+source, so they stay: `name`, `source`), `generated` (file changes), and
+`kept_dir` (other files kept the space directory on disk). Generated changes have the fields described under generate.
 
 ```json
 {
   "space": {"name": "feat", "path": "/home/me/workspaces/feat", "branch": "feat"},
   "repos": [],
   "files": [],
+  "kept_files": [],
   "generated": [],
   "kept_dir": false
 }
