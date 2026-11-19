@@ -6,6 +6,8 @@ All notable changes to this project are in this file. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-18
+
 ### Changed
 - A generator writes files only when two or more members need connecting. With one member it
   prints `nothing to connect` and deletes the files it wrote before. A `go.work` around one
@@ -128,3 +130,6 @@ All notable changes to this project are in this file. The format follows
   that is gone leaves the state, with a warning.
 - `tdm status [-l] [space...]` shows each repo of each space: changes and the commits that origin
   does not have. The space that holds the current directory comes first.
+
+[Unreleased]: https://github.com/0mega24/tandem/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/0mega24/tandem/releases/tag/v0.1.0
