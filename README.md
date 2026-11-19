@@ -4,22 +4,21 @@
 
 <p align="center">
   <b>One feature branch across many repos.</b><br>
-  A git worktree for each repo in one space directory, and the workspace files that connect their builds.
+  tandem checks out the same branch in each repo, side by side in one folder,<br>
+  and sets up your build tools to use the local copies.
 </p>
 
 <p align="center">
-  <a href="https://github.com/0mega24/tandem/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/0mega24/tandem/ci.yml?branch=main&style=flat-square&label=CI&labelColor=1e2021&color=6e8aa2"></a>
-  <a href="CHANGELOG.md"><img alt="status: early development" src="https://img.shields.io/badge/status-early%20development-d97752?style=flat-square&labelColor=1e2021"></a>
-  <a href="#generators"><img alt="generators: 12" src="https://img.shields.io/badge/generators-12-6e8aa2?style=flat-square&labelColor=1e2021"></a>
-  <a href="go.mod"><img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-5e7990?style=flat-square&logo=go&logoColor=white&labelColor=1e2021"></a>
-  <a href="flake.nix"><img alt="built with Nix" src="https://img.shields.io/badge/built%20with-Nix-516d84?style=flat-square&logo=nixos&logoColor=white&labelColor=1e2021"></a>
-  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-a08590?style=flat-square&labelColor=1e2021"></a>
+  <a href="https://github.com/0mega24/tandem/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/0mega24/tandem/ci.yml?branch=main&style=flat-square&label=CI"></a>
+  <a href="CHANGELOG.md"><img alt="status: early development" src="https://img.shields.io/badge/status-early%20development-orange?style=flat-square"></a>
+  <a href="go.mod"><img alt="Go 1.27" src="https://img.shields.io/badge/Go-1.27-blue?style=flat-square"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
 </p>
 
 <p align="center">
   <a href="#why-tandem">Why tandem</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="#see-it-work">See it work</a>
+  <a href="#demo">Demo</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="#install">Install</a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -33,63 +32,61 @@
 </p>
 
 > [!NOTE]
-> **tandem is in early development.** The commands work and have tests against the real build
-> tools, but commands, config and state can still change before v1.
+> tandem is new. It works and is tested, but commands and config can still change before
+> version 1.0.
 
 ## Why tandem
 
-A change can touch an API, a shared library and a client at once. You switch branches in each
-repo, then wire the local copies into each build tool by hand: a `go.work` here, a Cargo
-`[patch]` there, a pnpm workspace for the client. `tdm new` does all of it in one command, and
-`tdm delete` takes it all away again. Your main clones stay where they are.
+A change often touches more than one repo: an API, a shared library and a client. Without help,
+you make the same branch in each repo, and then tell each build tool to use your local copies
+instead of the published ones: a `go.work` for Go, a `[patch]` table for Cargo, a workspace file
+for pnpm. When the feature is done, you undo all of it.
 
-|                                                         | `git worktree` by hand | [wtg](https://github.com/geoffamey/wtg) | **tandem** |
-|---------------------------------------------------------|:----:|:----:|:----:|
-| One branch across many repos, in one directory          | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| A failed step undoes the steps before it                | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| Generated `go.work`                                     | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| Cargo, pnpm, Gradle, Maven, .NET, CMake, Meson, uv, Cabal | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| Repos that are already workspaces                       | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| Plugins for other build systems, in any language        | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
-| Terminal UI                                             | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/no.svg" alt="no" width="18"> | <img src="docs/assets/yes.svg" alt="yes" width="18"> |
+With tandem, one command does all of this, and one command removes it again:
 
-tandem writes only the files it made and that nobody changed since. It does not build, install
-or lock anything, and it does not replace the package manager of a language.
+- `tdm new my-feature api shared client` makes a folder, called a space, with a git worktree of
+  each repo, all on the branch `my-feature`. Your main clones do not change.
+- In the same step, it writes the files that connect the builds, for 12 build tools.
+- `tdm delete my-feature` removes the worktrees and the files. It asks first if a repo has work
+  that is not pushed.
 
-## See it work
+tandem only writes files that it made itself and that nobody changed since. It does not build,
+install or lock anything.
 
-The real `tdm` from `main`, recorded in a terminal ([tape](docs/demo/tandem.tape), `make demo`):
+## Demo
 
 <p align="center">
   <img alt="tdm new makes a space with three repos and a go.work, then tdm ui shows the space" src="docs/demo/tandem.gif" width="100%">
 </p>
 
-### Every repo at a glance
+### See every repo at once
 
-`tdm status -l` shows the branch of each worktree, the changes, the commits that origin does not
-have, and the state of each generated file.
+`tdm status -l` shows, for each repo, the branch, the changed files and the commits that are not
+pushed. It also shows if each generated file is still as tandem wrote it.
 
 <p align="center">
-  <img alt="tdm status -l: api has one changed file, shared has one unpushed commit, go.work and package.json are generated" src="docs/demo/card-status.png" width="100%">
+  <img alt="tdm status -l: api has one changed file, shared has one commit that is not pushed, go.work and package.json are as tandem wrote them" src="docs/demo/status.gif" width="100%">
 </p>
 
-### See the plan before it is written
+### Check a change before it is written
 
-A new Go module in `client`? `tdm generate --dry-run` prints the rows and a diff of each file that
-would change, and writes nothing. Without `--dry-run`, the files follow.
+When you add a module to a repo, `tdm generate --dry-run` shows how the generated files would
+change, and writes nothing. Run it without `--dry-run` to write them.
 
 <p align="center">
-  <img alt="tdm generate --dry-run: a diff that adds ./client to go.work" src="docs/demo/card-dryrun.png" width="100%">
+  <img alt="tdm generate --dry-run: a diff that adds ./client to go.work" src="docs/demo/dryrun.gif" width="100%">
 </p>
 
-### A terminal UI in the style of lazygit
+### Interactive TUI
 
-`tdm ui` has numbered panels for the space, the spaces, the repos and the generated files, a main
-view and a command log. It runs new, add, remove, delete, generate, sync and exec. Press `?` for
-the keys. `enter` prints the path of the space, so `cd "$(tdm ui)"` goes there.
+`tdm ui` opens an interactive view, like lazygit. Panels on the left list your spaces, their
+repos and their generated files; the large panel shows the details of what you select. You can
+make, change and delete spaces, regenerate files and preview the changes from there. Press `?`
+to see all the keys. Press `enter` on a space to print its path, so `cd "$(tdm ui)"` takes you
+there.
 
 <p align="center">
-  <img alt="tdm ui: panels for status, spaces, repos and generated files, with go.work in the main view" src="docs/demo/card-tui.png" width="100%">
+  <img alt="tdm ui: moving through the spaces, repos and generated files, then a preview of a go.work change" src="docs/demo/tui.gif" width="100%">
 </p>
 
 ## Install
