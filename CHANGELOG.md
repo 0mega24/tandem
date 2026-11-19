@@ -7,6 +7,9 @@ All notable changes to this project are in this file. The format follows
 ## [Unreleased]
 
 ### Changed
+- On a terminal, the marks in the output (`✓`, `!`, `-`, `↑`, `↓`), the dry-run diff and the
+  warning and error prefixes have color, in the basic ANSI colors of the terminal theme.
+  `NO_COLOR`, `TERM=dumb`, pipes and files get plain text.
 - `tdm ui` has a lazygit-style layout: numbered Status, Spaces, Repos and Generated panels on the
   left, a main view and a command log on the right, and a key bar.
 

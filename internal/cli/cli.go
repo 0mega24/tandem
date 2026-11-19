@@ -14,6 +14,7 @@ import (
 	"github.com/0mega24/tandem/internal/gen"
 	_ "github.com/0mega24/tandem/internal/gen/all" // the built-in generators register themselves
 	"github.com/0mega24/tandem/internal/gen/external"
+	"github.com/0mega24/tandem/internal/ui"
 	"github.com/0mega24/tandem/internal/version"
 )
 
@@ -38,7 +39,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	if err := root.Run(ctx, args); err != nil {
 		if !errors.Is(err, errReported) {
 			// The exit code reports the failure; a broken stderr leaves nothing else to do.
-			_, _ = fmt.Fprintln(stderr, "tdm:", err)
+			_, _ = fmt.Fprintln(stderr, ui.Error(stderr), err)
 		}
 		return 1
 	}

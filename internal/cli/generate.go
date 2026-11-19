@@ -77,6 +77,9 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 		case gen.Delete:
 			d = ui.Diff(c.Path, c.Old, nil)
 		}
+		if ui.Color(cmd.Root().Writer) {
+			d = ui.ColorDiff(d)
+		}
 		if _, err := io.WriteString(cmd.Root().Writer, d); err != nil {
 			return err
 		}
@@ -89,13 +92,13 @@ func generate(ctx context.Context, cmd *ucli.Command) error {
 func printWarnings(cmd *ucli.Command, res space.GenerateResult) error {
 	for _, r := range res.Runs {
 		for _, w := range r.Warnings {
-			if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s: %s\n", r.ID, w); err != nil {
+			if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "%s %s: %s\n", ui.Warning(cmd.Root().ErrWriter), r.ID, w); err != nil {
 				return err
 			}
 		}
 	}
 	for _, w := range res.Warnings {
-		if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "tdm: warning: %s\n", w); err != nil {
+		if _, err := fmt.Fprintf(cmd.Root().ErrWriter, "%s %s\n", ui.Warning(cmd.Root().ErrWriter), w); err != nil {
 			return err
 		}
 	}

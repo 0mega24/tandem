@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -14,11 +15,25 @@ import (
 type Table struct {
 	w   *tabwriter.Writer
 	err error
+
+	// With color, the aligned text goes to buf first and Flush colors it on the way to out.
+	color bool
+	buf   bytes.Buffer
+	out   io.Writer
 }
 
-// NewTable returns a Table with two spaces between columns.
-func NewTable(w io.Writer) *Table {
-	return &Table{w: tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)}
+// NewTable returns a Table with two spaces between columns. It colors the marks when w is a
+// terminal (see Color).
+func NewTable(w io.Writer) *Table { return newTable(w, Color(w)) }
+
+func newTable(w io.Writer, color bool) *Table {
+	t := &Table{color: color, out: w}
+	if color {
+		t.w = tabwriter.NewWriter(&t.buf, 0, 0, 2, ' ', 0)
+	} else {
+		t.w = tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	}
+	return t
 }
 
 // Row writes one line. Trailing empty cells are left out, so a short row has no trailing spaces.
@@ -61,5 +76,15 @@ func (t *Table) Flush() error {
 	if t.err != nil {
 		return t.err
 	}
-	return t.w.Flush()
+	if err := t.w.Flush(); err != nil || !t.color {
+		return err
+	}
+	var b strings.Builder
+	for line := range strings.Lines(t.buf.String()) {
+		text := strings.TrimSuffix(line, "\n")
+		b.WriteString(colorLine(text) + line[len(text):])
+	}
+	t.buf.Reset()
+	_, err := io.WriteString(t.out, b.String())
+	return err
 }
