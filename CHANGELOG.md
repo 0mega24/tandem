@@ -6,6 +6,10 @@ All notable changes to this project are in this file. The format follows
 
 ## [Unreleased]
 
+### Changed
+- `tdm ui` has a lazygit-style layout: numbered Status, Spaces, Repos and Generated panels on the
+  left, a main view and a command log on the right, and a key bar.
+
 ### Added
 - Agent skills `tandem` and `tandem-setup`, with Claude Code and Codex plugin manifests.
 - `make newgen ID=zig MANIFEST=build.zig.zon` scaffolds a generator with six golden cases and updates the registry.

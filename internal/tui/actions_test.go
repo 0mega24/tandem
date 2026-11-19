@@ -311,3 +311,7 @@ func TestDetailsCanScrollToLastLine(t *testing.T) {
 		t.Fatal("last output line is clipped below the Details panel")
 	}
 }
+
+func (f *actionBackend) ReadGenerated(context.Context, string, string) ([]byte, error) {
+	return nil, nil
+}

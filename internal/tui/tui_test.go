@@ -59,3 +59,7 @@ func TestHelpAndPanels(t *testing.T) {
 		}
 	}
 }
+
+func (f fakeBackend) ReadGenerated(context.Context, string, string) ([]byte, error) {
+	return []byte("go 1.27\n"), nil
+}

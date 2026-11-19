@@ -33,6 +33,11 @@ type resultMsg struct {
 
 func (m model) start(op operation) (tea.Model, tea.Cmd) {
 	m.busy = true
+	label := op.kind + " " + op.name
+	if op.kind == "e" {
+		label = "exec " + op.name + ": " + op.command
+	}
+	m.log(label)
 	return m, func() tea.Msg { return m.perform(op) }
 }
 

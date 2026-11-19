@@ -4,6 +4,7 @@ package tui
 import (
 	"context"
 	"io"
+	"math/rand/v2"
 	"slices"
 	"strings"
 
@@ -11,13 +12,16 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/state"
+	"github.com/0mega24/tandem/internal/version"
 )
 
-// Backend is the part of space.Manager that the TUI uses.
+// Backend provides the shared space operations and generated-file reads for the TUI.
 type Backend interface {
 	Status(context.Context, []string, string) ([]space.SpaceStatus, error)
+	ReadGenerated(context.Context, string, string) ([]byte, error)
 	NewSpace(context.Context, space.NewOptions) (space.NewResult, error)
 	AddRepos(context.Context, string, []string) (space.NewResult, error)
 	RemoveRepos(context.Context, string, []string, space.RemoveOptions) ([]space.Removed, space.GenerateResult, error)
@@ -26,8 +30,6 @@ type Backend interface {
 	SyncRepos(context.Context, []string) ([]space.SyncResult, error)
 	Exec(context.Context, string, []string, io.Writer, io.Writer, func(state.RepoEntry)) ([]space.ExecResult, error)
 }
-
-var _ Backend = (*space.Manager)(nil)
 
 // Run returns the path chosen with enter; the caller prints it after the terminal is restored.
 func Run(ctx context.Context, b Backend, dir string, in io.Reader, out io.Writer) (string, error) {
@@ -39,26 +41,33 @@ func Run(ctx context.Context, b Backend, dir string, in io.Reader, out io.Writer
 }
 
 type model struct {
-	ctx        context.Context
-	backend    Backend
-	dir        string
-	spaces     []space.SpaceStatus
-	cursor     int
-	repoCursor int
-	panel      int
-	width      int
-	height     int
-	busy       bool
-	help       bool
-	chosen     string
-	filter     string
-	input      textinput.Model
-	prompt     string
-	newName    string
-	pending    *operation
-	risks      []space.Risk
-	logs       []string
-	details    viewport.Model
+	ctx              context.Context
+	backend          Backend
+	dir              string
+	spaces           []space.SpaceStatus
+	cursor           int
+	repoCursor       int
+	generatedCursor  int
+	outputTitle      string
+	tip              string
+	generatedContent string
+	generatedError   string
+	mainOffset       int
+	panel            int
+	width            int
+	height           int
+	busy             bool
+	help             bool
+	chosen           string
+	filter           string
+	input            textinput.Model
+	prompt           string
+	newName          string
+	pending          *operation
+	risks            []space.Risk
+	logs             []string
+	details          viewport.Model
+	version          string
 }
 
 type loadedMsg struct {
@@ -68,7 +77,9 @@ type loadedMsg struct {
 
 func newModel(ctx context.Context, b Backend, dir string) model {
 	return model{
-		ctx: ctx, backend: b, dir: dir, busy: true, width: 100, height: 28,
+		ctx: ctx, backend: b, dir: dir, version: version.Get().Version, busy: true, width: 100, height: 28, panel: 1,
+		//nolint:gosec // G404: an idle tip does not need cryptographic randomness.
+		tip:   []string{"Tip: press 1–4 to jump to a panel.", "Tip: G previews generated changes without writing.", "Tip: / filters spaces by name."}[rand.IntN(3)],
 		input: textinput.New(), details: viewport.New(viewport.WithWidth(45), viewport.WithHeight(9)),
 	}
 }
@@ -82,8 +93,9 @@ func (m model) load() tea.Msg {
 
 func (m model) visible() []space.SpaceStatus {
 	var out []space.SpaceStatus
+	filter := strings.ToLower(m.filter)
 	for _, sp := range m.spaces {
-		if strings.Contains(strings.ToLower(sp.Space.Name), strings.ToLower(m.filter)) {
+		if strings.Contains(strings.ToLower(sp.Space.Name), filter) {
 			out = append(out, sp)
 		}
 	}
@@ -117,6 +129,15 @@ func (m *model) ask(prompt string) tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case generatedMsg:
+		if sp, ok := m.selected(); ok && m.panel == 3 && m.generatedCursor < len(sp.Generated) && sp.Space.Name == msg.space && sp.Generated[m.generatedCursor].File.Path == msg.path {
+			m.generatedContent = string(msg.content)
+			m.generatedError = ""
+			if msg.err != nil {
+				m.generatedError = msg.err.Error()
+			}
+		}
+
 	case loadedMsg:
 		m.busy = false
 		if msg.err != nil {
@@ -125,7 +146,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spaces = msg.spaces
 		}
 		m.cursor = min(m.cursor, max(len(m.visible())-1, 0))
-		m.repoCursor = 0
+		m.repoCursor, m.generatedCursor = 0, 0
+		m.generatedContent, m.generatedError = "", ""
+		m.mainOffset = 0
+		return m, m.readGenerated()
 	case resultMsg:
 		m.busy = false
 		if len(msg.risks) > 0 {
@@ -137,7 +161,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.log(msg.text)
 		}
 		if msg.details != "" {
-			m.details.SetContent(msg.details)
+			m.outputTitle = "Command output"
+			if msg.op.kind == "G" {
+				m.outputTitle = "Dry-run diff"
+			}
+			m.details.SetContent(colorLines(msg.details))
 			m.details.GotoTop()
 		}
 		if msg.err != nil {
@@ -149,8 +177,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.details.SetWidth(max(10, msg.Width/2-4))
-		m.details.SetHeight(max(1, m.innerHeight()-detailsHeader))
+		m.resizeDetails()
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	}
@@ -205,24 +232,60 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k {
 	case "/":
 		return m, m.ask("filter")
-	case "tab":
-		m.panel = (m.panel + 1) % 3
+	case "1", "2", "3", "4":
+		m.panel = int(k[0] - '1')
+		m.clearDetails()
+	case "tab", "shift+tab":
+		delta := 1
+		if k == "shift+tab" {
+			delta = -1
+		}
+		m.panel = (m.panel + delta + 4) % 4
+		m.mainOffset = 0
+	case "esc":
+		m.clearDetails()
+	case ",", ".":
+		switch {
+		case m.details.GetContent() != "":
+			if k == "," {
+				m.details.PageUp()
+			} else {
+				m.details.PageDown()
+			}
+		case m.panel >= 2:
+			_, content := m.mainContent()
+			pager := m.details
+			pager.SetContent(content)
+			pager.SetYOffset(m.mainOffset)
+			if k == "," {
+				pager.PageUp()
+			} else {
+				pager.PageDown()
+			}
+			m.mainOffset = pager.YOffset()
+		default:
+			delta := max(1, m.listHeight()-2)
+			if k == "," {
+				delta = -delta
+			}
+			m.moveSelection(delta)
+		}
+
 	case "up", "k", "down", "j":
 		delta := 1
 		if k == "up" || k == "k" {
 			delta = -1
 		}
-		switch m.panel {
-		case 0:
-			m.cursor = max(0, min(m.cursor+delta, len(m.visible())-1))
-			m.repoCursor = 0
-		case 1:
-			if sp, ok := m.selected(); ok {
-				m.repoCursor = max(0, min(m.repoCursor+delta, len(sp.Repos)-1))
+		if m.details.GetContent() != "" {
+			if delta < 0 {
+				m.details.ScrollUp(1)
+			} else {
+				m.details.ScrollDown(1)
 			}
-		case 2:
-			m.details, _ = m.details.Update(msg)
+		} else {
+			m.moveSelection(delta)
 		}
+
 	case "enter":
 		if sp, ok := m.selected(); ok {
 			m.chosen = sp.Space.Path
@@ -263,13 +326,20 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.start(op)
 		}
 	}
-	return m, nil
+	switch k {
+	case "1", "2", "3", "4", "tab", "shift+tab", "up", "k", "down", "j", "esc":
+		return m, m.readGenerated()
+	default:
+		return m, nil
+	}
 }
 
 func (m model) submit() (tea.Model, tea.Cmd) {
 	value := strings.TrimSpace(m.input.Value())
 	if m.prompt == "filter" {
 		m.filter, m.prompt, m.cursor, m.repoCursor = value, "", 0, 0
+		m.generatedCursor = 0
+		m.clearDetails()
 		m.input.Blur()
 		return m, nil
 	}
@@ -321,5 +391,53 @@ func (m *model) confirm(op operation) {
 		if len(r.Status.Changed) > 0 || r.Unpushed > 0 {
 			m.risks = append(m.risks, space.Risk{Name: r.Entry.Name, Changed: len(r.Status.Changed), Unpushed: r.Unpushed})
 		}
+	}
+}
+
+func (m *model) clearDetails() {
+	m.mainOffset = 0
+	m.outputTitle = ""
+	m.generatedContent, m.generatedError = "", ""
+	m.details.SetContent("")
+	m.details.GotoTop()
+}
+
+func (m *model) moveSelection(delta int) {
+	m.mainOffset = 0
+	m.generatedContent, m.generatedError = "", ""
+	switch m.panel {
+	case 0, 1:
+		m.cursor = max(0, min(m.cursor+delta, len(m.visible())-1))
+		m.repoCursor, m.generatedCursor = 0, 0
+	case 2:
+		if sp, ok := m.selected(); ok {
+			m.repoCursor = max(0, min(m.repoCursor+delta, len(sp.Repos)-1))
+		}
+	case 3:
+		if sp, ok := m.selected(); ok {
+			m.generatedCursor = max(0, min(m.generatedCursor+delta, len(sp.Generated)-1))
+		}
+	}
+}
+
+type generatedMsg struct {
+	space   string
+	path    string
+	content []byte
+	err     error
+}
+
+func (m model) readGenerated() tea.Cmd {
+	sp, ok := m.selected()
+	if !ok || m.panel != 3 || m.generatedCursor >= len(sp.Generated) {
+		return nil
+	}
+	g := sp.Generated[m.generatedCursor]
+	if g.State == gen.Gone {
+		return nil
+	}
+	return func() tea.Msg {
+		content, err := m.backend.ReadGenerated(m.ctx, sp.Space.Name, g.File.Path)
+		return generatedMsg{space: sp.Space.Name, path: g.File.Path, content: content, err: err}
 	}
 }

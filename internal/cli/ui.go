@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	ucli "github.com/urfave/cli/v3"
 
+	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/tui"
 )
 
@@ -26,7 +28,7 @@ func uiCommand() *ucli.Command {
 				return err
 			}
 
-			path, err := tui.Run(ctx, m, dir, cmd.Root().Reader, cmd.Root().ErrWriter)
+			path, err := tui.Run(ctx, uiBackend{m}, dir, cmd.Root().Reader, cmd.Root().ErrWriter)
 			if err != nil || path == "" {
 				return err
 			}
@@ -34,4 +36,29 @@ func uiCommand() *ucli.Command {
 			return err
 		},
 	}
+}
+
+// uiBackend keeps generated-file reads out of the terminal model.
+type uiBackend struct{ *space.Manager }
+
+var _ tui.Backend = uiBackend{}
+
+func (b uiBackend) ReadGenerated(ctx context.Context, name, path string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	sp, err := b.Space(name)
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range sp.Generated {
+		if g.Path == path {
+			content, err := os.ReadFile(filepath.Join(sp.Path, filepath.FromSlash(path)))
+			if err != nil {
+				return nil, fmt.Errorf("read generated file %s: %w", path, err)
+			}
+			return content, nil
+		}
+	}
+	return nil, fmt.Errorf("generated file %s is not in space %s", path, name)
 }
