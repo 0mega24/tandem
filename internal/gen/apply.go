@@ -111,11 +111,26 @@ func Prepare(root string, owned []Owned, plans map[string]Plan, members []string
 	}
 	slices.Sort(ids)
 
+	// A stale path must not be a generated file: that file has its own ownership check, which a
+	// stale delete would skip.
+	generated := map[string]bool{}
+	for _, id := range ids {
+		for _, f := range plans[id].Files {
+			generated[f.Path] = true
+		}
+	}
+	for p := range byPath {
+		generated[p] = true
+	}
+
 	planned := map[string]bool{}
 	for _, id := range ids {
 		for _, s := range plans[id].Stale {
 			if err := CheckPath(root, s, members); err != nil {
 				return Applied{}, fmt.Errorf("generator %s: stale %w", id, err)
+			}
+			if generated[s] {
+				return Applied{}, fmt.Errorf("generator %s: stale %s is a generated file", id, s)
 			}
 		}
 		for _, f := range plans[id].Files {
