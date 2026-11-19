@@ -7,6 +7,11 @@ All notable changes to this project are in this file. The format follows
 ## [Unreleased]
 
 ### Changed
+- `tdm config init` writes every setting with its default (discovery, spaces, git, always,
+  generate, plugin_dirs), and no "do not edit" line.
+- `tdm new`, `add`, `remove` and `generate` print no row for a generator that found no members.
+- Every warning starts with `tdm: warning:`.
+- `tdm ui` shows the branch of a space only when its name differs from the space name.
 - On a terminal, the marks in the output (`✓`, `!`, `-`, `↑`, `↓`), the dry-run diff and the
   warning and error prefixes have color, in the basic ANSI colors of the terminal theme.
   `NO_COLOR`, `TERM=dumb`, pipes and files get plain text.

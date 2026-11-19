@@ -1,7 +1,8 @@
-# config init writes the user file with a #:schema line and the generator settings as comments.
+# config init writes the user file with a #:schema line and every setting, with its default, as a comment.
 exec tdm config init
 stdout ^$WORK/home/.config/tandem/config.toml$
 grep '^#:schema https://.*/schema/config.schema.json$' home/.config/tandem/config.toml
+grep '^# \[discovery\]$' home/.config/tandem/config.toml
 grep '^# \[generate\]$' home/.config/tandem/config.toml
 grep '^# enabled = \[.*"go".*\]$' home/.config/tandem/config.toml
 
