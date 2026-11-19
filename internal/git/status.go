@@ -83,13 +83,19 @@ func entryPath(f string) (path string, extra int, err error) {
 
 // Unpushed counts the commits on branch that origin does not have. It is 0 for a repo with no
 // origin: there is nowhere to push, and a count of all commits would look like local work.
+// An empty branch means the detached HEAD of the worktree repo: its commits that no local branch
+// and no origin branch has, which a worktree removal would lose.
 func (s System) Unpushed(ctx context.Context, repo, branch string) (int, error) {
 	url, err := s.OriginURL(ctx, repo)
 	if err != nil || url == "" {
 		return 0, err
 	}
 
-	out, err := s.line(ctx, repo, "rev-list", "--count", "refs/heads/"+branch, "--not", "--remotes=origin")
+	args := []string{"rev-list", "--count", "refs/heads/" + branch, "--not", "--remotes=origin"}
+	if branch == "" {
+		args = []string{"rev-list", "--count", "HEAD", "--not", "--branches", "--remotes=origin"}
+	}
+	out, err := s.line(ctx, repo, args...)
 	if err != nil {
 		return 0, err
 	}

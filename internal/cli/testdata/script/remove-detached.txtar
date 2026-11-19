@@ -1,0 +1,10 @@
+# A commit on a detached HEAD is on no branch: removing the worktree would lose it, so remove asks.
+mkrepo api web
+exec tdm new feat api web
+exec git -C $HOME/workspaces/feat/api push -q -u origin feat
+exec git -C $HOME/workspaces/feat/api checkout -q --detach
+exec git -C $HOME/workspaces/feat/api commit -q --allow-empty -m 'detached work'
+! exec tdm remove feat api
+stderr 'api'
+stderr 'not pushed|origin does not have'
+exists $HOME/workspaces/feat/api
