@@ -35,7 +35,8 @@ PREFIX   ?= $(HOME)/.local
 DESTDIR  ?=
 
 # ---- Version (from git; overridable: make VERSION=1.2.3 build) ---------------
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# No leading v, as in the goreleaser and Nix builds: tag v0.1.0 is version 0.1.0.
+VERSION ?= $(patsubst v%,%,$(shell git describe --tags --always --dirty 2>/dev/null || echo dev))
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 

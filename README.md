@@ -276,7 +276,7 @@ Two skills teach coding agents to use tandem: `tandem` (work in a space) and `ta
 
 ```sh
 claude plugin marketplace add 0mega24/tandem && claude plugin install tandem@tandem
-codex plugin marketplace add 0mega24/tandem
+codex plugin marketplace add 0mega24/tandem && codex plugin add tandem@tandem
 ```
 
 ## Contributing
