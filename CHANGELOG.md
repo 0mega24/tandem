@@ -6,6 +6,9 @@ All notable changes to this project are in this file. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `make build` and `make install` print the version without a leading `v`, as the release builds do.
+
 ## [0.1.0] - 2026-11-18
 
 ### Changed
