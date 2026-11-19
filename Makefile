@@ -227,11 +227,10 @@ nix-vendor-hash: ## Print the steps to get the new vendorHash after go.mod chang
 ##@ Docs
 .PHONY: demo
 # The build uses the release version from internal/version/VERSION, so no git hash shows.
-demo: ## Record docs/demo/tandem.gif and the README card screenshots (vhs from nixpkgs)
+demo: ## Record docs/demo/tandem.gif and the README feature gifs (vhs from nixpkgs)
 	$(MAKE) build VERSION="$$(cat internal/version/VERSION)"
 	PATH="$(CURDIR)/$(BIN_DIR):$$PATH" FONTCONFIG_FILE="$(CURDIR)/docs/demo/fonts.conf" \
-	  nix shell nixpkgs#vhs nixpkgs#zsh -c sh -c 'vhs docs/demo/tandem.tape && vhs docs/demo/cards.tape'
-	rm -f docs/demo/cards.gif
+	  nix shell nixpkgs#vhs nixpkgs#zsh -c sh -c 'for t in tandem status dryrun tui; do vhs docs/demo/$$t.tape || exit 1; done'
 	rm -rf /tmp/tandem-demo
 
 ##@ Release
