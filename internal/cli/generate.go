@@ -147,7 +147,7 @@ func listGenerators(cmd *ucli.Command) error {
 	for _, g := range gen.All() {
 		if p, ok := g.(external.Plugin); ok {
 			if err := p.Load(); err != nil {
-				if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, "warning:", err); werr != nil {
+				if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, ui.Warning(cmd.Root().ErrWriter), err); werr != nil {
 					return werr
 				}
 			}

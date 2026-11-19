@@ -34,7 +34,7 @@ stderr 'supported versions: 1'
 cp collision $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
 exec chmod +x $XDG_DATA_HOME/tandem/plugins/tdm-gen-go
 exec tdm generate --list
-stderr 'warning: plugin .*tdm-gen-go: the ID "go" is a built-in generator'
+stderr '^tdm: warning: plugin .*tdm-gen-go: the ID "go" is a built-in generator'
 stdout '^go +on +Go +go.mod +built-in$'
 ! stderr 'panic'
 

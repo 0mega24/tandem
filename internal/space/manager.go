@@ -8,6 +8,7 @@ import (
 	"github.com/0mega24/tandem/internal/config"
 	"github.com/0mega24/tandem/internal/git"
 	"github.com/0mega24/tandem/internal/state"
+	"github.com/0mega24/tandem/internal/ui"
 )
 
 // Manager runs the operations with one config, one git and one state store.
@@ -30,7 +31,7 @@ func (m *Manager) SetOutput(w io.Writer) { m.out = w }
 // warn reports a problem that does not stop the operation.
 func (m *Manager) warn(format string, args ...any) {
 	if m.out != nil {
-		_, _ = fmt.Fprintf(m.out, "tdm: warning: "+format+"\n", args...) // there is no other place to report it
+		_, _ = fmt.Fprintf(m.out, ui.Warning(m.out)+" "+format+"\n", args...) // there is no other place to report it
 	}
 }
 

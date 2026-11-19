@@ -12,6 +12,7 @@ import (
 	"github.com/0mega24/tandem/internal/config"
 	"github.com/0mega24/tandem/internal/gen"
 	"github.com/0mega24/tandem/internal/gen/external"
+	"github.com/0mega24/tandem/internal/ui"
 )
 
 // loadGenerators registers plugins before checking enabled IDs and generator tables.
@@ -29,7 +30,7 @@ func loadGenerators(cmd *ucli.Command) (config.Loaded, config.Env, error) {
 		return loaded, env, err
 	}
 	for _, err := range broken {
-		if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, "warning:", err); werr != nil {
+		if _, werr := fmt.Fprintln(cmd.Root().ErrWriter, ui.Warning(cmd.Root().ErrWriter), err); werr != nil {
 			return loaded, env, werr
 		}
 	}
