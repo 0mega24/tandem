@@ -199,6 +199,9 @@ tdm delete -d my-feature              # remove worktrees and merged space branch
 A new branch starts from the local default branch, so run `tdm repo sync` first. An existing
 branch is checked out as it is. `--branch NAME` and `--path DIR` change the branch and directory.
 
+For scripts and AI agents, add `--json` to a command to get its result as one JSON object, for
+example `tdm --json status my-feature`. The format is in [docs/json.md](docs/json.md).
+
 ## Generators
 
 A space is a folder with a worktree for each selected repo. Each generator reads build files

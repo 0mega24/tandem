@@ -13,6 +13,7 @@ The worktrees share git branches and objects with the main clones. Worktree edit
 
 - Run `tdm` in a shell. Do not run `tdm ui`: it is a terminal UI for people.
 - Work in the worktrees of the space, not in the main clones.
+- Use `tdm --json <command>` when you need to read a result: one JSON object on stdout, errors as `{"error": ...}` on stderr. The format is in docs/json.md.
 - Run `tdm status` before you remove or delete. Commit and push first when a repo has work that origin does not have.
 - `tdm remove` and `tdm delete` ask before they remove changed or unpushed work. Without a
   terminal, they refuse that removal; clean worktrees can still be removed. Do not pipe `yes`.
