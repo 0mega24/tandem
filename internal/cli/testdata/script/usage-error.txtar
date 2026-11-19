@@ -1,0 +1,5 @@
+# A usage error goes to stderr with the help, so stdout stays clean for a script.
+! exec tdm status --bogus
+! stdout .
+stderr 'Incorrect Usage: flag provided but not defined: -bogus'
+stderr 'tdm status'

@@ -60,6 +60,10 @@ func (m *Manager) heal(ctx context.Context, sp state.Space) (state.Space, bool, 
 		}
 		listed := slices.ContainsFunc(trees, func(t git.Worktree) bool { return resolve(t.Path) == resolve(e.WorktreePath) })
 		_, statErr := os.Stat(e.WorktreePath)
+		if statErr != nil && !errors.Is(statErr, fs.ErrNotExist) {
+			// Only a worktree that is surely gone leaves the space; tdm cannot tell for this one.
+			return sp, false, fmt.Errorf("%s: %w", e.Name, statErr)
+		}
 		exists := statErr == nil
 
 		switch {

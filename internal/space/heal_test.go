@@ -86,3 +86,28 @@ func TestHealRepairs(t *testing.T) {
 		t.Errorf("err = %v, want ErrRepairUnsupported with the way out", err)
 	}
 }
+
+// A worktree that tdm cannot stat (no permission) may still be there: heal keeps it in the space.
+func TestHealKeepsWorktreeOnStatError(t *testing.T) {
+	f := newFixture(t, "api", "web")
+	newSpaceFor(t, f, "api", "web")
+	var out bytes.Buffer
+	f.m.SetOutput(&out)
+
+	root := filepath.Join(f.dir, "spaces", "feat")
+	if err := os.Chmod(root, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
+
+	_, _ = f.m.Status(context.Background(), []string{"feat"}, f.dir)
+	if err := os.Chmod(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "is gone") {
+		t.Errorf("warnings = %q, want no worktree marked gone", out.String())
+	}
+	if sp, err := f.m.Space("feat"); err != nil || len(sp.Repos) != 2 {
+		t.Errorf("state = %+v, %v; want both repos kept", sp.Repos, err)
+	}
+}

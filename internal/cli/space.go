@@ -427,7 +427,8 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 	})
 
 	if cmd.Bool("json") {
-		if err != nil && res.Space.Name == "" { // nothing was done: the error alone is the result
+		// Nothing was done: the error alone is the result.
+		if err != nil && (res.Space.Name == "" || errors.Is(err, space.ErrDeclined)) {
 			return err
 		}
 		out := deleteOutput{

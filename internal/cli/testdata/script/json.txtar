@@ -72,6 +72,11 @@ exec tdm --json generate --list
 stdout '"default_on": true'
 jsonvalid
 # Dirty worktrees retain the existing confirmation on stdin.
+# A no deletes nothing, so only the error is printed.
+stdin no
+! exec tdm --json delete feat
+! stdout .
+stderr '"error": "nothing removed"'
 stdin yes
 exec tdm --json remove feat api
 stdout '"action": "delete"'
@@ -158,6 +163,8 @@ module example.com/web
 go 1.23
 -- edited --
 edited
+-- no --
+n
 -- yes --
 yes
 -- plugin --

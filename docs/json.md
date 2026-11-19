@@ -123,7 +123,8 @@ branch. Paths and origin URLs are included with or without `-l`.
 Key: `repos`. Each item has `name`, `path`, `branch`, `outcome`, and optional
 `error`. Outcomes are `up_to_date`, `updated`, `skipped_dirty`,
 `skipped_checked_out`, or `failed`. A skip does not fail the command. A
-`skipped_checked_out` row can have an error string that explains the skip.
+`skipped_checked_out` row can have an error string that explains the skip. A
+`skipped_dirty` row can have an empty `branch`: tdm skips the repo before it reads the branch.
 
 ```json
 {
@@ -242,7 +243,8 @@ source, so they stay: `name`, `source`), `generated` (file changes), and
 ## generate
 
 Keys: `space`, `dry_run`, `runs`, `changes`, `warnings`.
-Each run has `id`, `members` (detected member names), and `warnings`.
+Each run has `id`, `members` (detected member names), and `warnings`. Every enabled
+generator has a run, also with `members: []`; the text output shows only runs with members.
 Each change has `generator`, `path`, `action` (`write`, `unchanged`, `skip`, or
 `delete`), `reason`, and optional `target` for a link. `warnings` at the top
 contains result warnings plus each run warning prefixed with its generator ID.

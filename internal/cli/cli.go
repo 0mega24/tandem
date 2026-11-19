@@ -121,6 +121,8 @@ func jsonUsageErrors(cmd *ucli.Command, jsonMode bool) {
 		if jsonMode || current.Bool("json") {
 			return err
 		}
+		// The help goes to stderr too: the command failed, and stdout is only for results.
+		current.Root().Writer = current.Root().ErrWriter
 		if _, writeErr := fmt.Fprintf(current.Root().ErrWriter, "Incorrect Usage: %s\n\n", err); writeErr != nil {
 			return errors.Join(err, writeErr)
 		}
