@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/0mega24/tandem/internal/saga"
 	"github.com/0mega24/tandem/internal/state"
@@ -96,12 +97,18 @@ func secretsOf(repo string, secrets []string) ([]string, error) {
 
 // secretsStep copies the secrets from the main clone into its new worktree, over a file that
 // the branch has. It has no undo: the undo of the worktree step removes the worktree with them.
-func secretsStep(p planned) saga.Step {
+// A secret whose path in the worktree goes through a symlink is skipped with a warning: the
+// branch can track a link to a file outside the worktree, and the copy would overwrite it.
+func secretsStep(p planned, warn func(format string, args ...any)) saga.Step {
 	e := p.entry
 	return saga.Step{
 		Name: "secrets " + e.Name,
 		Do: func(context.Context) error {
 			for _, s := range p.secrets {
+				if linked(e.WorktreePath, s) {
+					warn("%s: %s is a symlink in the worktree, so the secret is not copied", e.Name, s)
+					continue
+				}
 				if err := copyFile(filepath.Join(e.RepoPath, s), filepath.Join(e.WorktreePath, s)); err != nil {
 					return err
 				}
@@ -137,6 +144,22 @@ func fileStep(root, src string) saga.Step {
 		Do:   func(context.Context) error { return copyFile(src, dst) },
 		Undo: func(context.Context) error { return os.Remove(dst) },
 	}
+}
+
+// linked reports whether rel, or a directory on the way to it, is a symlink under root.
+func linked(root, rel string) bool {
+	p := root
+	for part := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(rel)), "/") {
+		p = filepath.Join(p, part)
+		fi, err := os.Lstat(p)
+		if err != nil {
+			return false // the rest does not exist yet: copyFile makes it
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // copyFile copies src to dst with the permissions of src, so a secret that only its owner may
