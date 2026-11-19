@@ -20,6 +20,22 @@ All notable changes to this project are in this file. The format follows
 - `tdm ui` has a lazygit-style layout: numbered Status, Spaces, Repos and Generated panels on the
   left, a main view and a command log on the right, and a key bar.
 
+### Fixed
+- `always.secrets` are not copied through a symlink in the worktree, so a secret cannot land
+  outside the space.
+- `tdm remove` and `tdm delete` count commits on a detached HEAD as unpushed work and ask first.
+- `tdm delete` keeps an `always.files` copy that is not the same as its source, and lists it.
+- A generator cannot name one of its generated files as a stale file to delete.
+- A write, backup or restore of a generated file keeps the file mode.
+- Two tdm commands cannot change the same space at the same time: each takes a lock per space.
+- A worktree that tdm cannot stat (for example, no permission) stays in the space; tdm reports
+  the error and does not drop it.
+- `tdm delete` no longer suggests `--force` for a generated file that a person changed.
+- `tdm --json delete` prints no result object when the answer to the question is no.
+- A usage error prints the help on stderr, not stdout.
+- `tdm ui` without a terminal gives an error and does not wait for ever.
+- `tdm config` with an unknown argument is an error.
+
 ### Added
 - Global `--json` output for command results and errors; see `docs/json.md` for the public format.
 - Agent skills `tandem` and `tandem-setup`, with Claude Code and Codex plugin manifests.
