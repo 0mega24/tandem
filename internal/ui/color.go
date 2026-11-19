@@ -25,8 +25,13 @@ var markCell = regexp.MustCompile(`(^|  )((?:[✓!-] |[↑↓]\d)(?:[^ ]| [^ ])*
 // Color reports whether to color output to w: w is a terminal, NO_COLOR is not set and TERM is
 // not dumb. Pipes, files and test buffers get plain text.
 func Color(w io.Writer) bool {
-	f, ok := w.(*os.File)
-	if !ok || !colorEnv() {
+	return colorEnv() && Terminal(w)
+}
+
+// Terminal reports whether v is a file on a terminal (an *os.File that is a char device).
+func Terminal(v any) bool {
+	f, ok := v.(*os.File)
+	if !ok {
 		return false
 	}
 	fi, err := f.Stat()

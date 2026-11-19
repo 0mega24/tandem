@@ -148,5 +148,11 @@ func (m *Manager) deleteGenerated(ctx context.Context, sp state.Space) []gen.Cha
 	for _, w := range a.Warnings() {
 		m.warn("space %s: %s", sp.Name, w)
 	}
+	// The reasons of gen name generate --force, which cannot help once the space is gone.
+	for i, c := range a.Changes {
+		if c.Action == gen.Skip {
+			a.Changes[i].Reason = "changed by a person; delete it by hand"
+		}
+	}
 	return a.Changes
 }

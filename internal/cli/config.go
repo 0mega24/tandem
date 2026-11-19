@@ -18,6 +18,9 @@ func configCommand() *ucli.Command {
 		Name:  "config",
 		Usage: "Print the config files that tdm reads, in order (a later file overrides an earlier one)",
 		Action: func(_ context.Context, cmd *ucli.Command) error {
+			if cmd.Args().Present() {
+				return fmt.Errorf("unknown command %q: use tdm config, tdm config init or tdm config path", cmd.Args().First())
+			}
 			env, err := config.EnvFromOS()
 			if err != nil {
 				return err

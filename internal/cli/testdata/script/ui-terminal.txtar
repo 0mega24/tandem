@@ -1,0 +1,4 @@
+# The terminal UI needs a terminal for its keys and its view; a pipe gets a clear error.
+! exec tdm ui
+! stdout .
+stderr '^tdm: tdm ui needs a terminal$'

@@ -1,0 +1,4 @@
+# config takes no arguments: a typo of a subcommand is an error, not the config list.
+! exec tdm config bogus
+! stdout .
+stderr 'unknown command "bogus"'

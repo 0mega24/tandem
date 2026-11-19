@@ -11,6 +11,7 @@ import (
 
 	"github.com/0mega24/tandem/internal/space"
 	"github.com/0mega24/tandem/internal/tui"
+	"github.com/0mega24/tandem/internal/ui"
 )
 
 func uiCommand() *ucli.Command {
@@ -22,6 +23,10 @@ func uiCommand() *ucli.Command {
 		Action: func(ctx context.Context, cmd *ucli.Command) error {
 			if cmd.Bool("json") {
 				return errors.New("--json is not supported by ui")
+			}
+			// Without a terminal the view has no keys to read and would wait for ever.
+			if !ui.Terminal(cmd.Root().Reader) || !ui.Terminal(cmd.Root().ErrWriter) {
+				return errors.New("tdm ui needs a terminal")
 			}
 			m, err := newManager(cmd)
 			if err != nil {
