@@ -1,0 +1,27 @@
+# delete removes an always.files copy only when it is still the same as its source: a file that a
+# person wrote or changed in the space root stays.
+mkrepo api
+mkdir $HOME/notes
+cp notes.md $HOME/notes/AGENTS.md
+exec tdm new feat api
+cp mine.md $HOME/workspaces/feat/AGENTS.md
+mkdir $HOME/.config/tandem
+cp config.toml $HOME/.config/tandem/config.toml
+exec tdm delete feat
+stdout '^AGENTS.md +! kept: not the same as .*/notes/AGENTS.md'
+cmp $HOME/workspaces/feat/AGENTS.md mine.md
+
+# An unchanged copy goes.
+exec tdm new two api
+exists $HOME/workspaces/two/AGENTS.md
+exec tdm delete two
+stdout '^AGENTS.md +✓ removed$'
+! exists $HOME/workspaces/two
+
+-- notes.md --
+# notes
+-- mine.md --
+# my own notes
+-- config.toml --
+[always]
+files = ["~/notes/AGENTS.md"]

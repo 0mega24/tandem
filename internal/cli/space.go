@@ -434,6 +434,7 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 			Space:     jsonSpace(res.Space),
 			Repos:     jsonRemoved(res.Repos, force || cmd.Bool("delete-branch")),
 			Files:     append([]string{}, res.Files...),
+			KeptFiles: jsonKept(res.KeptFiles),
 			Generated: jsonChanges(res.Generated, false),
 			KeptDir:   res.KeptDir,
 		}
@@ -444,6 +445,9 @@ func deleteSpace(ctx context.Context, cmd *ucli.Command) error {
 	removedRows(t, res.Repos, force || cmd.Bool("delete-branch"))
 	for _, f := range res.Files {
 		t.Row(f, "✓ removed")
+	}
+	for _, k := range res.KeptFiles {
+		t.Row(k.Name, "! kept: not the same as "+k.Source)
 	}
 	for _, c := range res.Generated {
 		switch c.Action {
