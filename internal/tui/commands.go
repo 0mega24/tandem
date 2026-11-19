@@ -116,13 +116,19 @@ func (m model) perform(op operation) resultMsg {
 func generatedText(res space.GenerateResult, dry bool) string {
 	var out strings.Builder
 	for _, r := range res.Runs {
-		fmt.Fprintf(&out, "%s: %s\n", r.ID, strings.Join(r.Members, ", "))
+		if len(r.Members) > 0 { // most generators of a space find nothing; skip them, as the CLI does
+			fmt.Fprintf(&out, "%s: %s\n", r.ID, strings.Join(r.Members, ", "))
+		}
 		for _, w := range r.Warnings {
 			fmt.Fprintf(&out, "warning: %s\n", w)
 		}
 	}
 	for _, c := range res.Changes {
-		fmt.Fprintf(&out, "%s %s: %s\n", c.Action, c.Path, c.Reason)
+		if c.Reason == "" {
+			fmt.Fprintf(&out, "%s %s\n", c.Action, c.Path)
+		} else {
+			fmt.Fprintf(&out, "%s %s: %s\n", c.Action, c.Path, c.Reason)
+		}
 		if dry {
 			switch c.Action {
 			case gen.Write:

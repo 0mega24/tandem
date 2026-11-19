@@ -173,3 +173,28 @@ func TestGeneratedFilePaging(t *testing.T) {
 		t.Fatal("generated content did not page back")
 	}
 }
+
+func TestSpaceTitle(t *testing.T) {
+	same := space.SpaceStatus{Space: state.Space{Name: "feat", Branch: "feat"}}
+	if got := spaceTitle(same); got != "feat" {
+		t.Errorf("same name and branch: %q, want %q", got, "feat")
+	}
+	other := space.SpaceStatus{Space: state.Space{Name: "feature", Branch: "feat/search"}}
+	if got := spaceTitle(other); got != "feature → feat/search" {
+		t.Errorf("other branch: %q", got)
+	}
+}
+
+func TestGeneratedTextSkipsEmptyRuns(t *testing.T) {
+	res := space.GenerateResult{
+		Runs: []space.GeneratorRun{{ID: "cabal"}, {ID: "go", Members: []string{"api", "lib"}}},
+		Changes: []gen.Change{
+			{Generator: "go", Path: "go.work", Action: gen.Unchanged},
+			{Generator: "go", Path: "go.mod.tmp", Action: gen.Skip, Reason: "changed by a person"},
+		},
+	}
+	want := "go: api, lib\nunchanged go.work\nskip go.mod.tmp: changed by a person\n"
+	if got := generatedText(res, false); got != want {
+		t.Errorf("generatedText =\n%q\nwant\n%q", got, want)
+	}
+}

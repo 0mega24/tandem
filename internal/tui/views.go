@@ -87,7 +87,7 @@ func (m model) sidePanels() string {
 	status := "no space"
 	var repos, generated []string
 	if sp, ok := m.selected(); ok {
-		status = sp.Space.Name + " → " + sp.Space.Branch
+		status = spaceTitle(sp)
 		for _, r := range sp.Repos {
 			branch := r.Status.Branch
 			mark := "✓"
@@ -189,7 +189,7 @@ func (m model) mainContent() (string, string) {
 		}
 		return g.File.Path, content
 	}
-	return "Space summary", fmt.Sprintf("%s → %s\n\n%s\n\n%d repos\n%d generated files\n\n3: inspect repos  4: inspect generated files\ng: generate  G: preview changes", sp.Space.Name, sp.Space.Branch, sp.Space.Path, len(sp.Repos), len(sp.Generated))
+	return "Space summary", fmt.Sprintf("%s\n\n%s\n\n%d repos\n%d generated files\n\n3: inspect repos  4: inspect generated files\ng: generate  G: preview changes", spaceTitle(sp), sp.Space.Path, len(sp.Repos), len(sp.Generated))
 }
 
 func colorLines(content string) string {
@@ -279,4 +279,12 @@ func (m model) confirmationView() string {
 	}
 	out.WriteString("y: yes  n/esc: no\n")
 	return out.String()
+}
+
+// spaceTitle names a space, with its branch when the branch has another name.
+func spaceTitle(sp space.SpaceStatus) string {
+	if sp.Space.Branch == "" || sp.Space.Branch == sp.Space.Name {
+		return sp.Space.Name
+	}
+	return sp.Space.Name + " → " + sp.Space.Branch
 }
