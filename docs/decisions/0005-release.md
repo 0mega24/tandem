@@ -14,7 +14,8 @@ People also want distro packages, not only archives.
   bash, zsh and fish completions and the license, and depend on git.
 - `.github/workflows/release.yml` runs `make check`, then `make release`. The release is a draft:
   a person reads the notes and the files, then publishes it.
-- No AppImage yet. A bundler from outside nixpkgs needs the owner's OK first.
+- No AppImage. The binary is static (CGO_ENABLED=0), so the tarball already runs on any Linux;
+  nixpkgs has no appimagetool, and a bundler from outside nixpkgs is more to maintain.
 
 ## Consequences
 
