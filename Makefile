@@ -11,8 +11,9 @@ MAKEFLAGS     += --warn-undefined-variables --no-builtin-rules --no-print-direct
 .SUFFIXES:
 
 # Every build and test runs at low CPU and IO priority, so the desktop stays usable while
-# worktrees build. LOWPRIO=0 turns it off (benchmarks).
-LOWPRIO ?= 1
+# worktrees build. LOWPRIO=0 turns it off (benchmarks). demo is off by default: vhs takes a
+# screenshot per frame, and at low priority it drops frames, so the gifs play too fast.
+LOWPRIO ?= $(if $(filter demo,$(MAKECMDGOALS)),0,1)
 ifeq ($(LOWPRIO),1)
 $(shell renice -n 19 -p $$PPID >/dev/null 2>&1; ionice -c 3 -p $$PPID >/dev/null 2>&1)
 endif
